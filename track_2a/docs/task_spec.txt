@@ -1,0 +1,340 @@
+HackApertus · Track 2A
+OST - Ostschweizer Fachhochschule, Campus Rapperswil
+Multilingual Natural Language
+Inference over Swiss Official
+Voting Booklets
+Mitra Purandare, Abinas Kuganathan
+
+
+OST - Ostschweizer Fachhochschule, Campus Rapperswil
+HackApertus · Track 2A
+
+AI Applications & Deployment Lab @ OST
+
+      Prof. Dr. Mitra Purandare                                          The question we care about:
+      Professor of AI Applications                                       How do we turn AI into something that actually works in
+      and Deployment                                                     practice?
+      Abinas Kuganathan
+      MSE Data Science, Scientific Assistant                             MODEL        →        SYSTEM         →        WORKFLOW           →       IMPACT
+
+      We work on taking AI from models into real industrial workflows.
+                                                                         “AI is the new electricity — but we still have to wire it correctly. ”
+  HackApertus · Track 2A
+
+  AIDL@OST
+  Our Lab Page
+
+
+From experimentation and fine-tuning to inference, local AI and deployment.
+1. The Challenge
+Document + Claim → Entailment / Neutral / Contradiction
+1. The Challenge
+
+Abstimmungsbüchlein: Cover
+1. The Challenge
+
+Abstimmungsbüchlein: Short Summary
+1. The Challenge
+
+Abstimmungsbüchlein: Arguments of the referendum
+committee
+1. The Challenge
+
+Why Swiss Voting Booklets Make a Great AI Challenge
+Switzerland asks citizens to decide on complex proposals several times a year.
+
+  1 · DIRECT DEMOCRACY                                           2 · OFFICIAL VOTING BOOKLET                                                    3 · CAMPAIGN CLAIMS
+
+  Complex decisions                                              An authoritative reference                                                     Verification is hard
+  Legal, social and financial questions must be understood
+                                                             →   Proposal + background · supporter/opponent arguments · Federal Council &
+                                                                                                                                            →   Relevant evidence can be distributed, qualified, negated,
+  by ordinary voters.                                            Parliament positions · legal/financial detail · dates and numbers              structured in tables, or expressed in another language.
+
+
+
+
+ CHALLENGE     Can Apertus reliably verify multilingual claims against the official document — and show the evidence?
+1. The Challenge
+
+Natural Language Inference (NLI)
+
+  Premise / Reference
+  “A man in a blue jacket is riding a bicycle down a city street.”
+
+
+
+  0 — Entailment                                       1 — Neutral                            2 — Contradiction
+  HYPOTHESIS                                           HYPOTHESIS                             HYPOTHESIS
+
+  “A person is riding a bicycle.”                      “The cyclist is on his way to work.”   “Nobody is riding a bicycle.”
+
+                                                            ? We do not know                      ✗ Cannot be true
+       ✓ Must be true
+                                                       The premise neither supports nor       The premise directly conflicts with the
+  The premise directly supports the claim.             contradicts the claim.                 claim.
+1. The Challenge
+
+The Challenge in One Sentence
+
+                 official voting booklet   +    natural-language claim         →     Apertus   →    NLI label
+
+
+            0 — Entailment                               1 — Neutral                            2 — Contradiction
+      The booklet supports the claim.          The booklet does not provide enough         The booklet contradicts the claim.
+
+                                                     information either way.
+
+
+
+                          Also return the passage(s) that justify the classification.
+1. The Challenge
+
+This Is NLI — Not “Truth in the World”
+ ASK                                                  DO NOT ASK
+
+   Does the booklet support, contradict, or fail to    Is the claim objectively true according to every
+   address this claim?                                 possible external source?
+
+
+
+    The reference point is always the supplied document.
+1. The Challenge
+
+Why This Is Hard
+Long + structured documents   Relevant information may live in sections, tables, legal or financial detail.
+
+Qualifications + negation     Small wording differences can change the inference relation.
+
+Distributed evidence          Multiple passages may be needed for one classification.
+
+Multilinguality               German, French and Italian, including cross-lingual claim/booklet pairs.
+1. The Challenge
+
+Start Simple: Full-Document Baseline
+
+                         complete booklet   →   Apertus   →    NLI label + evidence
+
+
+ WHY IT IS USEFUL                                     WHY IMPROVE IT?
+   • simple                                               • long context
+
+   • reproducible                                         • more input tokens
+   • no retrieval miss by construction                    • potentially slower inference
+1. The Challenge
+
+Then Ask: How Much Context Do We Really Need?
+A · FULL DOCUMENT
+
+                                   booklet   →    Apertus    →     classification
+
+
+B · SELECTED CONTEXT
+
+             booklet   →    processing / retrieval / compression    →    Apertus    →   classification
+
+
+  Research question: reduce supplied context while maintaining reliable NLI.
+1. The Challenge
+
+The Technical Approach Is Deliberately Open
+
+                      parse / extract     →      select context         →      Apertus NLI      →         evidence + metrics
+
+
+Document processing             PDF extraction, layout-aware parsing, OCR, Docling or other approaches.
+
+Context preparation             RAG, retrieval, chunking, compression or other filtering.
+
+Inference                       Apertus v1.5 as the primary model.
+
+
+
+                      No specific document-processing or RAG architecture is mandatory.
+1. The Challenge
+
+Multilingual by Design
+
+                                         Deutsch        Français   Italiano
+
+
+  Cross-lingual pairs are allowed: the booklet and claim may be in different languages.
+
+
+                                  French booklet    +     German claim    →    NLI
+
+
+           Your solution must support all combinations of German, French and Italian.
+2. Data
+Measure NLI quality, evidence quality and efficiency
+2. Data
+
+What Data Do You Get?
+Documents            Official Swiss federal voting booklets as PDFs.
+
+Benchmark pairs      Document–claim pairs as well as reference_string-claim pairs with annotated NLI labels.
+
+Evidence             Exact supporting paragraph where applicable.
+
+Languages            German, French and Italian — including cross-lingual pairs.
+
+
+
+  The corpus contains proposal descriptions, arguments, recommendations, legal/financial detail, dates, numbers
+  and other structured or unstructured information.
+2. Data
+
+What Should the Application Return?
+
+                                           booklet       +    claim     →      application
+
+
+Classification   0 Entailment · 1 Neutral · 2 Contradiction
+
+Evidence         Relevant passage(s), including multiple passages when necessary.
+
+Efficiency       Input/context token usage and inference time.
+
+Interface        CLI for generating entailment predictions.
+2. Data
+
+Resources & Logistics
+Challenge dataset   huggingface.co/datasets/OSTswiss/MNLIoverSwissVotingBooklets
+
+Voting booklets     Swiss Federal Chancellery collection
+
+Repo template       github.com/HackApertus/project-template
+
+Model               Apertus v1.5, 8B and 70B models, backed by CSCS and Phoeniqs
+
+Info session        02 Oct · 13:30–14:15 CEST
+
+Q&A                 08 Oct · 12:00–12:30 CEST
+2. Data
+
+Two Tasks
+3. CLI
+Input-Output Formats
+3. CLI
+
+Two Input Formats
+ ADVANCED TASK                                                                                                  BEGINNER TASK
+    {                                                                                                            {
+        "id": "case-0042",                                                                                           "id": "case-0043",
+        "booklet": {                                                                                                 "reference": {
+            "path": "booklets/2024_11_24_de.pdf"                                                                         "text": "Der Bundesrat und der Nationalrat lehnen die
+        },                                                                                                       Volksinitiative ab. Die Initiative bringt zahlreiche neue
+        "vote": "Étape d'aménagement 2023 des routes nationales",                                                Vorschriften mit sich."
+        "claim": {                                                                                                   },
+            "text": "La proposition entraînera une augmentation de la TVA."                                          "claim": {
+        }                                                                                                                "text": "Le Conseil fédéral recommande d'accepter l'initiative."
+    }                                                                                                                }
+                                                                                                                 }
+
+
+     System should find the evidence where applicable inside the
+                                                                                                                 Compare the claim directly with the supplied reference.
+     booklet.
+
+
+
+                                                                               retrieve → classify          ·    classify directly
+
+Reference and claim may be in different languages: German, French and Italian combinations must all work.
+3. CLI
+
+Output Format
+ OUTPUT
+   {
+       "id": "case-0042",
+       "label": 0,
+       "label_name": "entailment",
+       "evidence": [
+           {
+               "page": 7,
+               "text": "...verbatim supporting passage..."
+           }
+       ],
+       "metrics": {
+         "input_tokens": 8431,
+           "output_tokens": 112,
+           "inference_time_ms": 1820
+       }
+   }
+
+
+
+
+  Labels: 0 = entailment · 1 = neutral · 2 = contradiction
+  Evidence: required for entailment and contradiction; may be empty for neutral.
+3. Evaluation
+Measure NLI quality, evidence quality and efficiency
+3. Evaluation
+
+How Solutions Are Judged
+Primary metric
+Macro-F1 across Entailment, Neutral and Contradiction on a held-out benchmark.
+Evidence
+Relevance and correctness of returned passage(s).
+Efficiency
+Input/context token usage and inference time.
+Multilingual analysis
+Performance may also be analysed across German, French and Italian.
+
+
+    The goal is effective and efficient grounded NLI.
+  3. Evaluation
+
+  How Will the System Be Evaluated?
+   Metric               How it is measured
+
+   Macro-F1             Equal weight for entailment, neutral and contradiction. Reported separately for BEGINNER Task and ADVANCED Task .
+   Primary metric
+
+
+   Evidence             Does the returned evidence match the gold reference passage? For ADVANCED Task, the PDF page must also match.
+
+   Context / Tokens     Sum of input_tokens. Self-reported counts are checked against the token-counting proxy; the proxy count wins.
+
+   Speed                Mean and p95 of inference_time_ms.
+
+   Languages            Results broken down by DE / FR / IT and by same-language vs. cross-lingual cases.
+
+
+
+      Goal: maximize classification quality and evidence correctness while keeping context size and latency under control.
+
+
+Held-out annotated benchmark → judged on NLI effectiveness and efficiency, with predictions grounded in the source.
+3. Evaluation
+
+Technical Report & How You Will Be Judged
+ SUBMISSION                                           SUCCESS
+ TECHNICAL REPORT                                     A STRONG SOLUTION DEMONSTRATES
+ Use the provided template — adjust it if needed.      • correct Entailment / Neutral / Contradiction
+    • system design + architecture                       classification
+
+    • document parsing and context preparation         • relevant, traceable evidence passage(s)
+
+    • how Apertus is used for NLI                      • German, French and Italian — including cross-lingual
+                                                         cases
+    • evaluation setup + results
+                                                       • Apertus as the primary model
+    • reproducibility, limitations, lessons learned
+                                                       • a reproducible pipeline with documented context
+ technical_report.md   ↗                                 preparation
+3. Evaluation
+
+The Core Experimental Trade-off
+
+                       Can we reduce context without losing NLI reliability?
+
+                        NLI quality   ×   evidence quality   ×   token + time efficiency
+
+
+  Full-document prompting is the baseline. More complex processing should earn its complexity through
+  measurement.
+Your Experiment
+How reliable can Apertus be — and how little context can you
+get away with?
+

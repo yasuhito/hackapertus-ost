@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pdf
+*.part
+.env
+.env.*
+output/
+booklets/
+track_2a/data/results/*predictions.jsonl

@@ -1,0 +1,62 @@
+{
+  "macro_f1": {
+    "overall": {
+      "n": 331,
+      "value": 0.17410714285714288
+    },
+    "advanced": {
+      "n": 331,
+      "value": 0.17410714285714288
+    },
+    "claim_language:de": {
+      "n": 106,
+      "value": 0.16901408450704225
+    },
+    "reference_language:fr": {
+      "n": 122,
+      "value": 0.1646090534979424
+    },
+    "cross": {
+      "n": 218,
+      "value": 0.1637831603229527
+    },
+    "reference_language:de": {
+      "n": 127,
+      "value": 0.18007662835249041
+    },
+    "same": {
+      "n": 113,
+      "value": 0.1928721174004193
+    },
+    "reference_language:it": {
+      "n": 82,
+      "value": 0.17857142857142858
+    },
+    "claim_language:fr": {
+      "n": 126,
+      "value": 0.17543859649122806
+    },
+    "claim_language:it": {
+      "n": 99,
+      "value": 0.17777777777777778
+    }
+  },
+  "evidence": {
+    "exact_match_rate": null,
+    "matched": 0,
+    "evaluated": 0,
+    "excluded_no_page_or_gold": 214
+  },
+  "tokens": {
+    "input_tokens": 12945382,
+    "output_tokens": 2317
+  },
+  "latency_ms": {
+    "mean": 35.79464652567976,
+    "p95": 5.15
+  },
+  "invalid_or_missing": 0,
+  "unidentifiable_prediction_rows": 0,
+  "duplicate_prediction_ids": 0,
+  "extra_ids": 0
+}

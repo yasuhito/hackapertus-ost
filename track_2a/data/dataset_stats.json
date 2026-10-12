@@ -1,0 +1,50 @@
+{
+  "dataset": "OSTswiss/MNLIoverSwissVotingBooklets",
+  "gated": false,
+  "official_splits": {
+    "train": 1488
+  },
+  "source_sha256": "87ee4afd9c0ee8861106c50f05884481402ca668aecf927df68fc52d915b02fd",
+  "fields": [
+    "claim",
+    "claim_language",
+    "reference_string",
+    "entailment_label",
+    "baseline_score",
+    "reference_language",
+    "booklet_publish_date",
+    "booklet_download_date",
+    "booklet_url",
+    "vote"
+  ],
+  "counts": {
+    "claim_language": {
+      "de": 495,
+      "fr": 497,
+      "it": 496
+    },
+    "reference_language": {
+      "fr": 569,
+      "de": 455,
+      "it": 464
+    },
+    "entailment_label": {
+      "0": 495,
+      "1": 498,
+      "2": 495
+    }
+  },
+  "split_policy": "sha256(ost-dev-v1:date), first round(20% dates) dev",
+  "dev_dates": [
+    "2020-09-27",
+    "2021-03-07",
+    "2024-03-03",
+    "2024-06-09"
+  ],
+  "derived_sizes": {
+    "train": 1157,
+    "dev": 331
+  },
+  "booklets": 60,
+  "advanced_dev_exact_page_annotations": 0
+}
