@@ -1,0 +1,76 @@
+Noninteractive --user-run delta only. Base files are untracked in this repository.
+Old runner SHA256: d9a201d666f8afd7d6f7311ba271bdd7b63f28c1b000573e52907dfb7affea9c
+New runner SHA256: 6cfc908123c36405d8b3c86aa98259b55f3fbde64b9edb64e5e4d50853fe4363
+
+--- a/track_2a/dev/cscs/cscs_dev54.py
++++ b/track_2a/dev/cscs/cscs_dev54.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""Fixed owner-started finite job, no remote control or arbitrary input/model."""
++"""Fixed explicitly authorized finite job, no remote control or arbitrary input/model."""
+ import fcntl
+ import hashlib
+ import importlib.util
+@@ -169,10 +169,10 @@
+     p=c.Parser();p.add_argument('--prepare-only',action='store_true');p.add_argument('--user-run',action='store_true');p.add_argument('--job',type=Path,default=REPO/'output/cscs/dev54-v2');args=p.parse_args();c.protect()
+     if args.prepare_only:
+         m=prepare();print(json.dumps({'prepared_cases':len(m['frozen']),'manifest_sha256':digest(encode(m)),'requests_limit':MAX_REQUESTS,'token_budget':TOKEN_BUDGET,'credential_reads':0,'authenticated_requests':0}));return
+-    if not args.user_run or not sys.stdin.isatty():raise c.Stop('interactive_person_operation_required')
++    if not args.user_run:raise c.Stop('explicit_user_run_required')
+     manifest=prepare()
+     print('CANDIDATE v2. Known invalid output counts as evaluation failure, other model proceeds. Unknown usage/model/auth/storage errors stop ALL. Finite dev54 job: nonthinking v1.5 8B/70B each54; first3 each sanity. At most108 POSTs, no retry/fallback. Output256/request. Total token budget2000000; conservative262400 reservation/request. CSCS credits may be consumed; monetary cost UNKNOWN. No purchases. No holdout. Resume skips durable completed results.')
+-    if input('Type YES to start/resume this fixed finite job: ')!='YES':raise c.Stop('not_confirmed')
++    # --user-run explicitly authorizes the fixed job; no TTY or input required.
+     job=args.job
+     if not job.exists():
+         job.mkdir(mode=0o700);syncdir(job.parent)
+@@ -184,7 +184,7 @@
+             exclusive(job/'manifest.json',manifest)
+             exclusive(job/'state.json',{'version':2,'reserved_tokens':0,'manifest_sha256':digest(encode(manifest)),'requests':0,'tokens':0,'completed':{},'blocked':False})
+         elif digest(encode(load(job/'manifest.json')))!=digest(encode(manifest)):raise c.Stop('source_or_context_changed_refuse_resume')
+-        # This credential read is available ONLY to the explicitly confirming person.
++        # Only the explicitly authorized --user-run path may read credentials.
+         cached=[]
+         def person_client(model):
+             if not cached:cached.append(c.read_key(c.DEFAULT_KEY_FILE))
+--- a/track_2a/dev/cscs/test_cscs_dev54.py
++++ b/track_2a/dev/cscs/test_cscs_dev54.py
+@@ -102,14 +102,33 @@
+     with pytest.raises(OSError):r.run(d,m,f)
+     assert not f.calls and (d/'inflight.json').exists()
+ 
+-def test_decline_never_reads_key_or_creates_job(tmp_path,monkeypatch):
+-    m=manifest();d=tmp_path/'never-created'
+-    monkeypatch.setattr(r,'prepare',lambda:m);monkeypatch.setattr(r.c,'protect',lambda:None)
+-    monkeypatch.setattr(sys.stdin,'isatty',lambda:True);monkeypatch.setattr('builtins.input',lambda *a:'NO')
+-    monkeypatch.setattr(sys,'argv',['runner','--user-run','--job',str(d)])
++def test_no_user_run_never_reads_key_or_creates_job(tmp_path,monkeypatch):
++    d=tmp_path/'never-created'
++    monkeypatch.setattr(r.c,'protect',lambda:None)
++    monkeypatch.setattr(sys.stdin,'isatty',lambda:pytest.fail('TTY check'))
++    monkeypatch.setattr('builtins.input',lambda *a:pytest.fail('input prompt'))
++    monkeypatch.setattr(r,'prepare',lambda:pytest.fail('prepare without approval'))
++    monkeypatch.setattr(sys,'argv',['runner','--job',str(d)])
+     monkeypatch.setattr(r.c,'read_key',lambda *a:pytest.fail('key read'))
+     with pytest.raises(r.c.Stop):r.main()
+     assert not d.exists()
++
++@pytest.mark.parametrize('is_tty',[False,True])
++def test_user_run_needs_no_tty_or_input(tmp_path,monkeypatch,is_tty):
++    m=manifest();d=tmp_path/'noninteractive'
++    monkeypatch.setattr(r,'prepare',lambda:m);monkeypatch.setattr(r.c,'protect',lambda:None)
++    monkeypatch.setattr(sys.stdin,'isatty',lambda:is_tty)
++    monkeypatch.setattr('builtins.input',lambda *a:pytest.fail('input prompt'))
++    monkeypatch.setattr(sys,'argv',['runner','--user-run','--job',str(d)])
++    monkeypatch.setattr(r.c,'read_key',lambda *a:pytest.fail('real key read'))
++    calls=[]
++    def offline_run(job_path,frozen,client_factory):
++        assert job_path==d and frozen==m
++        calls.append(1)
++        return {'status':'offline-test'}
++    monkeypatch.setattr(r,'run',offline_run)
++    r.main()
++    assert calls==[1] and (d/'manifest.json').exists()
+ 
+ def test_changed_completion_record_blocks_before_send(tmp_path):
+     m=manifest();d=job(tmp_path,m);f=Factory();r.run(d,m,f)
