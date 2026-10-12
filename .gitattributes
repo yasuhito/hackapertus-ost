@@ -1,0 +1,2 @@
+# Preserve vendored upstream files byte-for-byte; do not lint wheel whitespace.
+track_2a/dev/cscs/vendor/** -whitespace
