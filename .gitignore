@@ -9,3 +9,17 @@ __pycache__/
 output/
 booklets/
 track_2a/data/results/*predictions.jsonl
+
+# Project-local Roast dependencies/config
+vendor/roast/
+
+# Owner-operated CSCS evaluation evidence, never publish automatically.
+/output/cscs/
+
+# Session-specific agent task instructions and local experiments.
+/.pi-tasks/
+/track_2a/dev/roast/pi_trace.mjs
+/track_2a/dev/roast/evaluation/
+
+# Preserve the historical machine-specific fixture locally; use the portable copy.
+/track_2a/dev/cscs/fixtures/cases.jsonl
