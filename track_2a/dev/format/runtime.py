@@ -10,8 +10,9 @@ import run_comparison as r
 
 
 def execute(input_path, output_path, strategy, client_factory=None):
-    model = os.environ.get('LLM_MODEL', r.MODELS[0])
-    if model not in r.MODELS:
+    selected = os.environ.get('LLM_MODEL') or os.environ.get('LLM_NAME') or r.MODELS[0]
+    model = next((allowed for allowed in r.MODELS if selected.casefold() == allowed.casefold()), None)
+    if model is None:
         raise r.Stop('MODEL_REFUSED')
     if not output_path.parent.is_dir():
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -24,6 +25,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
     for case in rows:
         started = time.monotonic()
         pages, messages = r.legacy.engine().context(case, input_path.parent)
+        messages[0]['content'] += '\n\n' + r.legacy.PROTOCOL_REMINDER
         ids = [c['span_id'] for c in r.candidates(pages, 'reference' in case)]
         frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids)))})
         preparation.append((time.monotonic() - started) * 1000)

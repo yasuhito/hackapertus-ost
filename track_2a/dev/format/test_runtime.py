@@ -64,3 +64,34 @@ def test_runtime_requires_injected_endpoint(monkeypatch):
     monkeypatch.delenv('API_KEY', raising=False)
     with pytest.raises(r.Stop, match='INJECTED'):
         r.Transport(r.MODELS[0], submitted=True)
+
+
+@pytest.mark.parametrize('variable,value,allowed', [
+    ('LLM_MODEL', 'swiss-ai/apertus-v1.5-8b', r.MODELS[0]),
+    ('LLM_NAME', 'SWISS-AI/APERTUS-V1.5-70B', r.MODELS[1]),
+])
+def test_runtime_model_casefold_and_same_protocol_reminder(tmp_path, monkeypatch, variable, value, allowed):
+    monkeypatch.delenv('LLM_MODEL', raising=False)
+    monkeypatch.delenv('LLM_NAME', raising=False)
+    monkeypatch.setenv(variable, value)
+    source = tmp_path / 'input.jsonl'
+    source.write_text(json.dumps({'id': 'same-protocol', 'reference': {'text': 'Original.'}, 'claim': {'text': 'Original.'}}) + '\n')
+    selected = []
+    class Fake:
+        def request(self, method, path, payload):
+            assert payload['model'] == allowed
+            assert payload['messages'][0]['content'].endswith('\n\n' + r.legacy.PROTOCOL_REMINDER)
+            return response(allowed, content='{"label":1,"evidence":[]}')
+    def client(model):
+        selected.append(model)
+        return Fake()
+    runtime.execute(source, tmp_path / 'out/predictions.jsonl', 'A', client)
+    assert selected == [allowed]
+
+
+def test_runtime_does_not_normalize_unknown_or_thinking_models(tmp_path, monkeypatch):
+    source = tmp_path / 'empty.jsonl'
+    source.write_text('')
+    monkeypatch.setenv('LLM_MODEL', 'swiss-ai/apertus-v1.5-8b-thinking')
+    with pytest.raises(r.Stop, match='MODEL_REFUSED'):
+        runtime.execute(source, tmp_path / 'out/predictions.jsonl', 'B', lambda _: pytest.fail('remote'))

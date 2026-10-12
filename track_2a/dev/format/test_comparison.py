@@ -50,6 +50,12 @@ def test_real_sdk_child_then_parent_submit():
     assert sdk['counts'] == {'parent': 2, 'child': 1}
     assert [c[0] for c in calls] == ['parent', 'child', 'parent']
     assert not diagnostics
+    starts = [e for e in sdk['events'] if e['type'] == 'package_child_started']
+    ends = [e for e in sdk['events'] if e['type'] == 'package_child_completed']
+    assert len(starts) == len(ends) == 1
+    assert starts[0]['api'] == 'runAgent' and starts[0]['version'] == '0.19.0'
+    assert ends[0]['tools'] == ['submit'] and ends[0]['model'] == r.MODELS[0]
+    assert ends[0]['provider'] == 'ost-stdio-child' and not ends[0]['steered'] and not ends[0]['aborted']
     assert all(set(t['function']['name'] for t in p['tools']) <= {'submit', 'subagent'} for _, _, p in calls)
     label_schema = calls[0][2]['tools'][0]['function']['parameters']['properties']['label']
     assert label_schema['type'] == 'integer' and label_schema['enum'] == [0, 1, 2]
@@ -192,3 +198,39 @@ def test_submitted_injected_url_for_every_call(monkeypatch):
     for _ in range(3):
         transport.request('POST', '/v1/chat/completions', {'model': r.MODELS[0], 'temperature': 0, 'max_tokens': 256, 'stream': False, 'messages': []})
     assert seen == ['/injected/v1/chat/completions'] * 3
+
+
+def test_node_executable_resolved_before_sanitizing_path(tmp_path, monkeypatch):
+    import os
+    original_node = r.shutil.which('node')
+    binary = tmp_path / 'outside-default-path' / 'node'
+    binary.parent.mkdir()
+    binary.symlink_to(original_node)
+    monkeypatch.setattr(r.shutil, 'which', lambda command: str(binary) if command == 'node' else None)
+    original_popen = r.subprocess.Popen
+    launched = []
+    def capture(command, **kwargs):
+        launched.append(command[0])
+        assert kwargs['env']['PATH'] == os.defpath
+        assert 'API_KEY' not in kwargs['env']
+        return original_popen(command, **kwargs)
+    monkeypatch.setattr(r.subprocess, 'Popen', capture)
+    args, _, sdk = r.run_b(item(), r.MODELS[0], lambda *a: response(r.MODELS[0], content='no submit'), seconds=30)
+    assert launched == [str(binary)] and args is None and sdk['counts']['parent'] == 1
+
+
+def test_package_child_schema_error_has_one_repair_no_grace_continuation():
+    x = item()
+    calls = []
+    def post(role, number, payload):
+        calls.append((role, number, payload))
+        name = payload['tool_choice']['function']['name']
+        args = {} if name == 'subagent' else {'label': 0, 'candidate_ids': x['candidate_ids']}
+        if role == 'child' and number == 0:
+            args['label'] = '0'
+        return response(r.MODELS[0], calls=[tool(name, args)])
+    args, diagnostics, sdk = r.run_b(x, r.MODELS[0], post, seconds=30, isolation_guard=True)
+    assert args and sdk['counts'] == {'parent': 2, 'child': 2}
+    assert len(calls) == 4 and 'LABEL_SCHEMA' in diagnostics
+    completed = next(e for e in sdk['events'] if e['type'] == 'package_child_completed')
+    assert not completed['steered'] and not completed['aborted']

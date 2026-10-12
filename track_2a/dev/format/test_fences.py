@@ -104,3 +104,15 @@ def test_http_status_diagnostic_without_reading_error_body(tmp_path, monkeypatch
     assert r.legacy.load(job / 'STOP.json')['http_status'] == 400
     assert (job / 'inflight.json').exists()
     assert r.legacy.load(job / 'state.json')['reserved_tokens'] == r.RESERVE
+
+
+def test_expired_before_send_has_no_request_reservation_or_inflight(tmp_path, monkeypatch):
+    job, manifest = setup(tmp_path)
+    fake = Fake()
+    monkeypatch.setattr(r, 'CASE_SECONDS', -1)
+    with pytest.raises(r.Stop, match='CASE_DEADLINE'):
+        r.run(job, manifest, fake)
+    state = r.legacy.load(job / 'state.json')
+    assert state['requests'] == state['reserved_tokens'] == state['tokens'] == 0
+    assert not fake.calls and not (job / 'inflight.json').exists()
+    assert (job / 'STOP.json').exists()

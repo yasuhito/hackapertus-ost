@@ -10,6 +10,7 @@ import math
 import os
 from pathlib import Path
 import select
+import shutil
 import signal
 import ssl
 import subprocess
@@ -166,6 +167,8 @@ class Ledger:
                 raise Stop('REPLAY_PAYLOAD_CHANGED')
             return record['response']
         state = self.state
+        if deadline is not None and deadline <= time.monotonic():
+            raise Stop('CASE_DEADLINE_ALL_STOP')
         if state['requests'] >= self.manifest['request_limit'] or state['tokens'] + RESERVE > self.manifest['token_budget']:
             raise Stop('HARD_BUDGET_STOP_BEFORE_SEND')
         legacy.exclusive(self.fence, {'model': model, 'index': index, 'role': role, 'number': number, 'record': name, 'payload_sha256': sha, 'reserved_tokens': RESERVE})
@@ -254,10 +257,15 @@ def run_a(item, model, post):
 def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False):
     """Python owns the assembler and all requests. Node receives no credentials."""
     with tempfile.TemporaryDirectory(prefix='ost-pi-', dir='/tmp') as home:
+        node = shutil.which('node')
+        if not node:
+            raise Stop('NODE_EXECUTABLE_MISSING')
         env = {'PATH': os.defpath, 'HOME': home, 'PI_CODING_AGENT_DIR': home, 'PI_OFFLINE': '1'}
         if os.environ.get('PI_PACKAGE_ROOT'):
             env['PI_PACKAGE_ROOT'] = os.environ['PI_PACKAGE_ROOT']
-        command = ['node'] + (['--import', str(HERE / 'isolation-guard.mjs')] if isolation_guard else []) + [str(HERE / 'entry.ts')]
+        if os.environ.get('PI_SUBAGENTS_ROOT'):
+            env['PI_SUBAGENTS_ROOT'] = os.environ['PI_SUBAGENTS_ROOT']
+        command = [node] + (['--import', str(HERE / 'isolation-guard.mjs')] if isolation_guard else []) + [str(HERE / 'entry.ts')]
         process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=env)
         deadline = time.monotonic() + seconds
         counters = Counter()
