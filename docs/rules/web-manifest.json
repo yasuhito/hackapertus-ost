@@ -1,0 +1,68 @@
+[
+  {
+    "item": "hackapertus.ch terms-and-conditions",
+    "file": "web/hackapertus-terms-and-conditions.md",
+    "url": "https://hackapertus.ch/terms-and-conditions",
+    "status": "saved — full rendered text; original shell and rendered HTML also saved"
+  },
+  {
+    "item": "hackapertus.ch code-of-conduct",
+    "file": "web/hackapertus-code-of-conduct.md",
+    "url": "https://hackapertus.ch/code-of-conduct",
+    "status": "saved — full rendered text; original shell and rendered HTML also saved"
+  },
+  {
+    "item": "hackapertus.ch faq",
+    "file": "web/hackapertus-faq.md",
+    "url": "https://hackapertus.ch/faq",
+    "status": "saved — every FAQ answer captured individually"
+  },
+  {
+    "item": "hackapertus.ch privacy-policy",
+    "file": "web/hackapertus-privacy-policy.md",
+    "url": "https://hackapertus.ch/privacy-policy",
+    "status": "saved — full rendered text; original shell and rendered HTML also saved"
+  },
+  {
+    "item": "hackapertus.ch online-hack/submissions",
+    "file": "web/hackapertus-online-hack-submissions.md",
+    "url": "https://hackapertus.ch/online-hack/submissions",
+    "status": "saved — initial selector and all 10 track/challenge forms"
+  },
+  {
+    "item": "hackapertus.ch online-hack",
+    "file": "web/hackapertus-online-hack.md",
+    "url": "https://hackapertus.ch/online-hack",
+    "status": "saved — full rendered text; original shell and rendered HTML also saved"
+  },
+  {
+    "item": "hackapertus.ch imprint",
+    "file": "web/hackapertus-imprint.md",
+    "url": "https://hackapertus.ch/imprint",
+    "status": "saved — full rendered text; original shell and rendered HTML also saved"
+  },
+  {
+    "item": "Project template README",
+    "file": "repositories/project-template-README.md",
+    "url": "https://raw.githubusercontent.com/HackApertus/project-template/main/README.md",
+    "status": "saved — complete upstream Markdown"
+  },
+  {
+    "item": "Project template track_2a README",
+    "file": "repositories/project-template-track_2a-README.md",
+    "url": "https://raw.githubusercontent.com/HackApertus/project-template/main/track_2a/README.md",
+    "status": "saved — complete upstream Markdown"
+  },
+  {
+    "item": "OST starter README",
+    "file": "repositories/ost-starter-README.md",
+    "url": "https://gitlab.com/ifsoftware/hackapertus-starter/-/raw/main/README.md",
+    "status": "saved — complete upstream Markdown"
+  },
+  {
+    "item": "HF OST dataset card",
+    "file": "repositories/OSTswiss-MNLIoverSwissVotingBooklets-README.md",
+    "url": "https://huggingface.co/datasets/OSTswiss/MNLIoverSwissVotingBooklets/raw/main/README.md",
+    "status": "saved — complete upstream Markdown"
+  }
+]

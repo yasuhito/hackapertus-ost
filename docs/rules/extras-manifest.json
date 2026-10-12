@@ -1,0 +1,20 @@
+[
+  {
+    "item": "Partner packages PDF",
+    "url": "https://hackapertus.ch/partner-packages.pdf",
+    "file": "attachments/partner-packages.pdf",
+    "status": "saved \u2014 original file"
+  },
+  {
+    "item": "Hack Apertus onepager PDF",
+    "url": "https://hackapertus.ch/onepager.pdf",
+    "file": "attachments/onepager.pdf",
+    "status": "saved \u2014 original file"
+  },
+  {
+    "item": "OpenParlData presentation",
+    "url": "https://hackapertus-document-extraction-26a562.gitlab.io/",
+    "file": "web/openparldata-presentation.html",
+    "status": "saved \u2014 original file"
+  }
+]
