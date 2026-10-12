@@ -3,8 +3,8 @@
 ## まず守ること
 
 - オーナーは **高宮さん**。返答・相談は日本語で行う。
-- **登録、参加申し込み、提出、サインアップ、支払いは、高宮さんの明示的な「はい」があるまで行わない。** API キー取得のための登録や有料推論も例外ではない。
-- 作業機は **gmktec**、作業リポジトリは **`~/Work/hackapertus-ost`**。GitHub は **`yasuhito/hackapertus-ost`（private）**、ブランチは **`master`**、リモートへ push 済み。以下のコマンド・相対パスはすべてこのリポジトリを基準とする。
+- **登録、参加申し込み、提出、サインアップ、支払い、API キー取得は、高宮さんの明示的な「はい」があるまで行わない。** 有料推論も例外ではない。
+- 本書の読者は **gmktec 上で直接作業する Codex**。作業リポジトリは **`~/Work/hackapertus-ost`**。GitHub は **`yasuhito/hackapertus-ost`（private）**、ブランチは **`master`**、リモートへ push 済み。以下のコマンド・相対パスはすべてこのリポジトリを基準とする。
 - `STATUS.md` と `README.md` には古い保存場所や「remote 未設定」の記述が残る。現状の作業場所・リモートについては本書を優先する。private のままで審査員がアクセスできるとは限らないので、提出前にアクセス方法を確認する。公開変更も勝手に行わない。
 
 ## 目的・締切・提出物
@@ -88,7 +88,7 @@ CLI はケースごとに全冊子を文脈へ入れる。**retrieval・圧縮�
 - 元データには **gold のページ番号がない**。reference_string が pypdf 抽出に完全一致しないため、現状 advanced の非中立 214 行は根拠評価から除外し、根拠スコアは `null`。捏造しない。
 - **冊子 PDF は 60 ファイル、75,379,251 bytes（約 75 MB）。リポジトリに含まれない。** 以前の取得実績があっても、この作業機での存在を前提にしない。
 
-初回セットアップと PDF 取得は次のとおり。`booklets/` は gitignore 済みで、このリポジトリ直下のローカル保存先となる。
+gmktec での初回セットアップと PDF 取得は次のとおり。`booklets/` は `.gitignore` に登録済みで、このリポジトリ直下のローカル保存先となる。取得先は必ず `--output-dir` で明示する。
 
 ```sh
 cd ~/Work/hackapertus-ost
@@ -114,6 +114,8 @@ make test PYTHON=.venv/bin/python
 make run-local PYTHON=.venv/bin/python LLM_BACKEND=mock
 make dev-eval PYTHON=.venv/bin/python
 ```
+
+`make test` は一時ディレクトリに小さな PDF を生成するため、取得済み冊子や `BOOKLET_DIR` を使わない。実冊子を使う advanced 評価は、上記 `make prepare ... BOOKLET_DIR="$PWD/booklets"` で生成した `track_2a/data/dev_advanced_cases.jsonl` の `booklet.path` を経由して `~/Work/hackapertus-ost/booklets/` を参照する。`make dev-eval` に `BOOKLET_DIR` を渡すだけではパスは更新されない。
 
 `run-local` の出力は `output/predictions.jsonl`。`dev-eval` は backend を mock に固定して両タスクを実行し、以下を生成する：
 
