@@ -1,0 +1,9 @@
+# PDF is ignored by the repository-level *.pdf rule.
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+.tex-cache/
+preview/
