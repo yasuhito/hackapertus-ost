@@ -49,9 +49,7 @@ Task A(Document)はPDF全体と投票案件名(vote)を受け取り、Task B(Ref
 ただし、IDが存在することは出典の正しさ(provenance)を示すだけで、その文が判定を意味的に支えることは示さない。
 
 現時点でパイプラインは実装済みである。
-開発中の診断にはGPT系モデルを使った。
-その結果は\ref{sec:eval}節に載せるが、提出モデルの性能でもApertusの性能でもない。
-% source: output/handoff-history/evaluation-summary.json, .snapshots[7].case_count (54)
+% source: HANDOFF.md, データ・分割・リーク防止 (fixed development set: 54 cases)
 Apertus v1.5 8B/70Bによる固定開発集合54件の評価結果は\TBD{Apertus dev54の結果}である。
 
 %======================================================================
@@ -148,8 +146,7 @@ neutralとcontradictionの取り違えを防ぐ注意や、言語をまたいだ
 主催者が持つ非公開のheld-outデータは、これらとは別物である。
 
 % source: HANDOFF.md, データ・分割・リーク防止 (approved development dates)
-% source: output/handoff-history/evaluation-summary.json, .snapshots[7].case_count,
-% .snapshots[7].macro_f1.advanced.n and .beginner.n (54, 27, 27)
+% source: HANDOFF.md, データ・分割・リーク防止 (54 cases, 27 per task)
 固定開発集合dev54は、投票日2020-09-27と2021-03-07の2日分から作った54件で、Task AとTask Bが27件ずつである。
 同じ原文の行をA/B両方の形式で使っている。
 この集合は開発中に何度も見ているので、性能の偏りのない推定値ではない。
@@ -168,66 +165,6 @@ PDF抽出からgoldページを推測して埋めることはしていない。
 Task Aの根拠は先頭5件が採点対象で、効率としてトークン数と時間も見る\cite{apiguide}。
 本リポジトリのローカル採点器は公式の評価器と同一ではない。
 原文に逐語で含まれることと、根拠が判定を意味的に支えることは別に測る必要がある。
-
-\paragraph{GPT系モデルによる開発履歴}
-表\ref{tab:gpt}は、パイプラインの開発中にGPT系モデルで得た結果である。
-これらは提出モデルの結果ではなく、Apertusの性能でもない。
-対象は何度も見たdev54で、同一候補を独立に繰り返した安定性の確認もしていない。
-pipeline F1は出力検証を通らなかった行を誤答として数えた値である。
-
-\begin{table}[t]
-  \centering
-  \caption{GPT系モデルによる開発履歴(dev54、既知データ、反復なし)。提出モデルでもApertusの結果でもない。}
-  \label{tab:gpt}
-  \small
-  \begin{tabular}{llcccc}
-    \toprule
-    モデル & 文脈 & A F1 & A 有効出力 & B F1 & B 有効出力 \\
-    \midrule
-    % source: output/handoff-history/evaluation-summary.json
-    %   A F1:    .snapshots[0].summaries.baseline.advanced.pipeline_macro_f1   (0.9607843137254902)
-    %   A valid: .snapshots[0].summaries.baseline.advanced.pipeline_valid      (25) / .n (27)
-    %   B F1:    .snapshots[0].summaries.baseline.beginner.pipeline_macro_f1   (1.0)
-    %   B valid: .snapshots[0].summaries.baseline.beginner.pipeline_valid      (27) / .n (27)
-    GPT-6.1 Sol (medium) & 全文書 & 0.961 & 25/27 & 1.000 & 27/27 \\
-    % source: output/handoff-history/evaluation-summary.json
-    %   A F1:    .snapshots[0].summaries.vote_pages.advanced.pipeline_macro_f1 (1.0)
-    %   A valid: .snapshots[0].summaries.vote_pages.advanced.pipeline_valid    (27) / .n (27)
-    %   B F1:    .snapshots[0].summaries.vote_pages.beginner.pipeline_macro_f1 (1.0)
-    %   B valid: .snapshots[0].summaries.vote_pages.beginner.pipeline_valid    (27) / .n (27)
-    GPT-6.1 Sol (medium) & 選択ページ & 1.000 & 27/27 & 1.000 & 27/27 \\
-    % source: output/handoff-history/evaluation-summary.json
-    %   A F1:  .snapshots[7].macro_f1.advanced.value  (1.0)
-    %   B F1:  .snapshots[7].macro_f1.beginner.value  (1.0)
-    %   valid: .snapshots[7].strict_output_valid (54) / .case_count (54), A+B combined
-    GPT-6 Luna (low), source-ID & 選択ページ & 1.000 & $\ast$ & 1.000 & $\ast$ \\
-    \bottomrule
-  \end{tabular}
-
-  \smallskip
-  {\footnotesize $\ast$ 有効出力はA/B別に記録しておらず、A+B合計で54/54。}
-\end{table}
-
-Sol (medium)の全文書条件では、Task Aの2件が出力検証を通らず、F1は0.961だった。
-投票案件のページ選択を入れると、Task Aも27件すべてが有効になった。
-このときTask Aの先頭5件に入った引用23項目は、すべて原文と一致した。
-% source: output/handoff-history/evaluation-summary.json
-%   .snapshots[0].summaries.vote_pages.advanced.first5_exact_original (23)
-%   .snapshots[0].summaries.vote_pages.advanced.first5_quote_items    (23)
-ただしSolの段階では、モデルが引用文を自分で書いていた。
-
-最終候補のLuna (low)はsource-ID方式で、54件すべてが厳格な出力検証を通り、Task A/BともF1は1.0だった。
-このrunのAPI要求は55回で、ケース数より1回多い。
-入力は1,227,327 tokens、出力は2,066 tokensだった。
-cache読み出しの357,376 tokensは入力の内数なので、合計に足さない。
-% source: output/handoff-history/evaluation-summary.json
-%   requests:     .snapshots[7].API_requests_and_completions (55)
-%   input:        .snapshots[7].usage.input_tokens           (1227327)
-%   output:       .snapshots[7].usage.output_tokens          (2066)
-%   cache read:   .snapshots[7].usage.cached_input_tokens    (357376), included in input
-%   no repeat:    .snapshots[7].stability_repeated           (false)
-これは既知の開発集合での1回の生成で、未知データでの満点や、公式の根拠採点での満点を示すものではない。
-保存した応答を後から再生(replay)したときの数ミリ秒の処理時間は、ローカルの復元と検証の時間で、API推論時間ではない。
 
 \paragraph{Apertusの中断したrun}
 % source: HANDOFF.md, CSCSアクセスと初回実評価の失敗 (model, interrupted batch scope)
@@ -269,7 +206,6 @@ Apertusで全文書と選択ページを比べた結果も\TBD{Apertusの全文�
 \section{制約 (Limitations)}
 
 本原稿には、完了したApertus dev54評価の性能をまだ記載していない。
-表\ref{tab:gpt}の結果はGPT系モデルのもので、既知の開発集合で1回ずつ測っただけである。
 
 source IDは引用が原文のどこから来たかを保証するが、その引用が判定を支えるかどうかは保証しない。
 意味的な支持はモデルの判断に頼っており、公式の根拠採点と同じ尺度ではまだ測っていない。
@@ -330,7 +266,6 @@ BASE_URL=<injected proxy URL> API_KEY=<injected key> \
 公開データセット\cite{dataset}のカードにはMITと記載され、作成者はOSTのAI Applications and Deployment Labである。投票冊子PDFの再配布権は別途確認が必要であり、本レポートには同梱しない。
 
 %======================================================================
-\clearpage
 \begingroup
 \small
 \bibliographystyle{plain}
