@@ -1,0 +1,5 @@
+source "https://rubygems.org"
+ruby ">= 3.3.0", "< 4.0"
+gem "roast-ai", "= 1.3.0"
+# Ruby 3.4 ships ERB as a bundled gem; Roast requires it but omits it in its gemspec.
+gem "erb", "~> 4.0"

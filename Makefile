@@ -33,3 +33,11 @@ dev-eval:
 	$(PYTHON) track_2a/src/score.py --gold track_2a/data/dev_gold.jsonl --predictions output/dev_predictions.jsonl --output output/dev_score.json
 	$(PYTHON) track_2a/src/predict.py --backend mock --input track_2a/data/dev_advanced_cases.jsonl --output output/dev_advanced_predictions.jsonl
 	$(PYTHON) track_2a/src/score.py --gold track_2a/data/dev_advanced_gold.jsonl --predictions output/dev_advanced_predictions.jsonl --output output/dev_advanced_score.json
+
+.PHONY: roast-version roast-test roast-smoke
+roast-version:
+	track_2a/dev/roast/bundle.sh exec roast version
+roast-test:
+	TEST_PYTHON="$(PYTHON)" ROAST_PYTHON="$(PYTHON)" track_2a/dev/roast/bundle.sh exec ruby track_2a/dev/roast/test_measurement.rb
+roast-smoke:
+	ROAST_PYTHON="$(PYTHON)" track_2a/dev/roast/bundle.sh exec roast execute track_2a/dev/roast/workflow.rb

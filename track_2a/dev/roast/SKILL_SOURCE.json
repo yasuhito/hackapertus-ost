@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/yasuhito/skills",
+  "commit": "319b4fba27aa0d87a122a506832974e2f3555a3b",
+  "path": "skills/eval-hillclimb",
+  "installed_with": "skill-installer/download",
+  "global_skill_unchanged": true,
+  "manual_application": true,
+  "fresh_thread_autodiscovery_verified": false
+}
