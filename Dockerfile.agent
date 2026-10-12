@@ -1,0 +1,18 @@
+# Proposed CPU linux/amd64 A/B image. No dependency downloads at runtime.
+FROM --platform=linux/amd64 node:26.10.0-bookworm-slim AS pi
+WORKDIR /build
+COPY track_2a/dev/format/package.json track_2a/dev/format/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+
+FROM --platform=linux/amd64 python:3.11-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 && rm -rf /var/lib/apt/lists/*
+COPY --from=pi /usr/local/bin/node /usr/local/bin/node
+WORKDIR /app
+COPY --from=pi /build/node_modules /app/track_2a/dev/format/node_modules
+COPY track_2a/src /app/track_2a/src
+COPY track_2a/dev/format/*.py track_2a/dev/format/*.ts track_2a/dev/format/*.mjs track_2a/dev/format/package.json /app/track_2a/dev/format/
+COPY track_2a/dev/cscs/cscs_check.py track_2a/dev/cscs/cscs_dev54.py /app/track_2a/dev/cscs/
+COPY track_2a/dev/cscs/vendor /app/track_2a/dev/cscs/vendor
+ENV PYTHONDONTWRITEBYTECODE=1 PI_OFFLINE=1
+ENTRYPOINT ["python", "/app/track_2a/dev/format/runtime.py"]
+CMD ["--input", "/data/cases.jsonl", "--output", "/output/predictions.jsonl"]

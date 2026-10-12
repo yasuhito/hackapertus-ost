@@ -6,15 +6,18 @@ INPUT ?= /data/cases.jsonl
 OUTPUT ?= /output/predictions.jsonl
 LLM_BACKEND ?= mock
 PYTHON ?= python3
+PIPELINE ?= legacy
+DOCKERFILE = $(if $(filter A B,$(PIPELINE)),Dockerfile.agent,Dockerfile)
+RUNTIME_FLAGS = $(if $(filter A B,$(PIPELINE)),--read-only --tmpfs /tmp)
 
 .PHONY: run build run-local test dev-eval download prepare
 build:
-	docker build -t $(IMAGE) .
+	docker build -f $(DOCKERFILE) -t $(IMAGE) .
 run: build
 	mkdir -p "$(OUTPUT_DIR)" "$(BOOKLET_DIR)"
-	docker run --rm --user "$$(id -u):$$(id -g)" \
+	docker run --rm $(RUNTIME_FLAGS) --user "$$(id -u):$$(id -g)" \
 	  -e BASE_URL -e API_KEY -e LLM_BASE_URL -e LLM_API_KEY -e PUBLICAI_API_KEY -e LLM_MODEL -e LLM_NAME \
-	  -e LLM_USER_AGENT -e LLM_TIMEOUT -e LLM_MAX_OUTPUT_TOKENS -e LLM_BACKEND=$(LLM_BACKEND) \
+	  -e LLM_USER_AGENT -e LLM_TIMEOUT -e LLM_MAX_OUTPUT_TOKENS -e LLM_BACKEND=$(LLM_BACKEND) -e PIPELINE=$(PIPELINE) \
 	  -v "$(INPUT_DIR):/data:ro" -v "$(OUTPUT_DIR):/output" \
 	  -v "$(BOOKLET_DIR):/booklets:ro" \
 	  $(IMAGE) --input "$(INPUT)" --output "$(OUTPUT)"
