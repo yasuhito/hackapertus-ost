@@ -16,6 +16,9 @@ vendor/roast/
 # Owner-operated CSCS evaluation evidence, never publish automatically.
 /output/cscs/
 
+# Node dependencies are installed locally or during image build.
+node_modules/
+
 # Session-specific agent task instructions and local experiments.
 /.pi-tasks/
 /track_2a/dev/roast/pi_trace.mjs
