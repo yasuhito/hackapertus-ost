@@ -18,7 +18,7 @@ make test PYTHON="$PWD/.venv/bin/python"
 make roast-smoke PYTHON="$PWD/.venv/bin/python"
 ```
 
-The current verified environment uses `/tmp/hackapertus-ost-contract/.venv/bin/python` in place of `.venv`. Dependencies have already been installed locally. Repeated smoke/replay commands resume without creating extra model attempts. A changed artifact is rejected; choose a fresh output directory for a new experiment. A workflow flock prevents concurrent duplicate execution.
+The current verified environment uses `/tmp/hackapertus-ost-contract/.venv/bin/python` in place of `.venv`. Dependencies have already been installed locally. The historical replay paths, `evaluation/fixed18_assistant_verified.jsonl`, and `pi_trace.mjs` are local-only artifacts excluded from Git; obtain the approved nonsecret artifacts separately before using those examples. Clean-checkout mock tests do not require them. Repeated smoke/replay commands resume without creating extra model attempts. A changed artifact is rejected; choose a fresh output directory for a new experiment. A workflow flock prevents concurrent duplicate execution.
 
 ## Frozen replay and comparison
 
