@@ -13,7 +13,7 @@ build:
 run: build
 	mkdir -p "$(OUTPUT_DIR)" "$(BOOKLET_DIR)"
 	docker run --rm --user "$$(id -u):$$(id -g)" \
-	  -e LLM_BASE_URL -e LLM_API_KEY -e PUBLICAI_API_KEY -e LLM_MODEL -e LLM_NAME \
+	  -e BASE_URL -e API_KEY -e LLM_BASE_URL -e LLM_API_KEY -e PUBLICAI_API_KEY -e LLM_MODEL -e LLM_NAME \
 	  -e LLM_USER_AGENT -e LLM_TIMEOUT -e LLM_MAX_OUTPUT_TOKENS -e LLM_BACKEND=$(LLM_BACKEND) \
 	  -v "$(INPUT_DIR):/data:ro" -v "$(OUTPUT_DIR):/output" \
 	  -v "$(BOOKLET_DIR):/booklets:ro" \

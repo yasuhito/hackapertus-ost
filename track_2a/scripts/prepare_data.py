@@ -26,14 +26,14 @@ def main():
         split = "dev" if row['booklet_publish_date'] in dev_dates else "train"
         meta = {"claim_language": row['claim_language'], "reference_language": row['reference_language'],
                 "date": row['booklet_publish_date']}
-        case = {"id": f"ost-{i:04d}-beginner", "reference": {"text": row['reference_string']},
-                "claim": {"text": row['claim']}, "label": row['entailment_label'],
-                "task": "beginner", **meta, "evidence": [{"page": 1, "text": row['reference_string']}] if row['entailment_label'] != 1 else []}
+        case = {"id": f"ost-{i:04d}-beginner", "vote": row["vote"], "reference": {"text": row['reference_string'], "language": row["reference_language"]},
+                "claim": {"text": row['claim'], "language": row["claim_language"]}, "label": row['entailment_label'],
+                "task": "beginner", **meta, "evidence": [{"page": None, "text": row['reference_string']}] if row['entailment_label'] != 1 else []}
         buckets[split].append(case)
         if split == "dev":
             advanced = {k: v for k, v in case.items() if k not in ('reference', 'evidence')}
             advanced.update(id=f"ost-{i:04d}-advanced", task="advanced", vote=row['vote'],
-                            booklet={"path": str((args.pdf_dir / filename(row['booklet_url'])).resolve())})
+                            booklet={"path": str((args.pdf_dir / filename(row['booklet_url'])).resolve()), "language": row["reference_language"]})
             # Dataset has no page annotations. Only exact extraction matches are eligible.
             pages = pdf_pages(advanced['booklet']['path'])
             matches = [{"page": j, "text": row['reference_string']} for j, text in enumerate(pages, 1) if row['reference_string'] in text]
