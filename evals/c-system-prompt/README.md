@@ -54,13 +54,30 @@ underlying row's `reference_string`. Neutral expectations omit reference.
 - Maximum five prompt candidates, entirely fictional prompt examples only.
 - Preserve uncertain-request fences. No unknown-usage retry or auto-resume.
 - Honor every eval-hillclimb STOP. A baseline noise check precedes any split or
-  candidate. New runs require approved scale; baseline repeat 3 is approved.
+  candidate. New runs require approved scale; baseline repeats 3 and 4 were approved.
 
 The application runner creates fresh isolated parent and child workspaces and
 in-memory credentials; scoring-only fixtures are not mounted there. Baseline
 repeat 3 uses `--repeat 1 --job output/cscs/format-C-r3` because the unchanged
 runner's repeat option accepts only 1/2 and controls the default path only.
-Record it as the third independent repeat, not another baseline configuration.
+Repeat 4 was saved at `output/cscs/format-C-r4.` (trailing dot from the operator's
+command); preserve that actual completed job, do not rename or rerun it.
+Its command start timestamp was not saved; command duration is unavailable.
+Neither difference changes model configuration or scoring inputs.
+
+## Frozen internal train/test split
+
+`make_split.py` creates `split.json` without reading predictions. Seed 20261016;
+36 train cases and 18 test cases, balanced over 3 labels within each task.
+Keep each source-row A/B pair together AND merge pairs whose B reference
+language/text is identical: 27 source rows become 24 source groups. The seeded
+ordering and label-balanced subset algorithm are recorded in split.json.
+Public source_date metadata guards the two approved dates; no dataset-wide read.
+Different passages from a shared booklet/vote can still cross splits. This is
+an exposed internal split, not genuine held-out generalization. Do not re-seed
+or repartition to improve scores or move failures. After creation, inspect
+train outputs only; test outputs are machine-scored and aggregate-only.
+`report-four-repeats.md` records the new split noise STOP.
 
 Raw outputs, transcripts and local metrics remain under ignored `output/`.
 No raw outputs are committed. `grader-review.md` records the official scoring
