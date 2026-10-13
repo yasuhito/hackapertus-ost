@@ -32,7 +32,7 @@ def test_runtime_a_b_share_assembler(tmp_path, monkeypatch):
                 if strategy == 'A':
                     return response(r.MODELS[0], content=json.dumps({'label': 'entailment', 'evidence': [source['span_id']]}))
                 name = payload['tool_choice']['function']['name']
-                return response(r.MODELS[0], calls=[tool(name, {} if name == 'subagent' else {'label': 0, 'candidate_ids': [source['span_id']]})])
+                return response(r.MODELS[0], calls=[tool(name, {'mode': 'source_only'} if name == 'subagent' else {'label': 0, 'candidate_ids': [source['span_id']]})])
         output = tmp_path / strategy / 'predictions.jsonl'
         runtime.execute(input_path, output, strategy, lambda model: Fake())
         rows = [json.loads(line) for line in output.read_text().splitlines()]
@@ -95,3 +95,31 @@ def test_runtime_does_not_normalize_unknown_or_thinking_models(tmp_path, monkeyp
     monkeypatch.setenv('LLM_MODEL', 'swiss-ai/apertus-v1.5-8b-thinking')
     with pytest.raises(r.Stop, match='MODEL_REFUSED'):
         runtime.execute(source, tmp_path / 'out/predictions.jsonl', 'B', lambda _: pytest.fail('remote'))
+
+
+@pytest.mark.parametrize('filename', ['package-child.mjs', 'safe-submit-child.ts', 'dependencies.mjs', 'entry.ts', 'package.json', 'package-lock.json'])
+def test_runtime_child_dependency_mutation_refuses_resume_before_calls(tmp_path, monkeypatch, filename):
+    import shutil
+    code = tmp_path / 'code'
+    code.mkdir()
+    for path in r.HERE.iterdir():
+        if path.is_file() and path.suffix in ('.py', '.ts', '.mjs', '.json'):
+            shutil.copyfile(path, code / path.name)
+    monkeypatch.setattr(r, 'HERE', code)
+    monkeypatch.setenv('LLM_MODEL', r.MODELS[0])
+    source = tmp_path / 'input.jsonl'
+    source.write_text(json.dumps({'id': 'dependency-identity', 'reference': {'text': 'Original.'}, 'claim': {'text': 'Original.'}}) + '\n')
+    calls = []
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(1)
+            return response(r.MODELS[0], content='{"label":1,"evidence":[]}')
+    target = tmp_path / 'out/predictions.jsonl'
+    runtime.execute(source, target, 'A', lambda _: Fake())
+    assert calls == [1]
+    original = target.read_bytes()
+    changed = code / filename
+    changed.write_bytes(changed.read_bytes() + b'\n')
+    with pytest.raises(r.Stop, match='MANIFEST_CHANGED'):
+        runtime.execute(source, target, 'A', lambda _: pytest.fail('client after changed dependency'))
+    assert calls == [1] and target.read_bytes() == original

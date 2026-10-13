@@ -29,7 +29,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
         ids = [c['span_id'] for c in r.candidates(pages, 'reference' in case)]
         frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids)))})
         preparation.append((time.monotonic() - started) * 1000)
-    manifest = {'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': r.LIMITS[strategy], 'token_budget': r.TOKEN_BUDGET, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [Path(__file__), r.HERE / 'run_comparison.py', r.HERE / 'sdk.ts', r.HERE / 'submit-extension.ts', r.REPO / 'track_2a/src/submission.py']}}
+    manifest = {'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': r.LIMITS[strategy], 'token_budget': r.TOKEN_BUDGET, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
     job = output_path.parent / 'tmp' / 'format-runtime'
     job.mkdir(mode=0o700, parents=True, exist_ok=True)
     import fcntl
