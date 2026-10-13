@@ -286,3 +286,92 @@ Two consecutive nonimproving rounds now trigger eval-hillclimb stall STOP.
 No candidate3 made or evaluated. Next phase is only the user-queued read-only
 post-v2 research, then separately authorized no-API runbook work.
 Raw outputs/transcripts/logs remain ignored; no raw outputs committed.
+
+## C role variant: evidence-only 8B child (rejected)
+
+Explicit owner approval released the prior contract STOP for one role variant, dev54 54 cases x5. Production and default C remain v0. Implementation commit `28ab042616cb1d263f4f9de1a95db3dd693aef7f`; patch SHA256 `289e5d72a694f14739ecea17112103426599f7459972695d975df10057cbb4ac`. Only four archived role files change in isolated source-only workspaces. No examples added; approved54 8-gram overlap0 (not a semantic nonparaphrase proof). Offline validation:59 eval tests and242 track tests passed,1 protected test deselected.
+
+Fixed parent `swiss-ai/Apertus-v1.5-70B`, child `swiss-ai/Apertus-v1.5-8B`, Pi1.1.0/pi-subagents0.19.0. Child submit permits only candidate_ids, strict uniqueness/membership/max5/additional-field rejection. Source restoration returns label-free original evidence. Parent receives original source/claim and supplies its label. Tool names/count, parent schema, all caps, data and scoring unchanged. HTTP projection keeps the existing compatibility omissions.
+
+Fixed split `95c3468b1a088f3fad336136136c4069fd47ecaa`, official evaluator `5e6957729b77a126006049305ad1ef241211a5b4`. Comparison requires explicit variant and CLI-only flags; exact pinned historical v0 source maps are checked. No blanket role-file allowance. Historical dotted r4 remains read-only and its missing command time remains null. TEST individual outputs/transcripts were not opened by humans; aggregate machine scoring only. No holdout.
+
+| Split | v0 Q mean | Role Q mean | Gain | v0 noise | Role Q SD | Role noise | Literal / strict |
+|---|---:|---:|---:|---:|---:|---:|---|
+| train | 0.748299976 | 0.579899794 | -0.168400182 | 0.017051044 | 0.011598820 | 0.014671476 | reject / reject |
+| test | 0.815517241 | 0.529118774 | -0.286398467 | 0.000000000 | 0.000000000 | 0.000000000 | reject / reject |
+
+Literal rule: each split gain >=0.02 and >baseline noise. Strict reference: each gain >=noise+0.02. Neither passes; train and test A<0.60/B<0.75 in every repetition. Child-label-free qualification passes but cannot override Q/safety.
+
+| Split | Repeat | F1 A | F1 B | Q | Hit@5 | strict accepted | fallback neutral | C->E |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| train | 1 | 0.511111111 | 0.642857143 | 0.574712644 | 0.500000000 | 35/36 | 1 | 4 |
+| train | 2 | 0.511111111 | 0.696581197 | 0.600648394 | 0.500000000 | 35/36 | 1 | 3 |
+| train | 3 | 0.511111111 | 0.642857143 | 0.574712644 | 0.500000000 | 35/36 | 1 | 4 |
+| train | 4 | 0.511111111 | 0.642857143 | 0.574712644 | 0.500000000 | 35/36 | 1 | 4 |
+| train | 5 | 0.511111111 | 0.642857143 | 0.574712644 | 0.500000000 | 35/36 | 1 | 4 |
+| test | 1 | 0.388888889 | 0.679365079 | 0.529118774 | 0.333333333 | 15/18 | 3 | 2 |
+| test | 2 | 0.388888889 | 0.679365079 | 0.529118774 | 0.333333333 | 15/18 | 3 | 2 |
+| test | 3 | 0.388888889 | 0.679365079 | 0.529118774 | 0.333333333 | 15/18 | 3 | 2 |
+| test | 4 | 0.388888889 | 0.679365079 | 0.529118774 | 0.333333333 | 15/18 | 3 | 2 |
+| test | 5 | 0.388888889 | 0.679365079 | 0.529118774 | 0.333333333 | 15/18 | 3 | 2 |
+
+Strict tool acceptance50/54 each run (train35/36,test15/18), fallback4/run. Final official classification validity54/54: neutral fallback with valid integer label/name is valid under the official evaluator. Do not conflate strict acceptance with official label validity.
+
+| Split | Secondary mean | v0 | Role | Delta |
+|---|---|---:|---:|---:|
+| train | valid | 36.000 | 35.000 | -1.000 |
+| train | fallback_neutral | 0.000 | 1.000 | +1.000 |
+| train | contradiction_entailment | 5.800 | 3.800 | -2.000 |
+| train | tokens | 641810.000 | 694362.200 | +52552.200 |
+| train | tokens_per_case | 17828.056 | 19287.839 | +1459.783 |
+| train | tokens_per_case_p95 | 54274.000 | 54586.000 | +312.000 |
+| train | API_wait_mean_ms | 4694.191 | 5271.865 | +577.674 |
+| train | API_wait_p95_ms | 7446.093 | 8300.276 | +854.183 |
+| train | case_mean_ms | 5780.930 | 6346.123 | +565.193 |
+| train | case_p95_ms | 8556.796 | 9433.786 | +876.990 |
+| train | API_wait_ms | 168990.870 | 189787.150 | +20796.279 |
+| test | valid | 18.000 | 15.000 | -3.000 |
+| test | fallback_neutral | 0.000 | 3.000 | +3.000 |
+| test | contradiction_entailment | 3.000 | 2.000 | -1.000 |
+| test | tokens | 425868.000 | 463324.200 | +37456.200 |
+| test | tokens_per_case | 23659.333 | 25740.233 | +2080.900 |
+| test | tokens_per_case_p95 | 60210.000 | 60772.000 | +562.000 |
+| test | API_wait_mean_ms | 4965.477 | 6092.956 | +1127.479 |
+| test | API_wait_p95_ms | 7086.429 | 10813.019 | +3726.590 |
+| test | case_mean_ms | 6065.183 | 7208.478 | +1143.295 |
+| test | case_p95_ms | 8310.811 | 11879.721 | +3568.909 |
+| test | API_wait_ms | 89378.586 | 109673.200 | +20294.615 |
+
+Train Hit@5 improves5/12 to6/12; test remains2/6. C->E mean drops5.8 to3.8(train) and3 to2(test), but overall labels, strict validity, token cost and latency regress. Timing is observational, not a causal latency claim or official non-LLM processing-time score.
+
+| Repeat | POST | Tokens | Start UTC | End UTC | Command s | API wait s |
+|---|---:|---:|---|---|---:|---:|
+| 1 | 170 | 1,157,679 | 2026-10-13T07:52:44.325740+00:00 | 2026-10-13T07:59:02.821847+00:00 | 378.496 | 313.581 |
+| 2 | 170 | 1,157,715 | 2026-10-13T07:59:02.825202+00:00 | 2026-10-13T08:05:37.474612+00:00 | 394.649 | 327.261 |
+| 3 | 170 | 1,157,679 | 2026-10-13T08:05:37.475439+00:00 | 2026-10-13T08:11:56.946833+00:00 | 379.471 | 307.280 |
+| 4 | 170 | 1,157,679 | 2026-10-13T08:11:56.952922+00:00 | 2026-10-13T08:17:56.257938+00:00 | 359.305 | 282.441 |
+| 5 | 170 | 1,157,680 | 2026-10-13T08:17:56.262246+00:00 | 2026-10-13T08:23:18.783082+00:00 | 322.521 | 266.740 |
+
+Total850 POST, **5,788,432 tokens**, **1834.442764s** command time. Tokens vs v0 5,338,390: +450,042 (+8.430295%). Each run parent114 calls/child56 (v0 parent108/child56). All jobs exit0/completed, per-job caps respected; no uncertainty, automatic retry, resume or fence clearing. Prior uncertain B fence untouched. API monetary cost unknown.
+
+Raw child audit across all280 responses, including rejected repairs, counts **0 label fields,0 label text/class-value emissions,0 nonempty content/reasoning fields,0 unauthorized fields,0 malformed argument outputs**. Unique/known-ID failures are still strict validation failures and separately diagnosed. Baseline child label emissions280 were allowed by v0, not v0 protocol violations. A finite lexical check cannot prove absence of every implicit recommendation; observed raw child arguments have only candidate_ids.
+
+Paired pooled group-bootstrap20,000/seed20261016 train delta95 [-0.35202183513321267, 0.05026726792660077]; mean-repeat delta95 [-0.35164210929931017, 0.05110162679330986].
+Paired pooled group-bootstrap20,000/seed20261016 test delta95 [-0.5770114942528737, -0.030651340996168727]; mean-repeat delta95 [-0.5770114942528738, -0.030651340996168727].
+
+Observed repeats and group-bootstrap uncertainty are different. Previously exposed internal split/booklet overlap is not unseen-generalization evidence. Raw outputs, model exchanges, detailed scored individual files and logs remain ignored.
+
+Decision: **reject evidence-only-child under both rules; retain v0**. No production adoption, new variant, extra run or next improvement before the mandated log review and owner STOP decision.
+
+
+### Mandatory agent-log review (complete)
+
+Owner Takamiya's standing policy starts with this evaluation: after every evaluation, before proposing the next improvement, review both agents' exchanges/tool calls/evidence/labels. Individual details are TRAIN-only; TEST aggregate-only. Include the review in every STOP and never commit raw logs. The runbook records this policy.
+
+All180 TRAIN case-repetitions were reviewed against matching v0/v2 TRAIN records. Across560 responses (375 parent,185 child), visible content/reasoning was empty; all185 raw child outputs have only candidate_ids and no label/class-value emissions, including rejected repairs. Source anchors and restored evidence match original TRAIN sources. Parent request messages were not persisted (payload hashes only); exact actual message bytes and independent internal reasoning are not observable. The offline SDK path and observed tool sequence establish protocol behavior, not cognitive independence.
+
+Each run:0117-A child duplicate IDs rejected, deduplicated repair accepted.0557-A/0508-A parent contradiction with empty supporting IDs rejected, repaired outputs accepted but still incorrect.0835-B parent twice requests contradiction with empty IDs, both rejected by non-neutral-support requirement; final neutral is bridge-generated fallback, not a parent neutral decision, and happens to be gold-correct. The raw JSON is syntactically valid; existing INVALID_TOOL_JSON diagnostics misleadingly cover this semantic validation failure. No malformed JSON or child-label leak is inferred from that diagnostic. Across five runs:25 rejected TRAIN attempts,15 accepted repairs,5 failed repairs,175 accepted parent outputs/5 fallbacks. No repair limit was raised.
+
+TRAIN correct counts22/23/22/22/22 of36, versus v0 28/27/27/27/27 and v2 28each.20 case-repetition improvements versus45 regressions. All36 child ID lists are repeat-stable; parent labels stable35/36 (1306-B varies), parent ID lists stable35/36 (0924-A varies). Final parent IDs match baseline21/36 and restored evidence26/36 each run, so the intervention changes evidence selection as well as removing child labels; their effects are not causally isolated. Unchanged-evidence improvements include0117-A/1316-A/0073-A; regressions include0508-A/0835-A. Remaining TRAIN errors include age-threshold mismatch, worship-place exceptions, attribution, and unrelated claims classified as contradiction. No individual TEST diagnosis was performed.
+
+Detailed TRAIN review, source rationales, audit JSON and reproducible offline scripts remain in ignored output/cscs/role-C-evidence-only-train-review*. Raw model output/source quotations are not committed. No next experiment is proposed or started; wait at STATUS: SKILL-STOP.

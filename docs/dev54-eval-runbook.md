@@ -8,7 +8,7 @@
 - train36件/test18件、label-date-balanced-v2、seed20261016を固定する。source-row A/Bと同一referenceを分割しない。分割は成績から変更しない。
 - 候補の改善材料はTRAINだけ。TESTは公式採点の集計を採否確認に使い、個別出力・ログを開かない。内部testは過去に露出済みなので未知汎化の証拠ではない。
 - 新規例は架空で、dev54から引用・言い換えしない。54件機械overlapを確認する。機械チェックだけで意味的paraphraseの不存在を証明したとは言わない。
-- productionを直接編集しない。候補はsource-only copyでSYSTEMだけ変更し、prompt hashと本番不変を確認する。
+- productionを直接編集しない。通常のprompt候補はsource-only copyでSYSTEMだけ変更する。承認済みの根拠収集専用子の役割変形は、`--variant evidence-only-child`を明示した隔離コピーだけで動かす。手順と厳密なhash監査は`evals/c-system-prompt/variants/README.md`を参照する。既定Cとproductionはv0を維持する。
 - unknown usage、inflight、state.pending、STOP.json、非ゼロexitが出たら停止。retry、fence削除、job名変更による回避をしない。既存jobを新しいcodeで再開しない。
 - 高宮さんのcheckpointでSTATUS: SKILL-STOPを書く。採用前に副指標の悪化を報告して承認を待つ。最大5候補、2〜3連続非改善でも停止する。v1/v2の2連続非改善で現在の候補ループは停止中。
 - outputはgitignoreのまま。生出力、transcript、APIログ、秘密をstageしない。sudo、force push、公開、競技提出は行わない。
@@ -207,7 +207,9 @@ EVAL_PYTHONの既存venvにpytestがない場合、今回の検証ではpytest�
 
 ## 7. 記録・commit・STOP
 
-結果をdocs/prompt-eval-log.mdに追記する。prompt版、正確なモデル、反復・job・時刻、Q/noise/CI/判定、足切り、副指標と悪化、欠測、usage/fenceの状態を含める。output/cscs/hillclimb-stop.mdに結果・質問・commitを書く。
+各評価の終了後、次の改善を提案する前に、70B親と8B子のログを読む。やり取り、tool呼出し、選択根拠、最終labelとrepairを確認する。ケース単位の詳細はTRAINだけに限定し、TESTは集計だけを使う。観測できたtool経路と、記録にない内部推論を区別する。このログレビューは毎回のSTOP報告に必ず含める。生ログはコミットしない。この恒常方針は根拠収集専用子の役割評価から適用する。
+
+結果をdocs/prompt-eval-log.mdに追記する。prompt版・役割変形、正確なモデル、反復・job・時刻、Q/noise/CI/判定、足切り、全副指標と悪化、欠測、usage/fenceの状態、ログレビューを含める。output/cscs/hillclimb-stop.mdに結果・質問・commitとログレビューを書く。
 
 stage前にstatusを確認し、自分のscript/test/docs/prompt filesだけを明示してstageする。output、reportなど他作業、generated filesはstageしない。通常commit/pushだけを使う。production prompt反映は別の明示承認が必要。
 
