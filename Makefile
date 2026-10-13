@@ -7,8 +7,8 @@ OUTPUT ?= /output/predictions.jsonl
 LLM_BACKEND ?= openai
 PYTHON ?= python3
 PIPELINE ?= B
-DOCKERFILE = $(if $(filter A B,$(PIPELINE)),Dockerfile.agent,Dockerfile)
-RUNTIME_FLAGS = $(if $(filter A B,$(PIPELINE)),--read-only --tmpfs /tmp)
+DOCKERFILE = $(if $(filter A B C,$(PIPELINE)),Dockerfile.agent,Dockerfile)
+RUNTIME_FLAGS = $(if $(filter A B C,$(PIPELINE)),--read-only --tmpfs /tmp)
 
 .PHONY: run build run-local test dev-eval download prepare
 build:

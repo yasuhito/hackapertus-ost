@@ -41,6 +41,9 @@ function wireMessages(context: any) {
 
 export async function runSdk(input: any, bridge: (kind: string, data: any) => Promise<any>) {
   if (!MODELS.includes(input.model)) throw new Error('MODEL_REFUSED');
+  const strategy = input.strategy ?? 'B';
+  const childModel = input.child_model ?? input.model;
+  if (!(strategy === 'B' && childModel === input.model || strategy === 'C' && input.model === MODELS[1] && childModel === MODELS[0])) throw new Error('ROLE_MODEL_REFUSED');
   const counts = { parent: 0, child: 0 };
   const events: any[] = [];
   const ids = input.ids;
@@ -49,7 +52,8 @@ export async function runSdk(input: any, bridge: (kind: string, data: any) => Pr
     let recommendation: any;
     const usage = zeroUsage();
     const provider = 'ost-stdio-' + role;
-    const model: any = { id: input.model, name: input.model, provider, api: 'ost-stdio-completions', baseUrl: 'stdio://python', reasoning: false, input: ['text'], contextWindow: 262144, maxTokens: 256, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } };
+    const roleModel = role === 'parent' ? input.model : childModel;
+    const model: any = { id: roleModel, name: roleModel, provider, api: 'ost-stdio-completions', baseUrl: 'stdio://python', reasoning: false, input: ['text'], contextWindow: 262144, maxTokens: 256, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } };
     runtime.registerProvider(provider, {
       api: model.api, apiKey: 'stdio-not-a-credential', models: [model],
       streamSimple: (m: any, context: any, options: any = {}) => {
@@ -118,7 +122,7 @@ export async function runSdk(input: any, bridge: (kind: string, data: any) => Pr
     }, role === 'parent' ? () => sessionRun('child') : undefined);
     const factory = (pi: any) => {
       submitFactory(pi);
-      for (const type of ['before_provider_request', 'after_provider_response', 'provider_stream_event']) pi.on(type, () => { events.push({ role, type }); });
+      for (const type of ['before_provider_request', 'after_provider_response', 'provider_stream_event']) pi.on(type, () => { events.push({ role, type, model: model.id }); });
     };
     if (role === 'child') {
       await packageChild({ input, model, runtime, factory, events });

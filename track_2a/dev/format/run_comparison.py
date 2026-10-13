@@ -29,10 +29,30 @@ legacy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(legacy)
 Stop = legacy.c.Stop
 MODELS = legacy.MODELS
-LIMITS = {'A': 216, 'B': 540}
+LIMITS = {'A': 216, 'B': 540, 'C': 270}
 TOKEN_BUDGET = 6_000_000
 RESERVE = 262400
 CASE_SECONDS = 300
+
+
+def fixed_role_model(strategy, case_owner_model, role):
+    """Only the approved same-model B or fixed 70B/8B C policy."""
+    if strategy not in LIMITS or role not in ('parent', 'child') or case_owner_model not in MODELS:
+        raise Stop('ROLE_MODEL_REFUSED')
+    if strategy == 'C':
+        if case_owner_model != MODELS[1]:
+            raise Stop('ROLE_MODEL_REFUSED')
+        return MODELS[1] if role == 'parent' else MODELS[0]
+    if strategy == 'A' and role != 'parent':
+        raise Stop('ROLE_MODEL_REFUSED')
+    return case_owner_model
+
+
+def validate_role_models(manifest):
+    if manifest['strategy'] == 'C':
+        expected = {'parent': MODELS[1], 'child': MODELS[0]}
+        if manifest.get('models', [manifest.get('model')]) != [MODELS[1]] or manifest.get('role_models') != expected:
+            raise Stop('ROLE_MODEL_REFUSED')
 
 
 def schemas(ids, child=False):
@@ -111,7 +131,9 @@ def prepare(strategy):
     manifest.update(version='format-1', strategy=strategy, request_limit=LIMITS[strategy], token_budget=TOKEN_BUDGET,
                     request_token_reserve=RESERVE, request_wall_seconds=60, socket_seconds=45, case_wall_seconds=CASE_SECONDS,
                     parent_completion_limit=2 if strategy == 'A' else 3, child_completion_limit=0 if strategy == 'A' else 2,
-                    schema_repair_limit=1, native_schema='OpenAI tools only for B; no structured_output or json_schema', pi_version='1.1.0')
+                    schema_repair_limit=1, native_schema='OpenAI tools only for B/C; no structured_output or json_schema' if strategy == 'C' else 'OpenAI tools only for B; no structured_output or json_schema', pi_version='1.1.0')
+    if strategy == 'C':
+        manifest.update(models=[MODELS[1]], role_models={'parent': MODELS[1], 'child': MODELS[0]})
     files = [REPO / 'track_2a/src/submission.py'] + [p for p in HERE.iterdir() if p.suffix in ('.py', '.ts', '.mjs', '.json') and p.is_file()]
     manifest['sources'].update({str(p.relative_to(REPO)): legacy.digest(p.read_bytes()) for p in files})
     for item in manifest['frozen']:
@@ -134,6 +156,7 @@ def initialize(job, manifest):
 
 class Ledger:
     def __init__(self, job, manifest, client_factory):
+        validate_role_models(manifest)
         self.job, self.manifest, self.client_factory = job, manifest, client_factory
         self.fence = job / 'inflight.json'
         if self.fence.exists() or (job / 'state.pending').exists() or (job / 'STOP.json').exists():
@@ -159,6 +182,9 @@ class Ledger:
         self.records[name] = result
 
     def post(self, model, index, role, number, payload, deadline=None):
+        actual_target = fixed_role_model(self.manifest['strategy'], model, role)
+        if payload.get('model') != actual_target:
+            raise Stop('ROLE_MODEL_REFUSED')
         name = legacy.result_name(model, index).replace('.json', f'-{role}-{number}.json')
         sha = legacy.digest(legacy.encode(payload))
         if name in self.state['attempts']:
@@ -171,7 +197,7 @@ class Ledger:
             raise Stop('CASE_DEADLINE_ALL_STOP')
         if state['requests'] >= self.manifest['request_limit'] or state['tokens'] + RESERVE > self.manifest['token_budget']:
             raise Stop('HARD_BUDGET_STOP_BEFORE_SEND')
-        legacy.exclusive(self.fence, {'model': model, 'index': index, 'role': role, 'number': number, 'record': name, 'payload_sha256': sha, 'reserved_tokens': RESERVE})
+        legacy.exclusive(self.fence, {'model': model, 'request_model': actual_target, 'index': index, 'role': role, 'number': number, 'record': name, 'payload_sha256': sha, 'reserved_tokens': RESERVE})
         state['requests'] += 1
         state['reserved_tokens'] = RESERVE
         legacy.state_write(self.job / 'state.json', state)
@@ -183,18 +209,18 @@ class Ledger:
         previous = signal.signal(signal.SIGALRM, legacy.deadline_stop)
         timer = signal.setitimer(signal.ITIMER_REAL, timeout)
         try:
-            response = self.client_factory(model).request('POST', '/v1/chat/completions', payload)
+            response = self.client_factory(actual_target).request('POST', '/v1/chat/completions', payload)
         finally:
             signal.setitimer(signal.ITIMER_REAL, *timer)
             signal.signal(signal.SIGALRM, previous)
         elapsed = (time.monotonic() - started) * 1000
         usage = response.get('usage') if isinstance(response, dict) else None
-        safe = legacy.usage_valid(usage) and response.get('model') == model and 'error' not in response
+        safe = legacy.usage_valid(usage) and response.get('model') == actual_target and 'error' not in response
         safe = safe and valid_usage_details(usage)
         choices = response.get('choices') if isinstance(response, dict) else None
         safe = safe and isinstance(choices, list) and len(choices) == 1 and isinstance(choices[0], dict) and choices[0].get('finish_reason') in ('stop', 'tool_calls', 'length') and isinstance(choices[0].get('message'), dict)
         safe = safe and wire_shape_safe(choices[0]['message'])
-        record = {'model': model, 'case_index': index, 'role': role, 'number': number, 'payload_sha256': sha, 'source_sha256': self.manifest['frozen'][index]['messages_sha256'], 'schema_sha256': legacy.digest(legacy.encode(payload.get('tools'))), 'assembler_schema_sha256': self.manifest['frozen'][index]['schema_sha256'], 'usage': usage, 'usage_known': legacy.usage_known(usage), 'usage_valid': legacy.usage_valid(usage), 'started_unix_ms': started_unix_ms, 'completed_unix_ms': time.time() * 1000, 'api_wait_ms': elapsed, 'generation_requests': 1, 'server_model_matches': isinstance(response, dict) and response.get('model') == model, 'has_api_error': isinstance(response, dict) and 'error' in response, 'response': response if safe else None, 'safe': safe}
+        record = {'model': model, 'request_model': actual_target, 'case_index': index, 'role': role, 'number': number, 'payload_sha256': sha, 'source_sha256': self.manifest['frozen'][index]['messages_sha256'], 'schema_sha256': legacy.digest(legacy.encode(payload.get('tools'))), 'assembler_schema_sha256': self.manifest['frozen'][index]['schema_sha256'], 'usage': usage, 'usage_known': legacy.usage_known(usage), 'usage_valid': legacy.usage_valid(usage), 'started_unix_ms': started_unix_ms, 'completed_unix_ms': time.time() * 1000, 'api_wait_ms': elapsed, 'generation_requests': 1, 'server_model_matches': isinstance(response, dict) and response.get('model') == actual_target, 'has_api_error': isinstance(response, dict) and 'error' in response, 'response': response if safe else None, 'safe': safe}
         legacy.exclusive(self.job / name, record)
         if legacy.usage_known(usage):
             state['tokens'] += usage['total_tokens']
@@ -254,8 +280,10 @@ def run_a(item, model, post):
     return None, [code]
 
 
-def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False):
+def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strategy='B'):
     """Python owns the assembler and all requests. Node receives no credentials."""
+    fixed_role_model(strategy, model, 'parent')
+    child_model = fixed_role_model(strategy, model, 'child')
     with tempfile.TemporaryDirectory(prefix='ost-pi-', dir='/tmp') as home:
         node = shutil.which('node')
         if not node:
@@ -275,7 +303,7 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False):
         def send(value):
             process.stdin.write(json.dumps(value, ensure_ascii=False, allow_nan=False) + '\n')
             process.stdin.flush()
-        send({'model': model, 'ids': item['candidate_ids'], 'system': item['messages'][0]['content'], 'user': item['messages'][1]['content']})
+        send({'model': model, 'strategy': strategy, 'child_model': child_model, 'ids': item['candidate_ids'], 'system': item['messages'][0]['content'], 'user': item['messages'][1]['content']})
         try:
             while True:
                 remaining = deadline - time.monotonic()
@@ -298,6 +326,8 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False):
                     raise Stop('ROLE_REFUSED')
                 if kind == 'request':
                     payload = data['payload']
+                    if payload.get('model') != fixed_role_model(strategy, model, role):
+                        raise Stop('ROLE_MODEL_REFUSED')
                     enforce_tools(payload, item['candidate_ids'], role)
                     if counters[role] >= (3 if role == 'parent' else 2) or accepted is not None:
                         raise Stop('SDK_REQUEST_LIMIT')
@@ -394,7 +424,9 @@ def run(job, manifest, client_factory):
 
 def run_locked(job, manifest, client_factory):
     ledger = Ledger(job, manifest, client_factory)
-    for model, index in legacy.order():
+    models = manifest.get('models', MODELS)
+    order = [(model, i) for model in models for i in range(3)] + [(model, i) for model in models for i in range(3, 54)]
+    for model, index in order:
         name = legacy.result_name(model, index).replace('.json', '-case.json')
         if name in ledger.state['cases']:
             continue
@@ -405,7 +437,7 @@ def run_locked(job, manifest, client_factory):
         if manifest['strategy'] == 'A':
             args, diagnostics = run_a(item, model, post)
         else:
-            args, diagnostics, sdk_result = run_b(item, model, post)
+            args, diagnostics, sdk_result = run_b(item, model, post, strategy=manifest['strategy'])
         wall = (time.monotonic() - started) * 1000
         metrics, wait = metrics_for(ledger, model, index, wall)
         prediction = submission.assemble_tool(args, item['case'], item['pages'], metrics) if args is not None else submission.fallback(item['case'], item['pages'], metrics)
@@ -416,7 +448,10 @@ def run_locked(job, manifest, client_factory):
 
 def summarize(ledger):
     summary = {'status': 'completed', 'mode': ledger.manifest.get('mode', 'user-run'), 'cost': 'unknown; no financial cap asserted', 'strategy': ledger.manifest['strategy'], 'generation_requests': ledger.state['requests'], 'actual_total_tokens': ledger.state['tokens'], 'token_budget': ledger.manifest['token_budget'], 'models': {}}
-    for model in MODELS:
+    summary['calls_by_actual_model'] = dict(Counter(r.get('request_model', r['model']) for n, r in ledger.records.items() if n in ledger.state['attempts']))
+    if 'role_models' in ledger.manifest:
+        summary['role_models'] = ledger.manifest['role_models']
+    for model in ledger.manifest.get('models', MODELS):
         subset = [ledger.records[legacy.result_name(model, i).replace('.json', '-case.json')] for i in range(54)]
         wall = sorted(r['case_wall_ms'] for r in subset)
         waits = sorted(r['api_wait_ms'] for r in subset)
@@ -437,7 +472,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--user-run', action='store_true')
-    parser.add_argument('--strategy', choices=['A', 'B'], required=True)
+    parser.add_argument('--strategy', choices=['A', 'B', 'C'], required=True)
     parser.add_argument('--repeat', type=int, choices=[1, 2], default=1)
     parser.add_argument('--job', type=Path)
     args = parser.parse_args()
@@ -454,7 +489,7 @@ def main():
     with os.fdopen(fd, 'w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         initialize(job, manifest)
-        print(json.dumps({'status': 'starting', 'strategy': args.strategy, 'job': str(job), 'models': MODELS, 'request_limit': manifest['request_limit'], 'token_budget': manifest['token_budget'], 'output_limit': 256, 'no_automatic_retry': True}), flush=True)
+        print(json.dumps({'status': 'starting', 'strategy': args.strategy, 'job': str(job), 'models': manifest['models'], 'request_limit': manifest['request_limit'], 'token_budget': manifest['token_budget'], 'output_limit': 256, 'no_automatic_retry': True}), flush=True)
         clients = {}
         def client(model):
             if model not in clients:

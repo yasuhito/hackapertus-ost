@@ -4,7 +4,11 @@ A is deterministic text parsing plus source restoration. B uses real Pi 1.1.0
 SDK sessions and native OpenAI tool calls: parent `subagent`, child `submit`
 (recommendation only), then authoritative parent `submit`. The child is launched
 by installed `@tintinweb/pi-subagents@0.19.0`'s actual `runAgent()` API, not a
-manual session disguised as that package. Both use
+manual session disguised as that package. C uses the same protocol and frozen
+source/question, with authoritative `swiss-ai/Apertus-v1.5-70B` parent and
+source-only `swiss-ai/Apertus-v1.5-8B` child. B keeps its same-model child.
+There are no task/model selectors, additional tools, deeper agents or retries.
+All three use
 `track_2a/src/submission.py`. Legacy predict/Client defaults are unchanged.
 This does not establish CSCS/proxy native tool support or model accuracy.
 
@@ -54,8 +58,11 @@ PYTHONDONTWRITEBYTECODE=1 /tmp/hackapertus-ost-contract/.venv/bin/python \
   -m pytest -q -p no:cacheprovider track_2a/dev/format
 python3 track_2a/dev/format/run_comparison.py --prepare-only --strategy A
 python3 track_2a/dev/format/run_comparison.py --prepare-only --strategy B
+python3 track_2a/dev/format/run_comparison.py --prepare-only --strategy C
 PYTHONDONTWRITEBYTECODE=1 python3 track_2a/dev/format/offline_check.py \
   --strategy B --job /tmp/ost-format-offline-B
+PYTHONDONTWRITEBYTECODE=1 python3 track_2a/dev/format/offline_check.py \
+  --strategy C --job /tmp/ost-format-offline-C
 ```
 
 The offline CLI freezes the approved portable dev54, uses synthetic neutral
@@ -95,7 +102,9 @@ record `runAgent`, version, exact model/provider and active submit-only tools.
 ```sh
 python3 track_2a/dev/format/run_comparison.py --user-run --strategy A --repeat 1
 python3 track_2a/dev/format/run_comparison.py --user-run --strategy B --repeat 1
-# Repeat with --repeat 2 for independent round directories.
+python3 track_2a/dev/format/run_comparison.py --user-run --strategy C --repeat 1
+python3 track_2a/dev/format/run_comparison.py --user-run --strategy C --repeat 2
+# A/B can also repeat with --repeat 2 for independent round directories.
 ```
 
 `--repeat` is the round index, not an automatic loop. `--job DIR` overrides the
@@ -104,7 +113,9 @@ identity to bypass a stop. Only explicit `--user-run` creates a CSCS transport;
 its key is read internally in Python, never supplied to Node. No HTTP retries.
 
 A: at most 216 POSTs. B: at most 540 POSTs, parent 3/child 2 per case, depth one,
-one delegation, at most two submit attempts per session. Both runs have a
+one delegation, at most two submit attempts per session. C: only 54 owner-70B
+cases, at most 270 POSTs (parent 3 + child 2 per case), with fixed 70B/8B roles.
+C round directories are `output/cscs/format-C-r1` and `format-C-r2`. All runs have a
 6,000,000-token budget and reserve 262,400 before each POST. Output cap 256,
 request wall cap 60 seconds, socket 45 seconds, case cap 300 seconds. Only
 schema/source validation permits one repair, never gold/semantic quality.
@@ -113,7 +124,14 @@ Each job has flock, manifest/code/source/schema hashes, fsynced immutable raw
 attempts, state, completed case markers, summary models map, and
 `8b-predictions.jsonl`/`70b-predictions.jsonl` for local scoring. Separate
 `*-canonical.jsonl` files omit error flags. All parent/child/failed known usage
-is counted. Resume replays confirmed raw attempts without sending them again;
+is counted. C filenames retain the `70b-` case-owner prefix; attempt `model`
+is the owner, while `request_model` records the actual transport target.
+Manifest/summary `role_models` records the fixed pair and summary
+`calls_by_actual_model` separates transport calls. Whole-case metrics sum
+parent, child and repairs exactly once. Response model must match the actual
+target; invalid role/target pairs stop before reserving or sending. Old B
+attempts lacking `request_model` remain replayable with their owner as target
+(subject to unchanged manifest/code identity). Resume replays confirmed raw attempts without sending them again;
 changed payloads fail. Inflight, state.pending or STOP.json fences block all
 resume after uncertainty, deadline or storage failure. Unknown usage is not
 filled with zero. API wait and case mean/p95 are separate. Comparison case
@@ -127,13 +145,17 @@ that timing. Submitted runtime includes per-case context preparation.
 python3 track_2a/dev/format/runtime.py --pipeline B --input INPUT --output OUTPUT
 make run PIPELINE=B LLM_MODEL=swiss-ai/Apertus-v1.5-8B \
   INPUT_DIR=/path/to/approved/input INPUT=/data/input.jsonl OUTPUT_DIR=/path/to/new/output
-# PIPELINE=A selects the same assembler's text path; default is legacy.
+make run PIPELINE=C LLM_MODEL=swiss-ai/Apertus-v1.5-70B \
+  INPUT_DIR=/path/to/approved/input INPUT=/data/input.jsonl OUTPUT_DIR=/path/to/new/output
+# PIPELINE=A selects the same assembler's text path; Makefile default stays B.
 ```
 
 The Node executable is resolved before child environment sanitization, including
 Docker's `/usr/local/bin/node`. Submitted model selection accepts LLM_MODEL or
 LLM_NAME only when casefold matches the two canonical allowed IDs; thinking and
-unknown models remain refused. Runtime adds the same protocol reminder as dev.
+unknown models remain refused. C defaults to canonical 70B when neither
+variable is set and rejects an injected 8B parent before input/key reads.
+Makefile includes C in agent-image/read-only selection. Runtime adds the same protocol reminder as dev.
 Submitted transport requires injected BASE_URL/API_KEY for every parent/child
 call. It never reads a host key or uses a default CSCS endpoint. Output is
 canonical JSONL; sibling `.diagnostics.jsonl` and `.evaluation.jsonl` files
