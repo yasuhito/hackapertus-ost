@@ -416,3 +416,107 @@ Parent identified the mistake before any live run and stopped launch. New tool l
 Mandatory live TRAIN agent-log review is not claimed complete: there are no new live parent/child logs to review. Only synthetic actual-SDK membership/order/role/limit tests were reviewed; they are not Apertus quality evidence. No individual TEST transcript was inspected. A new STOP report records the incident, baseline table, unmeasured candidate metrics and continuation question. No additional tool, production change or model job was started.
 
 A nonmutating code review found an additional offline defect: multiple check tool calls in one response, or an early out-of-order call, could poison a global counter and stop the legitimate first lookup. Two synthetic actual-SDK regressions were RED before repair. Raw attempts and admitted calls are now counted separately; extras remain visible and rejected, without blocking the legitimate one-time lookup. No source/cap/schema policy changed. GREEN validation: **81 eval tests passed;242 track tests passed,1 excluded** with the exact protected-test exclusion and pinned package overrides. Final patch SHA256 `8302ee66480c3ebacf635fe9549b9c3d3e245b1ed73b24b836eb295f7ff1952d`. Live launch remains stopped; these repairs do not authorize continuing past the boundary incident.
+
+## Single-tool live result: id-existence-check (rejected)
+
+Owner explicitly reviewed the pre-live boundary incident and authorized continuation with exact `-k 'not test_no_split_leakage'` exclusion. Approved54x5 completed once, no extra repetition/retry. Implementation/archive commit `06eee5d80418fe3c7109edced223c4d9c785649f`; patch SHA256 `8302ee66480c3ebacf635fe9549b9c3d3e245b1ed73b24b836eb295f7ff1952d`. Fresh exact jobs `output/cscs/tool-C-id-existence-r1` through `r5`; no renamed/reused identities. Production/default C remain v0.
+
+Fixed parent `swiss-ai/Apertus-v1.5-70B`, child `swiss-ai/Apertus-v1.5-8B`, Pi1.1.0/pi-subagents0.19.0, nonthinking. Parent alone adds membership lookup; child keeps v0 label/IDs recommendation. No dedup/search/rulecheck/automatic correction. Caps/models/inputs/split/official scoring unchanged; explicit schema delta only adds the parent tool, unchanged submit/child schemas. Exact source/policy/frozen/schema audit passes; comparison explicitly requests variant and historical CLI-only allowance.
+
+Split `95c3468b1a088f3fad336136136c4069fd47ecaa`, official evaluator `5e6957729b77a126006049305ad1ef241211a5b4`. Runtime input fixture unchanged; no holdout evaluated or further protected-test read in this phase. Prior incident remains documented, not erased. TEST individual outputs/transcripts not opened; aggregate machine scoring only. No key file read by agents, auth changes, sudo/force push/submission/publication.
+
+| Split | v0 Q mean | Tool Q mean | Gain | Baseline noise | Tool Q SD | Tool noise | Literal / strict |
+|---|---:|---:|---:|---:|---:|---:|---|
+| train | 0.748299976 | 0.759049839 | 0.010749863 | 0.017051044 | 0.013577603 | 0.017174460 | reject / reject |
+| test | 0.815517241 | 0.715900383 | -0.099616858 | 0.000000000 | 0.000000000 | 0.000000000 | reject / reject |
+
+Literal requires both gains>=0.02 AND each >baseline noise. Strict reference requires each >=noise+0.02. Train gain .010749863 is below .02 and below .017051044 noise. Test gain is negative; B<.75 in all5 repetitions (A=.75 passes). Train A>=.60/B>=.75 each run. Tool structural compliance passes but cannot override gain/safety.
+
+| Split | Repeat | F1 A | F1 B | Q | Hit@5 | strict accepted | fallback | C->E |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| train | 1 | 0.720279720 | 0.831168831 | 0.773812395 | 0.500000000 | 36/36 | 0 | 4 |
+| train | 2 | 0.675324675 | 0.831168831 | 0.750559785 | 0.500000000 | 36/36 | 0 | 4 |
+| train | 3 | 0.675324675 | 0.831168831 | 0.750559785 | 0.500000000 | 36/36 | 0 | 4 |
+| train | 4 | 0.720279720 | 0.774603175 | 0.746504836 | 0.500000000 | 36/36 | 0 | 4 |
+| train | 5 | 0.720279720 | 0.831168831 | 0.773812395 | 0.500000000 | 36/36 | 0 | 4 |
+| test | 1 | 0.750000000 | 0.679365079 | 0.715900383 | 0.333333333 | 18/18 | 0 | 3 |
+| test | 2 | 0.750000000 | 0.679365079 | 0.715900383 | 0.333333333 | 18/18 | 0 | 3 |
+| test | 3 | 0.750000000 | 0.679365079 | 0.715900383 | 0.333333333 | 18/18 | 0 | 3 |
+| test | 4 | 0.750000000 | 0.679365079 | 0.715900383 | 0.333333333 | 18/18 | 0 | 3 |
+| test | 5 | 0.750000000 | 0.679365079 | 0.715900383 | 0.333333333 | 18/18 | 0 | 3 |
+
+Strict submitted outputs54/54 and official label/name shape54/54 every run; fallback0. Train Hit5/12->6/12; test2/6 unchanged. Train C->E5.8->4, test3 unchanged. Train F1_A .620046620->.702297702 improves while F1_B .885714286->.819855700 worsens. Test F1_A .75 unchanged; F1_B .885714286->.679365079 regresses and fails safety.
+
+| Split | Secondary mean | v0 | Tool | Delta |
+|---|---|---:|---:|---:|
+| train | valid | 36.000 | 36.000 | +0.000 |
+| train | fallback_neutral | 0.000 | 0.000 | +0.000 |
+| train | contradiction_entailment | 5.800 | 4.000 | -1.800 |
+| train | tokens | 641810.000 | 880544.200 | +238734.200 |
+| train | tokens_per_case | 17828.056 | 24459.561 | +6631.506 |
+| train | tokens_per_case_p95 | 54274.000 | 73328.000 | +19054.000 |
+| train | API_wait_mean_ms | 4694.191 | 9316.592 | +4622.401 |
+| train | API_wait_p95_ms | 7446.093 | 15243.463 | +7797.370 |
+| train | case_mean_ms | 5780.930 | 10529.488 | +4748.558 |
+| train | case_p95_ms | 8556.796 | 16491.870 | +7935.074 |
+| train | API_wait_ms | 168990.870 | 335397.313 | +166406.443 |
+| test | valid | 18.000 | 18.000 | +0.000 |
+| test | fallback_neutral | 0.000 | 0.000 | +0.000 |
+| test | contradiction_entailment | 3.000 | 3.000 | +0.000 |
+| test | tokens | 425868.000 | 573377.800 | +147509.800 |
+| test | tokens_per_case | 23659.333 | 31854.322 | +8194.989 |
+| test | tokens_per_case_p95 | 60210.000 | 80839.000 | +20629.000 |
+| test | API_wait_mean_ms | 4965.477 | 9590.979 | +4625.502 |
+| test | API_wait_p95_ms | 7086.429 | 15453.978 | +8367.549 |
+| test | case_mean_ms | 6065.183 | 10834.450 | +4769.267 |
+| test | case_p95_ms | 8310.811 | 16874.865 | +8564.054 |
+| test | API_wait_ms | 89378.586 | 172637.616 | +83259.030 |
+
+| Split | Repeat | Lookup calls/successful cases | Unknown ID query occurrences | Checked-vs-final list mismatch cases | Structural all |
+|---|---:|---|---:|---:|---|
+| train | 1 | 36/36 | 9 | 17 | True |
+| train | 2 | 36/36 | 9 | 16 | True |
+| train | 3 | 36/36 | 10 | 14 | True |
+| train | 4 | 36/36 | 11 | 16 | True |
+| train | 5 | 36/36 | 9 | 16 | True |
+| test | 1 | 18/18 | 7 | 6 | True |
+| test | 2 | 18/18 | 7 | 6 | True |
+| test | 3 | 18/18 | 7 | 6 | True |
+| test | 4 | 18/18 | 4 | 6 | True |
+| test | 5 | 18/18 | 7 | 6 | True |
+
+All270 cases execute exactly1 successful lookup in the fixed parent sequence. Ordered membership results independently match the frozen source candidate set. Unknown queried-ID occurrences80 (train48,test32); final list mismatch109/270 cases (train79/180,test30/90). A successful lookup can correctly return exists=false; it does not mean all queried IDs exist, nor establish semantic support. Final IDs are intentionally not forced to checked IDs; original strict submit validator remains. Child label emissions279 (train180,test99), allowed by v0; IDs-only child-label-free/extra-field counters are not this variant's protocol gates and must not be described as violations.
+
+| Repeat | Parent / child POST | Total POST | Tokens | Start UTC | End UTC | Command s | API wait s |
+|---|---|---:|---:|---|---|---:|---:|
+| 1 | 162 / 56 | 218 | 1,455,515 | 2026-10-13T11:23:16.371843+00:00 | 2026-10-13T11:32:12.058233+00:00 | 535.686 | 459.780 |
+| 2 | 162 / 55 | 217 | 1,447,590 | 2026-10-13T11:32:12.060810+00:00 | 2026-10-13T11:41:41.134317+00:00 | 569.074 | 488.527 |
+| 3 | 162 / 56 | 218 | 1,455,526 | 2026-10-13T11:41:41.137658+00:00 | 2026-10-13T11:53:21.366993+00:00 | 700.229 | 621.757 |
+| 4 | 162 / 56 | 218 | 1,455,542 | 2026-10-13T11:53:21.369384+00:00 | 2026-10-13T12:02:52.411060+00:00 | 571.042 | 495.613 |
+| 5 | 162 / 56 | 218 | 1,455,437 | 2026-10-13T12:02:52.412731+00:00 | 2026-10-13T12:11:58.249934+00:00 | 545.837 | 474.498 |
+
+Total1089 POST, **7,269,610 tokens**, **2921.868111s** command time (48.698min). Versus v0 5,338,390tokens: +1,931,220 (+36.176076%). Parent810 calls versus540baseline; child279 versus280. Child duplicate-ID schema repairs9 versus10baseline, no parent repair/fallback. Membership check raises ordinary parent requests to3, consuming its available repair slot; caps never raised.
+
+All5 exit0/completed, usage known/consistent, reserves0/pending null/inflight absent, caps respected. No HTTP retry, rerun, resume or fence clearing. Prior uncertain B fence untouched. Financial cost unknown. Time increases are observational, not causal prompt timing or official non-LLM processing-time claims. Historical baseline r4 command start/time remains null.
+
+Paired pooled group-bootstrap20,000/seed20261016 train delta95 [-0.08064978717938054, 0.10730832887296632]; mean-repeat delta95 [-0.08150480090588985, 0.10946907498631642].
+Paired pooled group-bootstrap20,000/seed20261016 test delta95 [-0.3084291187739465, 0.0]; mean-repeat delta95 [-0.3084291187739465, 0.0].
+
+Observed run noise differs from source-group/bootstrap case uncertainty. Previously exposed internal test/booklet overlap remains a limitation; no unseen-generalization claim. Raw outputs/transcripts/individual score files remain ignored.
+
+Decision: **reject id-existence-check under both interpretations; retain v0**. No next tool or combined variant is created/evaluated. Mandatory TRAIN log review is recorded separately before owner STOP decision.
+
+
+### Mandatory TRAIN agent-log review (complete)
+
+All180 candidate TRAIN repetitions and180 matched v0 baseline repetitions were reviewed via exact-index parent/child responses, local tool inputs/results, final label/IDs, diagnostics and restored source evidence. No individual TEST records or frozen entries were decoded; TEST interpretation is aggregate-only. Detailed proof and reproducible read-only audit remain ignored at output/cscs/tool-C-id-existence-train-review.md and tool-C-id-existence-train-audit.json/.py. Raw logs/source quotations are not committed.
+
+All180 TRAIN flows follow 70B subagent -> 8B submit ->70B membership check ->70B submit, with3parent/1child calls each. No TRAIN repair/fallback/truncation/rejected final submission. All neutral predictions are accepted parent submissions, not bridge placeholders. All48 nonexistent queried IDs were correctly flagged across22 case-repetitions; no nonexistent queried ID survives into final evidence. Checked/final list mismatch79cases includes57 without any unknown query. Five check lists contain duplicates, intentionally preserved; no empty check occurred. Final IDs and source evidence are valid and exactly restored, but membership is not semantic support.
+
+TRAIN correct137/180 vsbaseline136/180:9 improvements (1142-A r2-r5,1316-A all5),8 regressions (0601-B r4,0924-A r2/r3,0924-B all5). Wrong stable labels persist on0073-A,0117-A,0240-A,1117-A/B,1306-A/B despite existing source IDs. Labels repeat-stable34/36; variable0601-B/0924-A. Ordered final IDs stable31/36; variable0073-B/0475-B/0508-B/0557-A/0826-A. Source review of0346-A observes fuller relevant pages; this is consistent with aggregate Hit improvement, but no claim is made that this case alone accounts for the measured increase. Some other TRAIN selections include unrelated evidence; valid membership cannot validate its relevance.
+
+Child request hashes match baseline180/180; child arguments match177/180, with all child labels unchanged. Child v0 labels are allowed, not violations. Parent final labels match child157/180 and IDs118/180. No private reasoning or causal decision mechanism is recoverable: visible content empty/reasoning null, actual parent request messages not persisted, only hashes and response envelopes. Observable tool/result/label transitions and source correctness are reported, not cognitive independence or causal accuracy improvement from membership alone.
+
+Decision confirmed after log review: reject this single-tool variant, retain v0. No next tool or combined variant is proposed/created/evaluated before owner STOP direction. Every future evaluation must repeat the TRAIN-only case review and TEST aggregate-only reporting.
+
+All official aggregate secondary metrics (per-class precision/recall/F1/support, per-language F1/count, task accuracy, evidence counts, upstream usage means) and per-run operational/tool metrics are saved without individual outputs in evals/c-system-prompt/results/id-existence-check-aggregates.json. Upstream B threshold0.70 remains unchanged; adoption uses0.75. Output aggregate values are not a new scorer or altered adoption rule.

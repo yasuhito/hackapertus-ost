@@ -1,0 +1,3431 @@
+{
+  "kind": "aggregate-only evaluation record; no cases, quotes, outputs or transcripts",
+  "variant": "id-existence-check",
+  "archive_commit": "06eee5d80418fe3c7109edced223c4d9c785649f",
+  "official_evaluator_commit": "5e6957729b77a126006049305ad1ef241211a5b4",
+  "split_commit": "95c3468b1a088f3fad336136136c4069fd47ecaa",
+  "comparison": {
+    "train": {
+      "gain": 0.010749863163656226,
+      "baseline_noise": 0.01705104367462143,
+      "literal_pass": false,
+      "strict_reference_pass": false,
+      "candidate_safe_all": true,
+      "pooled_delta95": [
+        -0.08064978717938054,
+        0.10730832887296632
+      ],
+      "mean_repeat_delta95": [
+        -0.08150480090588985,
+        0.10946907498631642
+      ]
+    },
+    "test": {
+      "gain": -0.09961685823754807,
+      "baseline_noise": 0.0,
+      "literal_pass": false,
+      "strict_reference_pass": false,
+      "candidate_safe_all": false,
+      "pooled_delta95": [
+        -0.3084291187739465,
+        0.0
+      ],
+      "mean_repeat_delta95": [
+        -0.3084291187739465,
+        0.0
+      ]
+    }
+  },
+  "adopt_literal": false,
+  "adopt_strict": false,
+  "arms": {
+    "baseline": {
+      "train": {
+        "cases": 36,
+        "source_groups": 16,
+        "metrics": {
+          "F1_A": {
+            "mean": 0.62004662004662,
+            "runSD": 0.02606139833915835,
+            "detectable_width": 0.032965351104267904
+          },
+          "F1_B": {
+            "mean": 0.8857142857142858,
+            "runSD": 0.0,
+            "detectable_width": 0.0
+          },
+          "Q": {
+            "mean": 0.7482999758861829,
+            "runSD": 0.013480033623702673,
+            "detectable_width": 0.01705104367462143
+          }
+        },
+        "child_label_emissions_total": 180,
+        "id_check_structural_all": false,
+        "id_check_totals": {
+          "id_check_call_count": 0,
+          "id_check_successful_cases": 0,
+          "id_check_unknown_ids": 0,
+          "id_check_checked_vs_submitted_mismatches": 0
+        },
+        "Hit_A_mean": 0.4166666666666667,
+        "Q_pooled": 0.7485529556650248,
+        "Q_pooled_group_bootstrap_95": [
+          0.5837600744630844,
+          0.8694462864721487
+        ],
+        "Q_mean_repeat_group_bootstrap_95": [
+          0.5837435265883542,
+          0.8689132706374088
+        ],
+        "safe_all": true,
+        "runs": [
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r1",
+            "F1_A": 0.6666666666666666,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.7724137931034485,
+            "Hit_A": 0.4166666666666667,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 5,
+              "tokens": 641810,
+              "tokens_per_case": 17828.055555555555,
+              "tokens_per_case_p95": 54274,
+              "API_wait_mean_ms": 4696.591189545062,
+              "API_wait_p95_ms": 6658.152518095449,
+              "case_mean_ms": 5823.433555345724,
+              "case_p95_ms": 7835.9863590449095,
+              "API_wait_ms": 169077.28282362223,
+              "requests_full_run": 164,
+              "command_start": 1791855853.8911383,
+              "command_end": 1791856184.1456015,
+              "command_seconds": 330.2544631958008
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.6666666666666666,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.5,
+                      "recall": 0.5,
+                      "f1": 0.5,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.5,
+                      "f1": 0.5,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.4166666666666667,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 5,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 17731.027777777777,
+                "output_tokens": 97.02777777777777,
+                "inference_time_ms": 5823.433555345724
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r2",
+            "F1_A": 0.6083916083916084,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.7422715215818665,
+            "Hit_A": 0.4166666666666667,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 6,
+              "tokens": 641810,
+              "tokens_per_case": 17828.055555555555,
+              "tokens_per_case_p95": 54274,
+              "API_wait_mean_ms": 4316.6071459612185,
+              "API_wait_p95_ms": 5971.71218902804,
+              "case_mean_ms": 5461.52549351488,
+              "case_p95_ms": 7025.531711988151,
+              "API_wait_ms": 155397.85725460388,
+              "requests_full_run": 164,
+              "command_start": 1791856197.1803885,
+              "command_end": 1791856509.4831169,
+              "command_seconds": 312.3027284145355
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.6083916083916084,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.6111111111111112,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.42857142857142855,
+                      "recall": 0.5,
+                      "f1": 0.46153846153846156,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.4,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.36363636363636365,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.4166666666666667,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 5,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 17731.027777777777,
+                "output_tokens": 97.02777777777777,
+                "inference_time_ms": 5461.52549351488
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r3",
+            "F1_A": 0.6083916083916084,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.7422715215818665,
+            "Hit_A": 0.4166666666666667,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 6,
+              "tokens": 641810,
+              "tokens_per_case": 17828.055555555555,
+              "tokens_per_case_p95": 54274,
+              "API_wait_mean_ms": 4482.873106866868,
+              "API_wait_p95_ms": 6055.388645036146,
+              "case_mean_ms": 5585.438000452187,
+              "case_p95_ms": 7112.631377065554,
+              "API_wait_ms": 161383.43184720725,
+              "requests_full_run": 164,
+              "command_start": 1791861295.659494,
+              "command_end": 1791861615.3343885,
+              "command_seconds": 319.6748945713043
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.6083916083916084,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.6111111111111112,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.42857142857142855,
+                      "recall": 0.5,
+                      "f1": 0.46153846153846156,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.4,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.36363636363636365,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.4166666666666667,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 5,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 17731.027777777777,
+                "output_tokens": 97.02777777777777,
+                "inference_time_ms": 5585.438000452187
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r4.",
+            "F1_A": 0.6083916083916084,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.7422715215818665,
+            "Hit_A": 0.4166666666666667,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 6,
+              "tokens": 641810,
+              "tokens_per_case": 17828.055555555555,
+              "tokens_per_case_p95": 54274,
+              "API_wait_mean_ms": 5443.294735528373,
+              "API_wait_p95_ms": 12696.700279833749,
+              "case_mean_ms": 6641.48033774432,
+              "case_p95_ms": 13815.53073017858,
+              "API_wait_ms": 195958.61047902144,
+              "requests_full_run": 164,
+              "command_start": null,
+              "command_end": null,
+              "command_seconds": null
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.6083916083916084,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.6111111111111112,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.42857142857142855,
+                      "recall": 0.5,
+                      "f1": 0.46153846153846156,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.4,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.36363636363636365,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.4166666666666667,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 5,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 17731.027777777777,
+                "output_tokens": 97.02777777777777,
+                "inference_time_ms": 6641.48033774432
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r5",
+            "F1_A": 0.6083916083916084,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.7422715215818665,
+            "Hit_A": 0.4166666666666667,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 6,
+              "tokens": 641810,
+              "tokens_per_case": 17828.055555555555,
+              "tokens_per_case_p95": 54274,
+              "API_wait_mean_ms": 4531.588007734778,
+              "API_wait_p95_ms": 5848.513186210766,
+              "case_mean_ms": 5392.772261085662,
+              "case_p95_ms": 6994.300170103088,
+              "API_wait_ms": 163137.168278452,
+              "requests_full_run": 164,
+              "command_start": 1791864340.581856,
+              "command_end": 1791864656.062766,
+              "command_seconds": 315.4809100627899
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.6083916083916084,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.6111111111111112,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.42857142857142855,
+                      "recall": 0.5,
+                      "f1": 0.46153846153846156,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.4,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.36363636363636365,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.4166666666666667,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 5,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 17731.027777777777,
+                "output_tokens": 97.02777777777777,
+                "inference_time_ms": 5392.772261085662
+              }
+            }
+          }
+        ]
+      },
+      "test": {
+        "cases": 18,
+        "source_groups": 8,
+        "metrics": {
+          "F1_A": {
+            "mean": 0.75,
+            "runSD": 0.0,
+            "detectable_width": 0.0
+          },
+          "F1_B": {
+            "mean": 0.8857142857142858,
+            "runSD": 0.0,
+            "detectable_width": 0.0
+          },
+          "Q": {
+            "mean": 0.8155172413793105,
+            "runSD": 0.0,
+            "detectable_width": 0.0
+          }
+        },
+        "child_label_emissions_total": 100,
+        "id_check_structural_all": false,
+        "id_check_totals": {
+          "id_check_call_count": 0,
+          "id_check_successful_cases": 0,
+          "id_check_unknown_ids": 0,
+          "id_check_checked_vs_submitted_mismatches": 0
+        },
+        "Hit_A_mean": 0.3333333333333333,
+        "Q_pooled": 0.8155172413793105,
+        "Q_pooled_group_bootstrap_95": [
+          0.5207780725022105,
+          1.0000000000000002
+        ],
+        "Q_mean_repeat_group_bootstrap_95": [
+          0.5207780725022105,
+          1.0000000000000002
+        ],
+        "safe_all": true,
+        "runs": [
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r1",
+            "F1_A": 0.75,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.8155172413793105,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 425868,
+              "tokens_per_case": 23659.333333333332,
+              "tokens_per_case_p95": 60210,
+              "API_wait_mean_ms": 5158.570400245178,
+              "API_wait_p95_ms": 7571.157243801281,
+              "case_mean_ms": 6264.222410054774,
+              "case_p95_ms": 8708.893653005362,
+              "API_wait_ms": 92854.26720441319,
+              "requests_full_run": 164,
+              "command_start": 1791855853.8911383,
+              "command_end": 1791856184.1456015,
+              "command_seconds": 330.2544631958008
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 23548.666666666668,
+                "output_tokens": 110.66666666666667,
+                "inference_time_ms": 6264.222410054774
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r2",
+            "F1_A": 0.75,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.8155172413793105,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 425868,
+              "tokens_per_case": 23659.333333333332,
+              "tokens_per_case_p95": 60210,
+              "API_wait_mean_ms": 4726.933827119258,
+              "API_wait_p95_ms": 6251.960047986358,
+              "case_mean_ms": 5842.802836158727,
+              "case_p95_ms": 7435.383365023881,
+              "API_wait_ms": 85084.80888814665,
+              "requests_full_run": 164,
+              "command_start": 1791856197.1803885,
+              "command_end": 1791856509.4831169,
+              "command_seconds": 312.3027284145355
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 23548.666666666668,
+                "output_tokens": 110.66666666666667,
+                "inference_time_ms": 5842.802836158727
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r3",
+            "F1_A": 0.75,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.8155172413793105,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 425868,
+              "tokens_per_case": 23659.333333333332,
+              "tokens_per_case_p95": 60210,
+              "API_wait_mean_ms": 4909.603927232739,
+              "API_wait_p95_ms": 7423.760384088382,
+              "case_mean_ms": 6023.681611948025,
+              "case_p95_ms": 8614.719313103706,
+              "API_wait_ms": 88372.8706901893,
+              "requests_full_run": 164,
+              "command_start": 1791861295.659494,
+              "command_end": 1791861615.3343885,
+              "command_seconds": 319.6748945713043
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 23548.666666666668,
+                "output_tokens": 110.66666666666667,
+                "inference_time_ms": 6023.681611948025
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r4.",
+            "F1_A": 0.75,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.8155172413793105,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 425868,
+              "tokens_per_case": 23659.333333333332,
+              "tokens_per_case_p95": 60210,
+              "API_wait_mean_ms": 4781.207930490685,
+              "API_wait_p95_ms": 6967.227594926953,
+              "case_mean_ms": 6000.092448213965,
+              "case_p95_ms": 8406.791349872947,
+              "API_wait_ms": 86061.74274883233,
+              "requests_full_run": 164,
+              "command_start": null,
+              "command_end": null,
+              "command_seconds": null
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 23548.666666666668,
+                "output_tokens": 110.66666666666667,
+                "inference_time_ms": 6000.092448213965
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/format-C-r5",
+            "F1_A": 0.75,
+            "F1_B": 0.8857142857142858,
+            "Q": 0.8155172413793105,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 425868,
+              "tokens_per_case": 23659.333333333332,
+              "tokens_per_case_p95": 60210,
+              "API_wait_mean_ms": 5251.068788386571,
+              "API_wait_p95_ms": 7218.040605075657,
+              "case_mean_ms": 6195.1162171964015,
+              "case_p95_ms": 8388.267839094624,
+              "API_wait_ms": 94519.23819095828,
+              "requests_full_run": 164,
+              "command_start": 1791864340.581856,
+              "command_end": 1791864656.062766,
+              "command_seconds": 315.4809100627899
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.8857142857142858,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8888888888888888,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 23548.666666666668,
+                "output_tokens": 110.66666666666667,
+                "inference_time_ms": 6195.1162171964015
+              }
+            }
+          }
+        ]
+      }
+    },
+    "candidate": {
+      "train": {
+        "cases": 36,
+        "source_groups": 16,
+        "metrics": {
+          "F1_A": {
+            "mean": 0.7022977022977024,
+            "runSD": 0.024622892195536896,
+            "detectable_width": 0.031145768767472264
+          },
+          "F1_B": {
+            "mean": 0.8198556998556998,
+            "runSD": 0.02529693065454309,
+            "detectable_width": 0.03199836747187611
+          },
+          "Q": {
+            "mean": 0.7590498390498391,
+            "runSD": 0.013577603052072817,
+            "detectable_width": 0.017174460324081552
+          }
+        },
+        "child_label_emissions_total": 180,
+        "id_check_structural_all": true,
+        "id_check_totals": {
+          "id_check_call_count": 180,
+          "id_check_successful_cases": 180,
+          "id_check_unknown_ids": 48,
+          "id_check_checked_vs_submitted_mismatches": 79
+        },
+        "Hit_A_mean": 0.5,
+        "Q_pooled": 0.7593591393971185,
+        "Q_pooled_group_bootstrap_95": [
+          0.572636331266884,
+          0.9026230474506338
+        ],
+        "Q_mean_repeat_group_bootstrap_95": [
+          0.5716953799712421,
+          0.9026230474506338
+        ],
+        "safe_all": true,
+        "runs": [
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r1",
+            "F1_A": 0.7202797202797203,
+            "F1_B": 0.8311688311688311,
+            "Q": 0.7738123945020497,
+            "Hit_A": 0.5,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "id_check_call_count": 36,
+              "id_check_successful_cases": 36,
+              "id_check_unknown_ids": 9,
+              "id_check_checked_vs_submitted_mismatches": 17,
+              "id_check_structural_all": true,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 4,
+              "tokens": 880612,
+              "tokens_per_case": 24461.444444444445,
+              "tokens_per_case_p95": 73328,
+              "API_wait_mean_ms": 8399.562016672766,
+              "API_wait_p95_ms": 12075.123300077394,
+              "case_mean_ms": 9588.0942740801,
+              "case_p95_ms": 13179.759592050686,
+              "API_wait_ms": 302384.23260021955,
+              "requests_full_run": 218,
+              "command_start": 1791890596.3718429,
+              "command_end": 1791891132.0582325,
+              "command_seconds": 535.6863896846771
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.7202797202797203,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7222222222222222,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 0.5,
+                      "f1": 0.5454545454545454,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.5714285714285714,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6153846153846154,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.5,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 6,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8311688311688311,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8333333333333334,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.8333333333333334,
+                      "f1": 0.9090909090909091,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.8,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.7272727272727273,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 24228.666666666668,
+                "output_tokens": 232.77777777777777,
+                "inference_time_ms": 9588.0942740801
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r2",
+            "F1_A": 0.6753246753246754,
+            "F1_B": 0.8311688311688311,
+            "Q": 0.7505597850425437,
+            "Hit_A": 0.5,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "id_check_call_count": 36,
+              "id_check_successful_cases": 36,
+              "id_check_unknown_ids": 9,
+              "id_check_checked_vs_submitted_mismatches": 16,
+              "id_check_structural_all": true,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 4,
+              "tokens": 880418,
+              "tokens_per_case": 24456.055555555555,
+              "tokens_per_case_p95": 73328,
+              "API_wait_mean_ms": 9093.411217876968,
+              "API_wait_p95_ms": 14088.028365978971,
+              "case_mean_ms": 10349.759566345407,
+              "case_p95_ms": 15760.220488067716,
+              "API_wait_ms": 327362.8038435709,
+              "requests_full_run": 217,
+              "command_start": 1791891132.0608103,
+              "command_end": 1791891701.1343167,
+              "command_seconds": 569.0735063552856
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.6753246753246754,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 0.5,
+                      "f1": 0.5454545454545454,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.8333333333333334,
+                      "f1": 0.9090909090909091,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.5714285714285714,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.5,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 6,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8311688311688311,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8333333333333334,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.8333333333333334,
+                      "f1": 0.9090909090909091,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.8,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.7272727272727273,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 24224.222222222223,
+                "output_tokens": 231.83333333333334,
+                "inference_time_ms": 10349.759566345407
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r3",
+            "F1_A": 0.6753246753246754,
+            "F1_B": 0.8311688311688311,
+            "Q": 0.7505597850425437,
+            "Hit_A": 0.5,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "id_check_call_count": 36,
+              "id_check_successful_cases": 36,
+              "id_check_unknown_ids": 10,
+              "id_check_checked_vs_submitted_mismatches": 14,
+              "id_check_structural_all": true,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 4,
+              "tokens": 880623,
+              "tokens_per_case": 24461.75,
+              "tokens_per_case_p95": 73328,
+              "API_wait_mean_ms": 11390.23940191449,
+              "API_wait_p95_ms": 21219.605775317177,
+              "case_mean_ms": 12657.468126368864,
+              "case_p95_ms": 22434.254592983052,
+              "API_wait_ms": 410048.61846892163,
+              "requests_full_run": 218,
+              "command_start": 1791891701.1376576,
+              "command_end": 1791892401.366993,
+              "command_seconds": 700.229335308075
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.6753246753246754,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 0.5,
+                      "f1": 0.5454545454545454,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.8333333333333334,
+                      "f1": 0.9090909090909091,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.5714285714285714,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.5,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 6,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8311688311688311,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8333333333333334,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.8333333333333334,
+                      "f1": 0.9090909090909091,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.8,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.7272727272727273,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 24224.222222222223,
+                "output_tokens": 237.52777777777777,
+                "inference_time_ms": 12657.468126368864
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r4",
+            "F1_A": 0.7202797202797203,
+            "F1_B": 0.7746031746031745,
+            "Q": 0.7465048361600086,
+            "Hit_A": 0.5,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "id_check_call_count": 36,
+              "id_check_successful_cases": 36,
+              "id_check_unknown_ids": 11,
+              "id_check_checked_vs_submitted_mismatches": 16,
+              "id_check_structural_all": true,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 4,
+              "tokens": 880569,
+              "tokens_per_case": 24460.25,
+              "tokens_per_case_p95": 73328,
+              "API_wait_mean_ms": 9123.502552994372,
+              "API_wait_p95_ms": 15204.939919058233,
+              "case_mean_ms": 10358.179169073184,
+              "case_p95_ms": 16347.3439370282,
+              "API_wait_ms": 328446.0919077974,
+              "requests_full_run": 218,
+              "command_start": 1791892401.3693836,
+              "command_end": 1791892972.4110603,
+              "command_seconds": 571.0416767597198
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.7202797202797203,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7222222222222222,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 0.5,
+                      "f1": 0.5454545454545454,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.5714285714285714,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6153846153846154,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.5,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 6,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.7746031746031745,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.6666666666666666,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6666666666666666,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 24226.444444444445,
+                "output_tokens": 233.80555555555554,
+                "inference_time_ms": 10358.179169073184
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r5",
+            "F1_A": 0.7202797202797203,
+            "F1_B": 0.8311688311688311,
+            "Q": 0.7738123945020497,
+            "Hit_A": 0.5,
+            "safe_passes": {
+              "A": true,
+              "B": true
+            },
+            "operations": {
+              "child_label_fields": 36,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 36,
+              "id_check_call_count": 36,
+              "id_check_successful_cases": 36,
+              "id_check_unknown_ids": 9,
+              "id_check_checked_vs_submitted_mismatches": 16,
+              "id_check_structural_all": true,
+              "valid": 36,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 4,
+              "tokens": 880499,
+              "tokens_per_case": 24458.305555555555,
+              "tokens_per_case_p95": 73328,
+              "API_wait_mean_ms": 8576.244996686,
+              "API_wait_p95_ms": 13629.617524100468,
+              "case_mean_ms": 9693.937238855546,
+              "case_p95_ms": 14737.771017011255,
+              "API_wait_ms": 308744.819880696,
+              "requests_full_run": 218,
+              "command_start": 1791892972.412731,
+              "command_end": 1791893518.2499337,
+              "command_seconds": 545.8372027873993
+            },
+            "official_aggregate_report": {
+              "cases": 36,
+              "responses": 36,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 18,
+                  "macro_f1": 0.7202797202797203,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7222222222222222,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 0.5,
+                      "f1": 0.5454545454545454,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.5714285714285714,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6153846153846154,
+                      "support": 6
+                    }
+                  },
+                  "evidence_score": 0.5,
+                  "evidence": {
+                    "cases": 12,
+                    "found": 6,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 18,
+                  "macro_f1": 0.8311688311688311,
+                  "threshold": 0.7,
+                  "passes_threshold": true,
+                  "accuracy": 0.8333333333333334,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.75,
+                      "recall": 1.0,
+                      "f1": 0.8571428571428571,
+                      "support": 6
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.8333333333333334,
+                      "f1": 0.9090909090909091,
+                      "support": 6
+                    },
+                    "contradiction": {
+                      "precision": 0.8,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.7272727272727273,
+                      "support": 6
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A fr->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.3333333333333333
+                },
+                "A fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "A it->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->de": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B de->fr": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B de->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B fr->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B fr->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "B fr->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "B it->de": {
+                  "cases": 3,
+                  "macro_f1": 1.0
+                },
+                "B it->it": {
+                  "cases": 1,
+                  "macro_f1": 0.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 24226.5,
+                "output_tokens": 231.80555555555554,
+                "inference_time_ms": 9693.937238855546
+              }
+            }
+          }
+        ]
+      },
+      "test": {
+        "cases": 18,
+        "source_groups": 8,
+        "metrics": {
+          "F1_A": {
+            "mean": 0.75,
+            "runSD": 0.0,
+            "detectable_width": 0.0
+          },
+          "F1_B": {
+            "mean": 0.6793650793650793,
+            "runSD": 0.0,
+            "detectable_width": 0.0
+          },
+          "Q": {
+            "mean": 0.7159003831417624,
+            "runSD": 0.0,
+            "detectable_width": 0.0
+          }
+        },
+        "child_label_emissions_total": 99,
+        "id_check_structural_all": true,
+        "id_check_totals": {
+          "id_check_call_count": 90,
+          "id_check_successful_cases": 90,
+          "id_check_unknown_ids": 32,
+          "id_check_checked_vs_submitted_mismatches": 30
+        },
+        "Hit_A_mean": 0.3333333333333333,
+        "Q_pooled": 0.7159003831417624,
+        "Q_pooled_group_bootstrap_95": [
+          0.38761174968071527,
+          0.9061302681992338
+        ],
+        "Q_mean_repeat_group_bootstrap_95": [
+          0.38761174968071527,
+          0.9061302681992338
+        ],
+        "safe_all": false,
+        "runs": [
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r1",
+            "F1_A": 0.75,
+            "F1_B": 0.6793650793650793,
+            "Q": 0.7159003831417624,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": false
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "id_check_call_count": 18,
+              "id_check_successful_cases": 18,
+              "id_check_unknown_ids": 7,
+              "id_check_checked_vs_submitted_mismatches": 6,
+              "id_check_structural_all": true,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 574903,
+              "tokens_per_case": 31939.055555555555,
+              "tokens_per_case_p95": 80839,
+              "API_wait_mean_ms": 8744.198807204762,
+              "API_wait_p95_ms": 13095.6718637608,
+              "case_mean_ms": 9953.690188794604,
+              "case_p95_ms": 14724.204163998365,
+              "API_wait_ms": 157395.57852968574,
+              "requests_full_run": 218,
+              "command_start": 1791890596.3718429,
+              "command_end": 1791891132.0582325,
+              "command_seconds": 535.6863896846771
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.6793650793650793,
+                  "threshold": 0.7,
+                  "passes_threshold": false,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6666666666666666,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6666666666666666,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.5714285714285714,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.2222222222222222
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 31733.61111111111,
+                "output_tokens": 205.44444444444446,
+                "inference_time_ms": 9953.690188794604
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r2",
+            "F1_A": 0.75,
+            "F1_B": 0.6793650793650793,
+            "Q": 0.7159003831417624,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": false
+            },
+            "operations": {
+              "child_label_fields": 19,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 19,
+              "id_check_call_count": 18,
+              "id_check_successful_cases": 18,
+              "id_check_unknown_ids": 7,
+              "id_check_checked_vs_submitted_mismatches": 6,
+              "id_check_structural_all": true,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 567172,
+              "tokens_per_case": 31509.555555555555,
+              "tokens_per_case_p95": 80839,
+              "API_wait_mean_ms": 8953.567637117683,
+              "API_wait_p95_ms": 12920.436860993505,
+              "case_mean_ms": 10317.966690817331,
+              "case_p95_ms": 14930.383038939908,
+              "API_wait_ms": 161164.2174681183,
+              "requests_full_run": 217,
+              "command_start": 1791891132.0608103,
+              "command_end": 1791891701.1343167,
+              "command_seconds": 569.0735063552856
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.6793650793650793,
+                  "threshold": 0.7,
+                  "passes_threshold": false,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6666666666666666,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6666666666666666,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.5714285714285714,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.2222222222222222
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 31312.722222222223,
+                "output_tokens": 196.83333333333334,
+                "inference_time_ms": 10317.966690817331
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r3",
+            "F1_A": 0.75,
+            "F1_B": 0.6793650793650793,
+            "Q": 0.7159003831417624,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": false
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "id_check_call_count": 18,
+              "id_check_successful_cases": 18,
+              "id_check_unknown_ids": 7,
+              "id_check_checked_vs_submitted_mismatches": 6,
+              "id_check_structural_all": true,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 574903,
+              "tokens_per_case": 31939.055555555555,
+              "tokens_per_case_p95": 80839,
+              "API_wait_mean_ms": 11761.554556458981,
+              "API_wait_p95_ms": 17517.38259708509,
+              "case_mean_ms": 12943.161334984728,
+              "case_p95_ms": 18714.90432997234,
+              "API_wait_ms": 211707.98201626167,
+              "requests_full_run": 218,
+              "command_start": 1791891701.1376576,
+              "command_end": 1791892401.366993,
+              "command_seconds": 700.229335308075
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.6793650793650793,
+                  "threshold": 0.7,
+                  "passes_threshold": false,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6666666666666666,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6666666666666666,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.5714285714285714,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.2222222222222222
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 31733.61111111111,
+                "output_tokens": 205.44444444444446,
+                "inference_time_ms": 12943.161334984728
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r4",
+            "F1_A": 0.75,
+            "F1_B": 0.6793650793650793,
+            "Q": 0.7159003831417624,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": false
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "id_check_call_count": 18,
+              "id_check_successful_cases": 18,
+              "id_check_unknown_ids": 4,
+              "id_check_checked_vs_submitted_mismatches": 6,
+              "id_check_structural_all": true,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 574973,
+              "tokens_per_case": 31942.944444444445,
+              "tokens_per_case_p95": 80839,
+              "API_wait_mean_ms": 9287.061162784488,
+              "API_wait_p95_ms": 14754.459400195628,
+              "case_mean_ms": 10580.509428064235,
+              "case_p95_ms": 15907.177905086428,
+              "API_wait_ms": 167167.1009301208,
+              "requests_full_run": 218,
+              "command_start": 1791892401.3693836,
+              "command_end": 1791892972.4110603,
+              "command_seconds": 571.0416767597198
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.6793650793650793,
+                  "threshold": 0.7,
+                  "passes_threshold": false,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6666666666666666,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6666666666666666,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.5714285714285714,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.2222222222222222
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 31733.61111111111,
+                "output_tokens": 209.33333333333334,
+                "inference_time_ms": 10580.509428064235
+              }
+            }
+          },
+          {
+            "job": "/home/yasuhito/Work/hackapertus-ost/output/cscs/tool-C-id-existence-r5",
+            "F1_A": 0.75,
+            "F1_B": 0.6793650793650793,
+            "Q": 0.7159003831417624,
+            "Hit_A": 0.3333333333333333,
+            "safe_passes": {
+              "A": true,
+              "B": false
+            },
+            "operations": {
+              "child_label_fields": 20,
+              "child_label_text_emissions": 0,
+              "child_label_value_emissions": 0,
+              "child_label_emissions": 20,
+              "id_check_call_count": 18,
+              "id_check_successful_cases": 18,
+              "id_check_unknown_ids": 7,
+              "id_check_checked_vs_submitted_mismatches": 6,
+              "id_check_structural_all": true,
+              "valid": 18,
+              "fallback_neutral": 0,
+              "contradiction_entailment": 3,
+              "tokens": 574938,
+              "tokens_per_case": 31941.0,
+              "tokens_per_case_p95": 80839,
+              "API_wait_mean_ms": 9208.51117494102,
+              "API_wait_p95_ms": 18981.9394571241,
+              "case_mean_ms": 10376.921888841833,
+              "case_p95_ms": 20097.65393193811,
+              "API_wait_ms": 165753.2011489384,
+              "requests_full_run": 218,
+              "command_start": 1791892972.412731,
+              "command_end": 1791893518.2499337,
+              "command_seconds": 545.8372027873993
+            },
+            "official_aggregate_report": {
+              "cases": 18,
+              "responses": 18,
+              "issues": {},
+              "tasks": {
+                "A": {
+                  "cases": 9,
+                  "macro_f1": 0.75,
+                  "threshold": 0.6,
+                  "passes_threshold": true,
+                  "accuracy": 0.7777777777777778,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6,
+                      "recall": 1.0,
+                      "f1": 0.75,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 1.0,
+                      "f1": 1.0,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 1.0,
+                      "recall": 0.3333333333333333,
+                      "f1": 0.5,
+                      "support": 3
+                    }
+                  },
+                  "evidence_score": 0.3333333333333333,
+                  "evidence": {
+                    "cases": 6,
+                    "found": 2,
+                    "without_gold_passage": 0
+                  }
+                },
+                "B": {
+                  "cases": 9,
+                  "macro_f1": 0.6793650793650793,
+                  "threshold": 0.7,
+                  "passes_threshold": false,
+                  "accuracy": 0.6666666666666666,
+                  "per_class": {
+                    "entailment": {
+                      "precision": 0.6666666666666666,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.6666666666666666,
+                      "support": 3
+                    },
+                    "neutral": {
+                      "precision": 1.0,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.8,
+                      "support": 3
+                    },
+                    "contradiction": {
+                      "precision": 0.5,
+                      "recall": 0.6666666666666666,
+                      "f1": 0.5714285714285714,
+                      "support": 3
+                    }
+                  }
+                }
+              },
+              "languages": {
+                "A de->fr": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                },
+                "A de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "A it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.5555555555555555
+                },
+                "A it->it": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->fr": {
+                  "cases": 2,
+                  "macro_f1": 0.3333333333333333
+                },
+                "B de->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B fr->it": {
+                  "cases": 1,
+                  "macro_f1": 1.0
+                },
+                "B it->fr": {
+                  "cases": 3,
+                  "macro_f1": 0.2222222222222222
+                },
+                "B it->it": {
+                  "cases": 2,
+                  "macro_f1": 1.0
+                }
+              },
+              "usage_mean_per_case": {
+                "input_tokens": 31733.61111111111,
+                "output_tokens": 207.38888888888889,
+                "inference_time_ms": 10376.921888841833
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "notes": [
+    "Child labels are permitted by v0; IDs-only child output audits/label-free gate are not applicable.",
+    "Upstream B threshold0.70 unchanged; adoption safety uses0.75.",
+    "Previously exposed internal test and booklet overlaps do not establish unseen generalization.",
+    "Official inference_time_ms is reported upstream as recorded; full-case timing includes API and is not pure non-LLM processing time."
+  ]
+}
