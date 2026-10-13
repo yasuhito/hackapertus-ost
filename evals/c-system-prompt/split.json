@@ -17,16 +17,18 @@
     "ost-dev54-0508-B",
     "ost-dev54-0557-A",
     "ost-dev54-0557-B",
-    "ost-dev54-0716-A",
-    "ost-dev54-0716-B",
+    "ost-dev54-0601-A",
+    "ost-dev54-0601-B",
     "ost-dev54-0826-A",
     "ost-dev54-0826-B",
-    "ost-dev54-0830-A",
-    "ost-dev54-0830-B",
     "ost-dev54-0835-A",
     "ost-dev54-0835-B",
+    "ost-dev54-0924-A",
+    "ost-dev54-0924-B",
     "ost-dev54-1117-A",
     "ost-dev54-1117-B",
+    "ost-dev54-1140-A",
+    "ost-dev54-1140-B",
     "ost-dev54-1142-A",
     "ost-dev54-1142-B",
     "ost-dev54-1306-A",
@@ -34,9 +36,7 @@
     "ost-dev54-1316-A",
     "ost-dev54-1316-B",
     "ost-dev54-1412-A",
-    "ost-dev54-1412-B",
-    "ost-dev54-1486-A",
-    "ost-dev54-1486-B"
+    "ost-dev54-1412-B"
   ],
   "test": [
     "ost-dev54-0302-A",
@@ -45,18 +45,18 @@
     "ost-dev54-0315-B",
     "ost-dev54-0347-A",
     "ost-dev54-0347-B",
-    "ost-dev54-0601-A",
-    "ost-dev54-0601-B",
+    "ost-dev54-0716-A",
+    "ost-dev54-0716-B",
     "ost-dev54-0816-A",
     "ost-dev54-0816-B",
-    "ost-dev54-0924-A",
-    "ost-dev54-0924-B",
-    "ost-dev54-1140-A",
-    "ost-dev54-1140-B",
+    "ost-dev54-0830-A",
+    "ost-dev54-0830-B",
     "ost-dev54-1295-A",
     "ost-dev54-1295-B",
     "ost-dev54-1387-A",
-    "ost-dev54-1387-B"
+    "ost-dev54-1387-B",
+    "ost-dev54-1486-A",
+    "ost-dev54-1486-B"
   ],
   "groups": {
     "01ceb0a733140b8b41aefed205ccf0c11b88626896730f20b56b8acadc725e47": [
@@ -162,7 +162,20 @@
       "ost-dev54-0557-B"
     ]
   },
-  "method": "Seeded source-group ordering, first reachable label-balanced subset by dynamic programming.",
+  "version": "label-date-balanced-v2",
+  "method": "Same seeded source-group ordering; first reachable jointly label/date-balanced subset by five-dimensional dynamic programming. No scores or predictions read.",
+  "test_source_row_constraints": {
+    "labels": [
+      3,
+      3,
+      3
+    ],
+    "dates": {
+      "2020-09-27": 6,
+      "2021-03-07": 3
+    }
+  },
+  "date_ratio": "2020-09-27:2021-03-07 = 2:1 on each side",
   "grouping": "A/B source-row pair plus exact same reference language/text.",
   "limitations": [
     "Previously exposed development data, not a true unseen test.",

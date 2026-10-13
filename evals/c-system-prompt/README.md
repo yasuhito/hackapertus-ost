@@ -73,11 +73,18 @@ Keep each source-row A/B pair together AND merge pairs whose B reference
 language/text is identical: 27 source rows become 24 source groups. The seeded
 ordering and label-balanced subset algorithm are recorded in split.json.
 Public source_date metadata guards the two approved dates; no dataset-wide read.
+The owner-approved v2 redesign additionally enforces the same 2:1 date ratio
+on each side: train dates24/12 cases, test dates12/6 cases. The seed is unchanged.
+Five-dimensional dynamic programming targets test source-row label counts3/3/3
+and date counts6/3 simultaneously. Predictions and scores are not inputs.
+`split-source-only-v1.json` preserves the original split; active `split.json`
+is version `label-date-balanced-v2`. No score-based search or seed selection.
 Different passages from a shared booklet/vote can still cross splits. This is
 an exposed internal split, not genuine held-out generalization. Do not re-seed
 or repartition to improve scores or move failures. After creation, inspect
 train outputs only; test outputs are machine-scored and aggregate-only.
-`report-four-repeats.md` records the new split noise STOP.
+`report-date-balanced-v2.md` records the current noise STOP;
+`report-four-repeats.md` is historical (source-only v1).
 
 Raw outputs, transcripts and local metrics remain under ignored `output/`.
 No raw outputs are committed. `grader-review.md` records the official scoring

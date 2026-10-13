@@ -1,0 +1,171 @@
+{
+  "seed": 20261016,
+  "train": [
+    "ost-dev54-0073-A",
+    "ost-dev54-0073-B",
+    "ost-dev54-0092-A",
+    "ost-dev54-0092-B",
+    "ost-dev54-0117-A",
+    "ost-dev54-0117-B",
+    "ost-dev54-0240-A",
+    "ost-dev54-0240-B",
+    "ost-dev54-0346-A",
+    "ost-dev54-0346-B",
+    "ost-dev54-0475-A",
+    "ost-dev54-0475-B",
+    "ost-dev54-0508-A",
+    "ost-dev54-0508-B",
+    "ost-dev54-0557-A",
+    "ost-dev54-0557-B",
+    "ost-dev54-0716-A",
+    "ost-dev54-0716-B",
+    "ost-dev54-0826-A",
+    "ost-dev54-0826-B",
+    "ost-dev54-0830-A",
+    "ost-dev54-0830-B",
+    "ost-dev54-0835-A",
+    "ost-dev54-0835-B",
+    "ost-dev54-1117-A",
+    "ost-dev54-1117-B",
+    "ost-dev54-1142-A",
+    "ost-dev54-1142-B",
+    "ost-dev54-1306-A",
+    "ost-dev54-1306-B",
+    "ost-dev54-1316-A",
+    "ost-dev54-1316-B",
+    "ost-dev54-1412-A",
+    "ost-dev54-1412-B",
+    "ost-dev54-1486-A",
+    "ost-dev54-1486-B"
+  ],
+  "test": [
+    "ost-dev54-0302-A",
+    "ost-dev54-0302-B",
+    "ost-dev54-0315-A",
+    "ost-dev54-0315-B",
+    "ost-dev54-0347-A",
+    "ost-dev54-0347-B",
+    "ost-dev54-0601-A",
+    "ost-dev54-0601-B",
+    "ost-dev54-0816-A",
+    "ost-dev54-0816-B",
+    "ost-dev54-0924-A",
+    "ost-dev54-0924-B",
+    "ost-dev54-1140-A",
+    "ost-dev54-1140-B",
+    "ost-dev54-1295-A",
+    "ost-dev54-1295-B",
+    "ost-dev54-1387-A",
+    "ost-dev54-1387-B"
+  ],
+  "groups": {
+    "01ceb0a733140b8b41aefed205ccf0c11b88626896730f20b56b8acadc725e47": [
+      "ost-dev54-1486-A",
+      "ost-dev54-1486-B"
+    ],
+    "19d541da83c8ee811bca8cde501fc651228180f0a1f3c2a14bbf6c77e9f458ab": [
+      "ost-dev54-0816-A",
+      "ost-dev54-0816-B"
+    ],
+    "1c603f8d1e6222f429f338d71270f0a72a1b408fe4a77beccdbed24b315a6575": [
+      "ost-dev54-1140-A",
+      "ost-dev54-1140-B"
+    ],
+    "1db352f494f3e1ac86c41d1691e96358f6426911b2151151a6e40309775852a7": [
+      "ost-dev54-1316-A",
+      "ost-dev54-1316-B"
+    ],
+    "20b94c1d91ecc457c8aba1761b21c5e89526703a26b31f5b6f160a56752ec4ab": [
+      "ost-dev54-0475-A",
+      "ost-dev54-0475-B"
+    ],
+    "21ca3f928747e17a6824351becbc5b19165fab66418762c1c0ada18d70673622": [
+      "ost-dev54-1117-A",
+      "ost-dev54-1117-B"
+    ],
+    "27981b2a4ac2e41ee60f94fce85cfc3251b85e831bb444fdab119e77ef8d7f79": [
+      "ost-dev54-0826-A",
+      "ost-dev54-0826-B"
+    ],
+    "318ee105ce4b2f3ca0d770689b99fc0e60ef4b747428fde2f7fb1d1d92811349": [
+      "ost-dev54-0315-A",
+      "ost-dev54-0315-B"
+    ],
+    "3fb0e8f8396ef3fb5dbe7b08a6fdd52ec6af52815e1ce5143d37281ef9a1c71b": [
+      "ost-dev54-0347-A",
+      "ost-dev54-0347-B"
+    ],
+    "552310bda15230deca0eb8ecde142a6dda5cdb7409707eb1a937d2da458d4534": [
+      "ost-dev54-0117-A",
+      "ost-dev54-0117-B",
+      "ost-dev54-1412-A",
+      "ost-dev54-1412-B"
+    ],
+    "585f1d23c1cb911adc2787643f9f36ae18276c9ee8de7e798352755c63582620": [
+      "ost-dev54-1295-A",
+      "ost-dev54-1295-B"
+    ],
+    "8ac7672547d363c026751ce160be1affee742538eccf64636008e539c420aa8e": [
+      "ost-dev54-0073-A",
+      "ost-dev54-0073-B"
+    ],
+    "8ddfd773d14a4404adc1113780c46b99524d306e6184cd22f15adbb3ed5bf031": [
+      "ost-dev54-0716-A",
+      "ost-dev54-0716-B",
+      "ost-dev54-0830-A",
+      "ost-dev54-0830-B"
+    ],
+    "95010053cc5957335544d5839577028d632eda91a0434adfb106a3a3175fa7bf": [
+      "ost-dev54-0508-A",
+      "ost-dev54-0508-B"
+    ],
+    "9e28e0a432c26a30df99abaa80031d11c440c149546858ba27569647aec154d8": [
+      "ost-dev54-0240-A",
+      "ost-dev54-0240-B"
+    ],
+    "b37cf5237fa25e908315b5017721ce6cd4929e9ac42e785b869cc461dbd33dd5": [
+      "ost-dev54-0835-A",
+      "ost-dev54-0835-B"
+    ],
+    "bd28c5b80b4280ee18b813425133c49fc18752b5ca621021d778579d111d16a6": [
+      "ost-dev54-0346-A",
+      "ost-dev54-0346-B"
+    ],
+    "cbe7c681537712a2cd7827a950258e60669537d168f4d1c1693bd8132103dbd9": [
+      "ost-dev54-1142-A",
+      "ost-dev54-1142-B"
+    ],
+    "d3ff9c7826b8ae4e496265fb374b797f046ff07ba7c77330a2159663723fc3ca": [
+      "ost-dev54-0092-A",
+      "ost-dev54-0092-B"
+    ],
+    "ddb5f04e3e98f7d2f220515ed5b7298ab64361902c12a6f5422779df86bf582b": [
+      "ost-dev54-1387-A",
+      "ost-dev54-1387-B"
+    ],
+    "e3903f1616ca951ff20e400dd8f307b67cd1bc08bcd26a36aacdb02fe2ef5f66": [
+      "ost-dev54-0302-A",
+      "ost-dev54-0302-B"
+    ],
+    "eacfe7767df2844fca4702ca9fff360481e68093a96fa11b217fc581658cd735": [
+      "ost-dev54-0601-A",
+      "ost-dev54-0601-B",
+      "ost-dev54-0924-A",
+      "ost-dev54-0924-B"
+    ],
+    "eca08317b90d12093750a4eef03a742aacfb088c3b4b8db9f767a94945b33d59": [
+      "ost-dev54-1306-A",
+      "ost-dev54-1306-B"
+    ],
+    "f1c3890c6b80c65cdc30e20d5a99241b5c483d090cc04487f87713d0cf178666": [
+      "ost-dev54-0557-A",
+      "ost-dev54-0557-B"
+    ]
+  },
+  "method": "Seeded source-group ordering, first reachable label-balanced subset by dynamic programming.",
+  "grouping": "A/B source-row pair plus exact same reference language/text.",
+  "limitations": [
+    "Previously exposed development data, not a true unseen test.",
+    "Different passages from the same booklet/vote may cross splits."
+  ]
+}

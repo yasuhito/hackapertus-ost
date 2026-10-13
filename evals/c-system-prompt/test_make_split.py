@@ -13,7 +13,7 @@ class SplitTests(unittest.TestCase):
                     source = {'booklet': {'path': '/fictional/booklet.pdf'}} if task == 'A' else {
                         'reference': {'text': f'Invented source {label}-{i // 2 if i < 2 else i}', 'language': 'de'}}
                     rows.append({'id': group + '-' + task, 'provenance_group': group,
-                                 'source_date': '2020-09-27', 'input': source,
+                                 'source_date': '2020-09-27' if i < 6 else '2021-03-07', 'input': source,
                                  'expect': {'label': label}})
         return rows
 
@@ -29,6 +29,19 @@ class SplitTests(unittest.TestCase):
         byid = {r['id']: r for r in rows}
         for label in range(3):
             self.assertEqual(sum(byid[id]['expect']['label'] == label for id in result['test']), 6)
+        for part, count2020, count2021 in [('train', 24, 12), ('test', 12, 6)]:
+            self.assertEqual(sum(byid[id]['source_date'] == '2020-09-27' for id in result[part]), count2020)
+            self.assertEqual(sum(byid[id]['source_date'] == '2021-03-07' for id in result[part]), count2021)
+
+    def test_infeasible_joint_constraints_rejected(self):
+        rows = self.rows()
+        # Each label/date cell is an indivisible source group (size 6 or 3).
+        # No source-safe subset can pick exactly 3 per label and 6/3 by date.
+        for row in rows:
+            if 'reference' in row['input']:
+                row['input']['reference']['text'] = f"Invented indivisible {row['expect']['label']} {row['source_date']}"
+        with self.assertRaisesRegex(ValueError, 'NO_GROUP_SAFE_LABEL_DATE_BALANCED_SPLIT'):
+            split_cases(rows)
 
     def test_unapproved_date_rejected(self):
         rows = self.rows()
