@@ -123,3 +123,11 @@ def test_runtime_child_dependency_mutation_refuses_resume_before_calls(tmp_path,
     with pytest.raises(r.Stop, match='MANIFEST_CHANGED'):
         runtime.execute(source, target, 'A', lambda _: pytest.fail('client after changed dependency'))
     assert calls == [1] and target.read_bytes() == original
+
+
+def test_final_image_includes_dependency_lock_for_runtime_fingerprint():
+    import shlex
+    final = (r.REPO / 'Dockerfile.agent').read_text().split('FROM ')[-1]
+    copied = [shlex.split(line) for line in final.splitlines() if line.startswith('COPY ')]
+    assert any('track_2a/dev/format/package-lock.json' in parts[1:-1]
+               and parts[-1] == '/app/track_2a/dev/format/' for parts in copied)
