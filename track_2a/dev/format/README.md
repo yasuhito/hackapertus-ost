@@ -44,8 +44,9 @@ Canonical output has exactly `id`, `label`, `label_name`, `evidence`, `metrics`.
 Evidence contains only original `page`/`text`; B page is null. Metrics contains
 nonnegative integer `input_tokens`, `output_tokens` and finite nonnegative
 `inference_time_ms`. No accepted submit means canonical neutral plus
-`NO_ACCEPTED_SUBMIT` diagnostics. Evaluation JSONL adds `error`, so neutral
-fallbacks are wrong even against neutral gold. Text from B is never scraped.
+`NO_ACCEPTED_SUBMIT` diagnostics. Evaluation JSONL adds diagnostic `error` metadata. The official evaluator
+uses `label_of`: canonical fallback neutral is scored as neutral, including
+against neutral gold; error metadata does not automatically make it wrong. Text from B is never scraped.
 
 ## Offline checks
 
@@ -107,7 +108,10 @@ python3 track_2a/dev/format/run_comparison.py --user-run --strategy C --repeat 2
 # A/B can also repeat with --repeat 2 for independent round directories.
 ```
 
-`--repeat` is the round index, not an automatic loop. `--job DIR` overrides the
+`--repeat` accepts any positive round index, not an automatic loop.
+New job components ending in dot/space are rejected even in prepare-only;
+paths are resolved to stable absolute paths. Historical dotted jobs are
+read-only scoring inputs, never repaired or renamed. `--job DIR` overrides the
 new directory. Do not use any legacy directory, delete fences or change job
 identity to bypass a stop. Only explicit `--user-run` creates a CSCS transport;
 its key is read internally in Python, never supplied to Node. No HTTP retries.
@@ -115,7 +119,7 @@ its key is read internally in Python, never supplied to Node. No HTTP retries.
 A: at most 216 POSTs. B: at most 540 POSTs, parent 3/child 2 per case, depth one,
 one delegation, at most two submit attempts per session. C: only 54 owner-70B
 cases, at most 270 POSTs (parent 3 + child 2 per case), with fixed 70B/8B roles.
-C round directories are `output/cscs/format-C-r1` and `format-C-r2`. All runs have a
+C round directories default to `output/cscs/format-C-rN`. All runs have a
 6,000,000-token budget and reserve 262,400 before each POST. Output cap 256,
 request wall cap 60 seconds, socket 45 seconds, case cap 300 seconds. Only
 schema/source validation permits one repair, never gold/semantic quality.
@@ -138,7 +142,7 @@ filled with zero. API wait and case mean/p95 are separate. Comparison case
 wall measures processing of frozen context; dev54 PDF/context freeze is outside
 that timing. Submitted runtime includes per-case context preparation.
 
-## Submitted JSONL runtime / proposed Docker
+## Submitted JSONL runtime / Docker
 
 ```sh
 # With BASE_URL and API_KEY injected by the organizer, not host credentials:
@@ -147,7 +151,7 @@ make run PIPELINE=B LLM_MODEL=swiss-ai/Apertus-v1.5-8B \
   INPUT_DIR=/path/to/approved/input INPUT=/data/input.jsonl OUTPUT_DIR=/path/to/new/output
 make run PIPELINE=C LLM_MODEL=swiss-ai/Apertus-v1.5-70B \
   INPUT_DIR=/path/to/approved/input INPUT=/data/input.jsonl OUTPUT_DIR=/path/to/new/output
-# PIPELINE=A selects the same assembler's text path; Makefile default stays B.
+# PIPELINE=A selects the same assembler's text path; Makefile default is C.
 ```
 
 The Node executable is resolved before child environment sanitization, including
@@ -166,8 +170,9 @@ MJS and JSON dependency/entry/plugin file, including package and lockfile, so
 changed child code cannot resume an existing deployment. Empty input produces
 an empty output.
 
-Dockerfile.agent is a proposed Linux amd64 CPU image with pinned Node/Pi,
+Dockerfile.agent is a Linux amd64 CPU image with pinned Node/Pi,
 vendored pypdf, no credentials, no runtime downloads, read-only root and writable
-/output and /tmp. Build-time registry access is required. Docker build/run has
-not been validated because the host daemon is inaccessible. SDK fake-provider
-checks are not Docker, CSCS or organizer proxy validation.
+/output and /tmp. Build-time registry access is required. Clean Docker build/run has been validated offline. This does not establish
+organizer proxy compatibility, which remains unverified. SDK fake-provider
+checks are not CSCS or organizer proxy validation. Current C results and
+owner-operated procedures are documented in `docs/dev54-eval-runbook.md`.

@@ -107,3 +107,82 @@ Await STOP approval for any next round and for any production change.
 Raw outputs, transcripts and local metrics remain under ignored `output/`.
 No raw outputs are committed. `grader-review.md` records the official scoring
 semantics approved by the owner, superseding the older local-grader review.
+
+## Portable saved-run CLI
+
+Current owner procedure/results: `docs/dev54-eval-runbook.md`. Candidate v2 was
+rejected; production remains v0. These helpers do not discover jobs or retry.
+Set `REPO` to the repository root, `RUN_PYTHON` to the runner interpreter,
+`EVAL_PYTHON` to the interpreter with official scoring dependencies (including
+NumPy), and `OFFICIAL_REPO` to the pinned external evaluator checkout. Export
+`PI_PACKAGE_ROOT` and `PI_SUBAGENTS_ROOT` as described in the format README.
+No machine-specific defaults are embedded in these helpers.
+
+```sh
+# Baseline; fresh explicit prefix, one batch, real ordinals 1 through 5.
+"$RUN_PYTHON" -B evals/c-system-prompt/run_batch.py \
+  --repo "$REPO" --python "$RUN_PYTHON" --count 5 --start-index 1 \
+  --prefix "$REPO/output/cscs/new-baseline" --prepare-only
+# Candidate SYSTEM append (never executes prompt Python); same default offline mode.
+"$RUN_PYTHON" -B evals/c-system-prompt/run_batch.py \
+  --repo "$REPO" --python "$RUN_PYTHON" --count 5 --start-index 1 \
+  --prefix "$REPO/output/cscs/new-candidate" \
+  --prompt-file evals/c-system-prompt/prompts/v2-added.txt \
+  --metadata evals/c-system-prompt/prompts/v2.json --prepare-only
+```
+
+Alternatively pass `--jobs PATH1 PATH2 ...` instead of `--prefix`; exactly
+`--count` fresh paths are required. Preparation creates private source-only
+workspaces, but no designated jobs/logs and no credential reads/remote requests.
+Only six approved PDF links are added. Live operation requires separately
+recorded user approval: replace `--prepare-only` with `--user-run --approval
+'runbook approval reference'`. Do not use live mode without that approval.
+The entire batch's designated jobs/logs/provenance is checked for preexistence
+before requests. A failure stops the batch; all workspaces/jobs/fences remain.
+
+```sh
+# Official full rescore plus arbitrary-N run noise; exact read-only job inputs.
+"$EVAL_PYTHON" -B evals/c-system-prompt/analyze_runs.py score \
+  --repo "$REPO" --official-repo "$OFFICIAL_REPO" --python "$EVAL_PYTHON" \
+  --jobs output/cscs/format-C-r1 output/cscs/format-C-r2 \
+  --part full --destination output/cscs/new-full-score
+# Fixed label-date-balanced-v2 split; r4. remains exact, never renamed.
+"$EVAL_PYTHON" -B evals/c-system-prompt/analyze_runs.py score \
+  --repo "$REPO" --official-repo "$OFFICIAL_REPO" --python "$EVAL_PYTHON" \
+  --jobs output/cscs/format-C-r1 output/cscs/format-C-r2 output/cscs/format-C-r3 \
+         output/cscs/format-C-r4. output/cscs/format-C-r5 \
+  --part split --destination output/cscs/new-split-score
+# Paired source-group bootstrap; each arm retains its own actual repeat count.
+"$EVAL_PYTHON" -B evals/c-system-prompt/analyze_runs.py compare \
+  --repo "$REPO" --official-repo "$OFFICIAL_REPO" --python "$EVAL_PYTHON" \
+  --jobs output/cscs/format-C-r1 output/cscs/format-C-r2 output/cscs/format-C-r3 \
+         output/cscs/format-C-r4. output/cscs/format-C-r5 \
+  --candidate-jobs output/cscs/prompt-C-v2-r1 output/cscs/prompt-C-v2-r2 \
+         output/cscs/prompt-C-v2-r3 output/cscs/prompt-C-v2-r4 output/cscs/prompt-C-v2-r5 \
+  --part split --destination output/cscs/new-comparison
+```
+
+`score` includes noise; no separate wrapper is needed. Only completed,
+known-usage C jobs with all 54 cases are normal inputs. All generated data lives
+under a fresh ignored `output/` destination; stdout is aggregate-only, never
+individual TEST predictions/transcripts. Expected labels/references come from
+the tracked approved fixture, not ignored historical gold. Missing start times
+are null (no r4 prefix repair or inference). SD/noise is null for one repeat.
+
+Comparisons audit source inputs, pages, user messages, IDs/schema and all
+model/cap/policy fields. Historical `predict.py` differences require provenance
+review: a hash alone cannot establish SYSTEM-only changes. If comparing current
+CLI-only code changes with historical runs, explicitly add
+`--allow-cli-only-hash-changes`; only `run_comparison.py` and its new CLI test
+hash/presence differences are allowed and displayed, not concealed. This never
+permits changed tools/models/caps. Bootstrap reports both pooled-confusion F1
+and mean-repeat nonlinear F1 estimands. Adoption gates use mean Q, baseline run
+noise, .02 minimum gain, and every repeat's task safety thresholds; evidence,
+validity, timing and token regressions still require review.
+
+Focused offline tests (pytest in the selected interpreter, NumPy for analysis):
+
+```sh
+"$RUN_PYTHON" -m pytest -q -p no:cacheprovider track_2a/dev/format/test_cli_paths.py
+"$EVAL_PYTHON" -m pytest -q -p no:cacheprovider evals/c-system-prompt/test_runbook_cli.py
+```
