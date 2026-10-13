@@ -44,7 +44,7 @@ def test_real_sdk_child_then_parent_submit():
     def post(role, number, payload):
         calls.append((role, number, payload))
         name = payload['tool_choice']['function']['name']
-        return response(r.MODELS[0], calls=[tool(name, {} if name == 'subagent' else {'label': 0, 'candidate_ids': x['candidate_ids']})])
+        return response(r.MODELS[0], calls=[tool(name, {'mode': 'source_only'} if name == 'subagent' else {'label': 0, 'candidate_ids': x['candidate_ids']})])
     args, diagnostics, sdk = r.run_b(x, r.MODELS[0], post, seconds=30, isolation_guard=True)
     assert args == {'label': 0, 'candidate_ids': x['candidate_ids']}
     assert sdk['counts'] == {'parent': 2, 'child': 1}
@@ -73,7 +73,7 @@ def test_sdk_invalid_args_error_then_one_repair(bad):
     def post(role, number, payload):
         calls.append((role, number, payload))
         name = payload['tool_choice']['function']['name']
-        args = {} if name == 'subagent' else {'label': 0, 'candidate_ids': x['candidate_ids']}
+        args = {'mode': 'source_only'} if name == 'subagent' else {'label': 0, 'candidate_ids': x['candidate_ids']}
         if role == 'parent' and number == 1:
             args = {'label': '0', 'candidate_ids': x['candidate_ids']} if bad == 'label' else {'label': 0, 'candidate_ids': x['candidate_ids'] * 2}
         return response(r.MODELS[0], calls=[tool(name, args)])
@@ -225,7 +225,7 @@ def test_package_child_schema_error_has_one_repair_no_grace_continuation():
     def post(role, number, payload):
         calls.append((role, number, payload))
         name = payload['tool_choice']['function']['name']
-        args = {} if name == 'subagent' else {'label': 0, 'candidate_ids': x['candidate_ids']}
+        args = {'mode': 'source_only'} if name == 'subagent' else {'label': 0, 'candidate_ids': x['candidate_ids']}
         if role == 'child' and number == 0:
             args['label'] = '0'
         return response(r.MODELS[0], calls=[tool(name, args)])

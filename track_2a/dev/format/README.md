@@ -22,6 +22,20 @@ The TypeBox declaration and Python assembler both validate. Python also checks
 raw arguments before Pi's coercing validator; string tool labels stay invalid.
 Source membership and existing page/speaker closure are authoritative.
 
+Native HTTP declarations are a wire-only compatibility projection: integer label
+enum, string ID enum array with maxItems=5, exact required fields and no additional
+properties. They omit anyOf, const and uniqueItems; local Pi/Python still reject
+unknown labels/IDs and duplicate IDs. Python compares native parameters to the
+canonical wire schema exactly. Subagent has only fixed `mode: "source_only"`
+(Pi literal, native string enum), no task/model/path/source arguments. The parent
+prompt/tool description shows compact `{"mode":"source_only"}` without blank lines.
+Parent/child submit tails explicitly override raw evidence JSON instructions:
+exactly integer label and candidate_ids, no evidence/label_name keys. Frozen
+source/question messages are unchanged.
+This is a candidate for the observed HTTP400, not proven server compatibility.
+Truncated tool calls with finish_reason=length still produce flagged fallback;
+there is no new length/empty-object repair loop. Known usage remains accounted.
+
 Canonical output has exactly `id`, `label`, `label_name`, `evidence`, `metrics`.
 Evidence contains only original `page`/`text`; B page is null. Metrics contains
 nonnegative integer `input_tokens`, `output_tokens` and finite nonnegative
@@ -125,7 +139,10 @@ call. It never reads a host key or uses a default CSCS endpoint. Output is
 canonical JSONL; sibling `.diagnostics.jsonl` and `.evaluation.jsonl` files
 retain fallback flags. Durable state is under the output directory's `tmp/`.
 At most 108 input cases are accepted. Use a dedicated output directory; changed
-inputs/code/output refuse reuse. Empty input produces an empty output.
+inputs/code/output refuse reuse. Runtime sources hash every local Python, TS,
+MJS and JSON dependency/entry/plugin file, including package and lockfile, so
+changed child code cannot resume an existing deployment. Empty input produces
+an empty output.
 
 Dockerfile.agent is a proposed Linux amd64 CPU image with pinned Node/Pi,
 vendored pypdf, no credentials, no runtime downloads, read-only root and writable

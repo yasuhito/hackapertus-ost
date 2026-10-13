@@ -1,10 +1,30 @@
 /** Actual Pi 1.1.0 sessions. Nonstream wire completions bridged through Python. */
 import { sdk, ai, AuthStorage, loadExtensionFromFactory } from './dependencies.mjs';
-import { createSubmitExtension } from './submit-extension.ts';
+import { createSubmitExtension, SUBMIT_PROTOCOL } from './submit-extension.ts';
 import { packageChild } from './package-child.mjs';
 
 const MODELS = ['swiss-ai/Apertus-v1.5-8B', 'swiss-ai/Apertus-v1.5-70B'];
 const zeroUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } });
+
+/** Wire-only projection. Pi and the Python assembler retain strict local schemas. */
+export function nativeTools(tools: any[], ids: string[]) {
+  return tools.map(t => {
+    let parameters: any;
+    if (t.name === 'submit') parameters = {
+      type: 'object', additionalProperties: false, required: ['label', 'candidate_ids'],
+      properties: {
+        label: { type: 'integer', enum: [0, 1, 2] },
+        candidate_ids: { type: 'array', items: { type: 'string', enum: [...ids] }, maxItems: 5 },
+      },
+    };
+    else if (t.name === 'subagent') parameters = {
+      type: 'object', additionalProperties: false, required: ['mode'],
+      properties: { mode: { type: 'string', enum: ['source_only'] } },
+    };
+    else throw new Error('UNDECLARED_NATIVE_TOOL');
+    return { type: 'function', function: { name: t.name, description: t.description, parameters } };
+  });
+}
 
 function wireMessages(context: any) {
   const collapsed = ai.collapseSystemMessages(context);
@@ -39,7 +59,7 @@ export async function runSdk(input: any, bridge: (kind: string, data: any) => Pr
           try {
             if (options.signal?.aborted) throw new Error('ABORTED');
             if (recommendation || counts[role] >= (role === 'parent' ? 3 : 2)) throw new Error('CALL_LIMIT');
-            const tools = ai.getCurrentTools(context.messages).map((t: any) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }));
+            const tools = nativeTools(ai.getCurrentTools(context.messages), ids);
             const messages = wireMessages(context);
             // Only normalize package-generated environment metadata, never source.
             if (role === 'child') {
@@ -109,7 +129,7 @@ export async function runSdk(input: any, bridge: (kind: string, data: any) => Pr
       getExtensions: () => ({ extensions: [extension], errors: [], runtime: extensionRuntime }),
       getSkills: () => ({ skills: [], diagnostics: [] }), getPrompts: () => ({ prompts: [], diagnostics: [] }),
       getThemes: () => ({ themes: [], diagnostics: [] }), getAgentsFiles: () => ({ agentsFiles: [] }),
-      getSystemPrompt: () => input.system + '\nUse only the declared tools. Do not return a text submission. ' + (role === 'child' ? 'Submit a recommendation.' : 'First ask subagent, then submit your final decision.'),
+      getSystemPrompt: () => input.system + '\nUse only the declared tools. Do not return a text submission. ' + SUBMIT_PROTOCOL + ' ' + (role === 'child' ? 'Submit a recommendation. Use compact JSON arguments, no blank lines.' : 'First call subagent with compact arguments {"mode":"source_only"}; no blank lines. Then submit your final decision.'),
       getSystemPromptSource: () => undefined, getAppendSystemPrompt: () => [], getAppendSystemPromptSources: () => [], extendResources: () => {}, reload: async () => {},
     };
     const settingsManager = sdk.SettingsManager.inMemory({ defaultTools: [], compaction: { enabled: false }, retry: { enabled: false, maxRetries: 0, provider: { maxRetries: 0 } }, cacheWarming: 'off', enableInstallTelemetry: false, enableAnalytics: false });

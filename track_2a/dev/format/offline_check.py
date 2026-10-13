@@ -35,7 +35,7 @@ def main():
             reason = 'stop'
             if 'tools' in payload:
                 name = payload['tool_choice']['function']['name']
-                arguments = {} if name == 'subagent' else {'label': 1, 'candidate_ids': []}
+                arguments = {'mode': 'source_only'} if name == 'subagent' else {'label': 1, 'candidate_ids': []}
                 message = {'role': 'assistant', 'content': None, 'tool_calls': [{'id': name + '-offline', 'type': 'function', 'function': {'name': name, 'arguments': json.dumps(arguments)}}]}
                 reason = 'tool_calls'
             return {'id': 'offline-synthetic', 'model': self.model, 'choices': [{'finish_reason': reason, 'message': message}], 'usage': {'prompt_tokens': 80, 'completion_tokens': 20, 'total_tokens': 100}}

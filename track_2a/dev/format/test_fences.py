@@ -64,7 +64,7 @@ def test_confirmed_child_prefix_replays_without_extra_post(tmp_path):
         def request(self, method, path, payload):
             calls.append(payload)
             name = payload['tool_choice']['function']['name']
-            return response(r.MODELS[0], calls=[tool(name, {} if name == 'subagent' else {'label': 1, 'candidate_ids': []})])
+            return response(r.MODELS[0], calls=[tool(name, {'mode': 'source_only'} if name == 'subagent' else {'label': 1, 'candidate_ids': []})])
     ledger = r.Ledger(job, manifest, lambda _: Native())
     def interrupted(role, number, payload):
         if role == 'parent' and number == 1:

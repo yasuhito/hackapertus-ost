@@ -1,6 +1,8 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from './dependencies.mjs';
 
+export const SUBMIT_PROTOCOL = 'The submit tool replaces raw JSON output instructions. Submit arguments must contain exactly label (integer 0, 1, or 2) and candidate_ids (array of exact IDs from this case). No evidence or label_name keys. Use compact JSON arguments, no blank lines.';
+
 type Bridge = (kind: string, data: unknown) => Promise<any>;
 
 /** Scoped factory. Normal Pi loaders can supply the same frozen bridge via configure. */
@@ -11,7 +13,7 @@ export function createSubmitExtension(ids: string[], bridge: Bridge, child?: () 
   return (pi: ExtensionAPI) => {
     pi.registerTool({
       name: 'submit', label: 'Submit NLI',
-      description: 'Select the NLI label and exact supporting candidate IDs. Script restores original evidence. At most one schema repair.',
+      description: 'Select the NLI label and exact supporting candidate IDs. Script restores original evidence. At most one schema repair. ' + SUBMIT_PROTOCOL,
       executionMode: 'sequential',
       parameters: Type.Object({
         label: Type.Union([Type.Literal(0), Type.Literal(1), Type.Literal(2)], { type: 'integer', enum: [0, 1, 2] }),
@@ -26,8 +28,8 @@ export function createSubmitExtension(ids: string[], bridge: Bridge, child?: () 
     });
     if (child) pi.registerTool({
       name: 'subagent', label: 'Source-only recommendation',
-      description: 'Ask one depth-one agent with the same model and frozen source for a recommendation. Parent must submit the final decision.',
-      executionMode: 'sequential', parameters: Type.Object({}, { additionalProperties: false }),
+      description: 'Ask one depth-one agent with the same model and frozen source for a recommendation. Call with compact arguments {"mode":"source_only"}; no blank lines. Parent must submit the final decision.',
+      executionMode: 'sequential', parameters: Type.Object({ mode: Type.Literal('source_only') }, { additionalProperties: false }),
       execute: async () => {
         if (delegated || accepted) throw new Error('DELEGATION_LIMIT');
         delegated = true;

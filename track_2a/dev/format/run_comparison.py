@@ -36,8 +36,8 @@ CASE_SECONDS = 300
 
 
 def schemas(ids, child=False):
-    submit = {'type': 'function', 'function': {'name': 'submit', 'description': 'Select NLI label and exact supporting candidate IDs.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['label', 'candidate_ids'], 'properties': {'label': {'enum': [0, 1, 2], 'type': 'integer'}, 'candidate_ids': {'type': 'array', 'maxItems': 5, 'uniqueItems': True, 'items': {'type': 'string', 'enum': ids}}}}}}
-    delegate = {'type': 'function', 'function': {'name': 'subagent', 'description': 'One fixed source-only child recommendation.', 'parameters': {'type': 'object', 'additionalProperties': False, 'properties': {}}}}
+    submit = {'type': 'function', 'function': {'name': 'submit', 'description': 'Select NLI label and exact supporting candidate IDs.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['label', 'candidate_ids'], 'properties': {'label': {'enum': [0, 1, 2], 'type': 'integer'}, 'candidate_ids': {'type': 'array', 'maxItems': 5, 'items': {'type': 'string', 'enum': ids}}}}}}
+    delegate = {'type': 'function', 'function': {'name': 'subagent', 'description': 'One fixed source-only child recommendation.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['mode'], 'properties': {'mode': {'type': 'string', 'enum': ['source_only']}}}}}
     return [submit] if child else [submit, delegate]
 
 
@@ -324,7 +324,7 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False):
                             # let that change the strict integer tool protocol.
                             if call['function'].get('name') == 'submit':
                                 submission.assemble_tool(call['parsed_arguments'], item['case'], item['pages'], {'input_tokens': 0, 'output_tokens': 0, 'inference_time_ms': 0})
-                            elif call['function'].get('name') == 'subagent' and call['parsed_arguments'] != {}:
+                            elif call['function'].get('name') == 'subagent' and call['parsed_arguments'] != {'mode': 'source_only'}:
                                 raise ValueError('SUBAGENT_ARGUMENTS')
                         except (ValueError, TypeError, KeyError) as exc:
                             code = str(exc) if str(exc).isupper() else 'INVALID_TOOL_JSON'
@@ -363,29 +363,19 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False):
 def enforce_tools(payload, ids, role):
     tools = payload.get('tools')
     names = ['submit', 'subagent'] if role == 'parent' else ['submit']
-    if not isinstance(tools, list) or sorted(t.get('function', {}).get('name', '') for t in tools) != sorted(names):
+    if not isinstance(tools, list) or any(not isinstance(t, dict) or not isinstance(t.get('function'), dict) or not isinstance(t['function'].get('name'), str) for t in tools) or sorted(t['function']['name'] for t in tools) != sorted(names):
         raise Stop('TOOLS_REFUSED')
-    # Pi TypeBox is the declaration; Python verifies its shape and ID enum.
+    # Native HTTP declarations are a compatibility projection, not the stronger
+    # Pi TypeBox schema. Compare canonical JSON exactly (bool is not integer).
+    expected = {t['function']['name']: t['function']['parameters'] for t in schemas(ids, child=role == 'child')}
     for t in tools:
-        schema = t['function']['parameters']
-        if schema.get('type') != 'object' or schema.get('additionalProperties') is not False:
+        if set(t) != {'type', 'function'} or t.get('type') != 'function':
             raise Stop('TOOL_SCHEMA_REFUSED')
-        properties = schema.get('properties', {})
-        if t['function']['name'] == 'submit':
-            if set(properties) != {'label', 'candidate_ids'} or set(schema.get('required', [])) != set(properties):
-                raise Stop('SUBMIT_SCHEMA_REFUSED')
-            label = properties['label']
-            if label.get('anyOf') != [{'const': n, 'type': 'number'} for n in (0, 1, 2)] and label.get('anyOf') != [{'const': n, 'type': 'integer'} for n in (0, 1, 2)]:
-                raise Stop('LABEL_DECLARATION_REFUSED')
-            array = properties['candidate_ids']
-            if array.get('type') != 'array' or array.get('maxItems') != 5 or array.get('uniqueItems') is not True:
-                raise Stop('IDS_DECLARATION_REFUSED')
-            actual = array['items']
-            variants = actual.get('anyOf', [actual])
-            if ids and [v.get('const') for v in variants] != ids:
-                raise Stop('ID_ENUM_REFUSED')
-        elif properties:
-            raise Stop('SUBAGENT_ARGUMENTS_REFUSED')
+        function = t['function']
+        if set(function) != {'name', 'description', 'parameters'} or not isinstance(function['description'], str):
+            raise Stop('TOOL_SCHEMA_REFUSED')
+        if legacy.encode(function['parameters']) != legacy.encode(expected[function['name']]):
+            raise Stop('TOOL_SCHEMA_REFUSED')
     choice = payload.get('tool_choice', {}).get('function', {}).get('name')
     if choice not in names:
         raise Stop('TOOL_CHOICE_REFUSED')
