@@ -1,12 +1,13 @@
 # Proposed CPU linux/amd64 A/B image. No dependency downloads at runtime.
-FROM --platform=linux/amd64 node:26.10.0-bookworm-slim AS pi
+FROM node:26.10.0-bookworm-slim AS pi
 WORKDIR /build
 COPY track_2a/dev/format/package.json track_2a/dev/format/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
-FROM --platform=linux/amd64 python:3.11-slim-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 && rm -rf /var/lib/apt/lists/*
+FROM python:3.11-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 libatomic1 && rm -rf /var/lib/apt/lists/*
 COPY --from=pi /usr/local/bin/node /usr/local/bin/node
+COPY --from=pi /usr/local/LICENSE /usr/share/doc/node/LICENSE
 WORKDIR /app
 COPY --from=pi /build/node_modules /app/track_2a/dev/format/node_modules
 COPY track_2a/src /app/track_2a/src

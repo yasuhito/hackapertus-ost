@@ -4,15 +4,15 @@ OUTPUT_DIR ?= $(CURDIR)/output
 BOOKLET_DIR ?= $(CURDIR)/booklets
 INPUT ?= /data/cases.jsonl
 OUTPUT ?= /output/predictions.jsonl
-LLM_BACKEND ?= mock
+LLM_BACKEND ?= openai
 PYTHON ?= python3
-PIPELINE ?= legacy
+PIPELINE ?= B
 DOCKERFILE = $(if $(filter A B,$(PIPELINE)),Dockerfile.agent,Dockerfile)
 RUNTIME_FLAGS = $(if $(filter A B,$(PIPELINE)),--read-only --tmpfs /tmp)
 
 .PHONY: run build run-local test dev-eval download prepare
 build:
-	docker build -f $(DOCKERFILE) -t $(IMAGE) .
+	docker build --platform linux/amd64 -f $(DOCKERFILE) -t $(IMAGE) .
 run: build
 	mkdir -p "$(OUTPUT_DIR)" "$(BOOKLET_DIR)"
 	docker run --rm $(RUNTIME_FLAGS) --user "$$(id -u):$$(id -g)" \

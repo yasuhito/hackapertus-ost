@@ -131,3 +131,12 @@ def test_final_image_includes_dependency_lock_for_runtime_fingerprint():
     copied = [shlex.split(line) for line in final.splitlines() if line.startswith('COPY ')]
     assert any('track_2a/dev/format/package-lock.json' in parts[1:-1]
                and parts[-1] == '/app/track_2a/dev/format/' for parts in copied)
+
+
+def test_cpu_build_installs_node_shared_library_and_targets_amd64():
+    dockerfile = (r.REPO / 'Dockerfile.agent').read_text()
+    final = dockerfile.split('FROM ')[-1]
+    assert 'libatomic1' in final
+    assert 'COPY --from=pi /usr/local/LICENSE /usr/share/doc/node/LICENSE' in final
+    assert '--platform=linux/amd64' not in dockerfile
+    assert 'docker build --platform linux/amd64 -f $(DOCKERFILE)' in (r.REPO / 'Makefile').read_text()
