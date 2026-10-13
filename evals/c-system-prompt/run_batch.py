@@ -11,6 +11,7 @@ import subprocess
 import tarfile
 import tempfile
 import time
+import variant
 
 SOURCE_PATHS = ['track_2a/src', 'track_2a/dev/cscs', 'track_2a/dev/format']
 SUFFIXES = ['start.txt', 'end.txt', 'run.log', 'stderr.log', 'exit-code.txt',
@@ -85,6 +86,7 @@ def main():
     targets = p.add_mutually_exclusive_group(required=True)
     targets.add_argument('--prefix')
     targets.add_argument('--jobs', nargs='+')
+    p.add_argument('--variant', choices=[variant.NAME])
     p.add_argument('--prompt-file', type=Path, help='UTF-8 SYSTEM addition, not Python')
     p.add_argument('--metadata', type=Path, help='baseline_prompt_sha256 and candidate_prompt_sha256')
     p.add_argument('--prepare-only', action='store_true')
@@ -95,6 +97,8 @@ def main():
         p.error('live requires --user-run --approval; not --prepare-only')
     if bool(args.prompt_file) != bool(args.metadata):
         p.error('--prompt-file and --metadata must be supplied together')
+    if args.variant and (args.prompt_file or args.metadata):
+        p.error('--variant cannot be combined with prompt or metadata changes')
     repo = args.repo.resolve()
     # Preserve the venv executable path; resolve() loses pyvenv.cfg/site-packages.
     python = args.python.absolute()
@@ -124,10 +128,14 @@ def main():
         workspace = Path(tempfile.mkdtemp(prefix=f'ost-source-r{index}-'))
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(workspace, filter='data')
+        variant_spec = variant.apply(workspace) if args.variant else None
+        if variant_spec:
+            env['OST_VARIANT_PATCH_SHA256'] = variant_spec['patch_sha256']
         (workspace / 'booklets').mkdir()
         for pdf in pdfs:
             (workspace / 'booklets' / pdf.name).symlink_to(pdf)
-        (workspace / 'track_2a/dev/format/run_comparison.py').write_bytes(runner.read_bytes())
+        if not args.variant:
+            (workspace / 'track_2a/dev/format/run_comparison.py').write_bytes(runner.read_bytes())
         target = workspace / 'track_2a/src/predict.py'
         if target.read_bytes() != original:
             raise ValueError('PRODUCTION_DIFFERS_FROM_ARCHIVE')
@@ -151,7 +159,8 @@ def main():
         prepared.append((index, job, workspace, command, sha, result.stdout))
     if not args.user_run:
         print(json.dumps({'prepared': [{'index': i, 'job': str(j), 'workspace': str(w),
-                          'prompt_sha256': sha, 'preflight': json.loads(out)}
+                          'prompt_sha256': sha, 'variant': args.variant,
+                          'variant_patch_sha256': variant_spec['patch_sha256'] if args.variant else None, 'preflight': json.loads(out)}
                          for i, j, w, cmd, sha, out in prepared], 'remote_calls': 0, 'credential_reads': 0}))
         return
     refuse_existing(jobs)
@@ -166,6 +175,11 @@ def main():
                       'candidate_source_changes': ['track_2a/src/predict.py'] if added else [],
                       'cli_only_overlay': 'track_2a/dev/format/run_comparison.py',
                       'start': None, 'end': None, 'exit': None}
+        if args.variant:
+            provenance.update(variant=args.variant, variant_patch_sha256=variant_spec['patch_sha256'],
+                              candidate_source_changes=sorted(variant_spec['role_hashes']),
+                              variant_source_hashes=variant_spec['source_hashes'], cli_only_overlay=None,
+                              runner_sha256=variant_spec['role_hashes']['track_2a/dev/format/run_comparison.py'])
         save('provenance.json', json.dumps(provenance, indent=2) + '\n')
         save('prepare.log', preflight)
         start = time.time()

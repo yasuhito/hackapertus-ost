@@ -11,6 +11,7 @@ import statistics
 
 import numpy as np
 import grader
+import variant
 
 MODEL = 'swiss-ai/Apertus-v1.5-70B'
 CLI_ONLY = {'track_2a/dev/format/run_comparison.py', 'track_2a/dev/format/test_cli_paths.py'}
@@ -117,7 +118,16 @@ def operations(job, preds, ids, byid, official):
     waits = sorted(r['api_wait_ms'] for r in rr) if complete and all('api_wait_ms' in r for r in rr) else None
     summary_path = job / 'summary.json'
     summary = load(summary_path) if summary_path.is_file() else {}
-    return {'valid': sum(r['output_valid'] for r in rr) if complete else None,
+    emissions = variant.child_emissions(None)
+    selected_indices = {r['case_index'] for r in rr}
+    for index in selected_indices:
+        for number in range(2):
+            path = job / f'70b-{index:02}-child-{number}.json'
+            if path.is_file():
+                counts = variant.child_emissions(load(path).get('response'))
+                for k, v in counts.items():
+                    emissions[k] += v
+    return {**emissions, 'valid': sum(r['output_valid'] for r in rr) if complete else None,
             'fallback_neutral': sum(r.get('error') == 'NO_ACCEPTED_SUBMIT' and r['prediction']['label'] == 1 for r in rr) if complete else None,
             'contradiction_entailment': sum(byid[id]['expect']['label'] == 2 and official.label_of(preds[id])[0] == 0 for id in ids),
             'tokens': total, 'tokens_per_case': total / len(ids) if total is not None else None,
@@ -142,15 +152,26 @@ def normalize_case(case):
     return case
 
 
-def audit(jobs, allow_cli):
+def audit(jobs, allow_cli, requested_variant=None):
     manifests = [load(j / 'manifest.json') for j in jobs]
+    variant_jobs = [j for j, m in zip(jobs, manifests) if m.get('variant')]
+    if variant_jobs and requested_variant != variant.NAME:
+        raise ValueError('VARIANT_REQUIRES_EXPLICIT_OPTION')
+    if requested_variant and not variant_jobs:
+        raise ValueError('REQUESTED_VARIANT_MISSING')
+    historical_differences = []
+    for job, m in zip(jobs, manifests):
+        if m.get('variant'):
+            variant.verify_manifest(m)
+        elif requested_variant:
+            historical_differences.append({'job': str(job), 'differences_from_current_base': variant.verify_baseline(m, allow_cli)})
     reference = manifests[0]
     if reference.get('strategy') != 'C' or reference.get('role_models') != {'parent': MODEL, 'child': 'swiss-ai/Apertus-v1.5-8B'}:
         raise ValueError('FIXED_C_ROLE_MODELS_REQUIRED')
     differences = []
     for job, m in zip(jobs, manifests):
         # Every cap/model/tool policy field must match; sources and SYSTEM are the only exceptions.
-        if {k: v for k, v in m.items() if k not in ('sources', 'frozen')} != {k: v for k, v in reference.items() if k not in ('sources', 'frozen')}:
+        if {k: v for k, v in m.items() if k not in (('sources', 'frozen', 'variant', 'variant_patch_sha256') if requested_variant else ('sources', 'frozen'))} != {k: v for k, v in reference.items() if k not in (('sources', 'frozen', 'variant', 'variant_patch_sha256') if requested_variant else ('sources', 'frozen'))}:
             raise ValueError('MODEL_CAP_POLICY_CHANGED')
         if len(m['frozen']) != 54:
             raise ValueError('FROZEN_CASE_COUNT_CHANGED')
@@ -167,13 +188,17 @@ def audit(jobs, allow_cli):
             raise ValueError('SOURCE_SET_CHANGED')
         changed = sorted(set_changes | {k for k in set(a) & set(b) if a[k] != b[k]})
         permitted = {'track_2a/src/predict.py'} | (CLI_ONLY if allow_cli else set())
+        if requested_variant and bool(reference.get('variant')) != bool(m.get('variant')):
+            spec, _ = variant.specification()
+            permitted |= set(spec['role_hashes'])
         if set(changed) - permitted:
             raise ValueError('NON_PROMPT_CODE_CHANGED: ' + repr(changed))
         differences.append({'job': str(job), 'changed_source_hashes': changed,
                             'source_hash_differences': {k: {'reference': a.get(k), 'input': b.get(k)} for k in changed},
                             'system_changed': any(a['messages'][0] != b['messages'][0] for a, b in zip(reference['frozen'], m['frozen']))})
     return {'reference_job': str(jobs[0]), 'differences': differences,
-            'cli_only_hash_allowance_explicit': allow_cli,
+            'cli_only_hash_allowance_explicit': allow_cli, 'requested_variant': requested_variant,
+            'historical_baseline_source_differences': historical_differences,
             'caution': 'predict.py hash allowance cannot prove historical edits were SYSTEM-only; review provenance/source diff. CLI-only allowance is not permission for tool/model/cap changes.'}
 
 
@@ -211,6 +236,10 @@ def score(jobs, dest, part, byid, split, official_repo, python, samples):
             if hashlib.sha256(encoded).hexdigest() != sha:
                 raise ValueError('LEDGER_RECORD_CHANGED')
         attempts = [load(job / name) for name in state.get('attempts', {})]
+        if load(job / 'manifest.json').get('variant'):
+            for attempt in attempts:
+                if attempt['role'] == 'child' and attempt.get('child_output_audit') != variant.child_emissions(attempt.get('response')):
+                    raise ValueError('RAW_CHILD_OUTPUT_AUDIT_MISMATCH')
         if len(attempts) != state.get('requests') or sum(a['usage']['total_tokens'] for a in attempts) != state['tokens']:
             raise ValueError('ATTEMPT_LEDGER_MISMATCH')
         rows = jsonl(job / '70b-canonical.jsonl')
@@ -253,6 +282,8 @@ def score(jobs, dest, part, byid, split, official_repo, python, samples):
         mean = q(f1(boot)).mean(axis=1)
         result[name] = {'cases': len(ids), 'source_groups': len(groups), 'runs': runs,
                         'metrics': {key: noise([r[key] for r in runs]) for key in ('F1_A', 'F1_B', 'Q')},
+                        'child_label_emissions_total': sum(r['operations']['child_label_emissions'] for r in runs),
+                        'child_label_free_all': all(r['operations']['child_label_emissions'] == 0 for r in runs),
                         'Hit_A_mean': statistics.mean(r['Hit_A'] for r in runs) if all(r['Hit_A'] is not None for r in runs) else None,
                         'Q_pooled': float(q(f1(conf.sum(axis=(0, 1))))),
                         'Q_pooled_group_bootstrap_95': np.quantile(pooled, [.025, .975]).tolist(),
@@ -275,6 +306,12 @@ def paired(base, candidate, seed, samples):
             'mean_repeat_delta95': np.quantile(cm - bm, [.025, .975]).tolist()}
 
 
+def adoption(comparisons, candidate, requested_variant=None):
+    child_free = not requested_variant or all(candidate[side].get('child_label_free_all') is True for side in ('train', 'test'))
+    return {'adopt_literal': child_free and all(r['literal_pass'] is True and r['candidate_safe_all'] for r in comparisons.values()),
+            'adopt_strict': child_free and all(r['strict_reference_pass'] is True and r['candidate_safe_all'] for r in comparisons.values())}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=['score', 'compare'])
@@ -286,6 +323,7 @@ def main():
     parser.add_argument('--destination', type=Path, required=True)
     parser.add_argument('--part', choices=['full', 'split'], default='split')
     parser.add_argument('--bootstrap-samples', type=int, default=20000)
+    parser.add_argument('--variant', choices=[variant.NAME])
     parser.add_argument('--allow-cli-only-hash-changes', action='store_true')
     args = parser.parse_args()
     if args.bootstrap_samples <= 0:
@@ -312,7 +350,7 @@ def main():
             id = item['case']['id']
             if id not in byid or normalize_case(item['case']) != normalize_case(byid[id]['input']):
                 raise ValueError('FROZEN_INPUT_DIFFERS_FROM_APPROVED_FIXTURE')
-    source_audit = audit(args.jobs + candidates, args.allow_cli_only_hash_changes)
+    source_audit = audit(args.jobs + candidates, args.allow_cli_only_hash_changes, args.variant)
     dest.mkdir(parents=True)
     base, bc = score(args.jobs, dest / 'baseline', args.part, byid, split,
                      args.official_repo.resolve(), args.python.absolute(), args.bootstrap_samples)
@@ -336,8 +374,7 @@ def main():
                                  'candidate_safe_all': cand[name]['safe_all'],
                                  **paired(bc[name], cc[name], split['seed'], args.bootstrap_samples)}
         result.update(candidate=cand, comparison=comparisons,
-                      adopt_literal=all(r['literal_pass'] is True and r['candidate_safe_all'] for r in comparisons.values()),
-                      adopt_strict=all(r['strict_reference_pass'] is True and r['candidate_safe_all'] for r in comparisons.values()))
+                      **adoption(comparisons, cand, args.variant))
     dump(dest / 'analysis.json', result)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
