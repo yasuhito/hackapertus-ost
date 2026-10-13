@@ -6,7 +6,8 @@ INPUT ?= /data/cases.jsonl
 OUTPUT ?= /output/predictions.jsonl
 LLM_BACKEND ?= openai
 PYTHON ?= python3
-PIPELINE ?= B
+PIPELINE ?= C
+TOOL_STEP ?= baseline
 DOCKERFILE = $(if $(filter A B C,$(PIPELINE)),Dockerfile.agent,Dockerfile)
 RUNTIME_FLAGS = $(if $(filter A B C,$(PIPELINE)),--read-only --tmpfs /tmp)
 
@@ -17,7 +18,7 @@ run: build
 	mkdir -p "$(OUTPUT_DIR)" "$(BOOKLET_DIR)"
 	docker run --rm $(RUNTIME_FLAGS) --user "$$(id -u):$$(id -g)" \
 	  -e BASE_URL -e API_KEY -e LLM_BASE_URL -e LLM_API_KEY -e PUBLICAI_API_KEY -e LLM_MODEL -e LLM_NAME \
-	  -e LLM_USER_AGENT -e LLM_TIMEOUT -e LLM_MAX_OUTPUT_TOKENS -e LLM_BACKEND=$(LLM_BACKEND) -e PIPELINE=$(PIPELINE) \
+	  -e LLM_USER_AGENT -e LLM_TIMEOUT -e LLM_MAX_OUTPUT_TOKENS -e LLM_BACKEND=$(LLM_BACKEND) -e PIPELINE=$(PIPELINE) -e TOOL_STEP=$(TOOL_STEP) \
 	  -v "$(INPUT_DIR):/data:ro" -v "$(OUTPUT_DIR):/output" \
 	  -v "$(BOOKLET_DIR):/booklets:ro" \
 	  $(IMAGE) --input "$(INPUT)" --output "$(OUTPUT)"
