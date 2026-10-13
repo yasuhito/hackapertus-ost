@@ -29,3 +29,7 @@ node_modules/
 /track_2a/dev/cscs/vendor/*.dist-info/INSTALLER
 /track_2a/dev/cscs/vendor/*.dist-info/REQUESTED
 /track_2a/dev/cscs/vendor/*.dist-info/RECORD
+
+# Autoresearch runtime state stays local; scripts and prompt records are reviewable.
+/.auto/log.jsonl
+/.auto/check-context.json

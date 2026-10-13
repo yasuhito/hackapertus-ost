@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# No candidate selection or approval is inferred from historical results.
+set -euo pipefail
+usage() {
+  printf '%s\n' \
+    'Usage: .auto/measure.sh --baseline | --saved v3|v4|v5 | --prepare-candidate v4|v5 | --execute-approved v4|v5' \
+    'Default refuses. --baseline is offline, min_Q_gain=0. --saved only reads completed reports.' \
+    'Preparation is offline and creates no jobs or prompts. Execution requires explicit selected-candidate metadata approval.' \
+    'Future candidates v4/v5 only; five total including historical v1/v2/v3. No retries, resume or adoption.' \
+    'Tool callers export AUTO_CANDIDATE=v4 (or v5). For baseline checks only export AUTO_BASELINE=1.'
+}
+if [[ $# == 1 && $1 == --help ]]; then usage; exit 0; fi
+mode=${1:-}
+version=${2:-}
+case "$mode" in
+  --baseline) [[ $# == 1 ]] || { usage >&2; exit 2; } ;;
+  --saved) [[ $# == 2 && $version =~ ^v[345]$ ]] || { usage >&2; exit 2; } ;;
+  --prepare-candidate|--execute-approved)
+    [[ $# == 2 && $version =~ ^v[45]$ ]] || { printf '%s\n' 'REFUSED: select future v4/v5 only; archived v3 cannot execute.' >&2; exit 2; } ;;
+  *) printf '%s\n' 'REFUSED: explicit mode and candidate required. No inference performed.' >&2; usage >&2; exit 2 ;;
+esac
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+export PYTHONDONTWRITEBYTECODE=1 GIT_OPTIONAL_LOCKS=0
+# checks.sh runs in a separate process, so shell exports alone cannot select it.
+write_check_context() {
+  python3 -B - "$1" "$2" <<'PYCONTEXT'
+import json, sys
+from pathlib import Path
+Path('.auto/check-context.json').write_text(json.dumps({'mode':sys.argv[1], 'candidate':sys.argv[2]}) + '\n')
+PYCONTEXT
+}
+if [[ $mode == --saved ]]; then
+  python3 -B .auto/results.py --candidate "$version"
+  write_check_context candidate "$version"
+  exit 0
+fi
+if [[ $mode == --baseline ]]; then
+bash -n .auto/measure.sh
+python3 -B - <<'PY'
+import ast
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import subprocess
+import statistics
+
+root = Path.cwd()
+out = root / 'output/cscs'
+scripts = ('run_prompt_v1.py', 'score_split5_date_balanced.py', 'baseline_noise.py',
+           'baseline_noise4.py', 'official_rescore.py', 'score_prompt_v1.py',
+           'analyze_v1_comparison.py')
+for name in scripts:
+    text = (out / name).read_text()
+    ast.parse(text, filename=name)  # Parse only: do not import/execute.
+    assert 'ROOT=Path(__file__).resolve().parents[2]' in text, 'NONLOCAL_ROOT'
+ast.parse((root / 'evals/c-system-prompt/grader.py').read_text())
+jobs = ('format-C-r1', 'format-C-r2', 'format-C-r3', 'format-C-r4.', 'format-C-r5')
+for name in jobs:
+    job = out / name
+    assert json.loads((job / 'summary.json').read_text())['status'] == 'completed', name
+    assert not any(p.name in {'STOP.json', 'inflight.json', 'state.pending'}
+                   for p in job.rglob('*')), 'BASELINE_FENCE: ' + name
+for name in ('official-rescore-evidence', 'hillclimb-split5-date-balanced-analysis'):
+    assert not any(p.name in {'STOP.json', 'inflight.json', 'state.pending'}
+                   for p in (out / name).rglob('*')), 'EVIDENCE_FENCE: ' + name
+provenance = json.loads((out / 'preparation-provenance.json').read_text())
+assert provenance['baseline_jobs'] == list(jobs)
+assert len(provenance['pdf_mapping']) == 6
+assert not (out / 'format-C-r4-start.txt').exists(), 'UNEXPECTED_R4_START'
+for record in provenance['files']:
+    path = root / record['local']
+    assert path.resolve().is_relative_to(root) and not path.is_symlink(), 'NONLOCAL_COPY'
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == record['local_sha256'], 'COPY_CHANGED: ' + record['local']
+    if path.name not in scripts:
+        assert record['source_sha256'] == record['local_sha256'], 'SNAPSHOT_REWRITTEN'
+for local in provenance['pdf_mapping'].values():
+    assert (root / local).is_file() and (root / local).read_bytes()[:5] == b'%PDF-', 'MISSING_LOCAL_PDF'
+
+repo = Path('/tmp/ost-official-evaluator-3U4yO9/repo')
+python = Path('/tmp/ost-official-evaluator-3U4yO9/env/bin/python')
+commit = '5e6957729b77a126006049305ad1ef241211a5b4'
+assert repo.is_dir() and (repo / 'evaluate.py').is_file(), 'OFFICIAL_REPO_MISSING'
+assert python.is_file() and os.access(python, os.X_OK), 'OFFICIAL_PYTHON_MISSING'
+def git(*args):
+    return subprocess.check_output(['git', '-C', str(repo), *args], text=True).strip()
+assert git('rev-parse', 'HEAD') == commit, 'OFFICIAL_COMMIT_CHANGED'
+assert not git('status', '--porcelain'), 'OFFICIAL_REPO_MODIFIED'
+official = json.loads((out / 'official-rescore-evidence/provenance.json').read_text())
+assert official['commit'] == commit
+assert hashlib.sha256((repo / 'evaluate.py').read_bytes()).hexdigest() == official['evaluate_sha256'], 'OFFICIAL_EVALUATOR_CHANGED'
+# Dependency presence only; do not import evaluate.py or invoke the grader.
+subprocess.run([str(python), '-B', '-c',
+                'import sklearn, rapidfuzz, numpy'], check=True,
+               cwd=out, capture_output=True, text=True)
+aggregate = json.loads((out / 'hillclimb-split5-date-balanced-analysis/aggregate.json').read_text())
+for part, count in (('train', 36), ('test', 18)):
+    side = aggregate[part]
+    assert side['cases'] == count and len(side['repeats']) == 5, 'INCOMPLETE_AGGREGATE'
+    assert math.isfinite(side['Q_mean']), 'INVALID_BASELINE_METRIC'
+print('Offline checks passed. BASELINE ONLY: saved historical means; no candidate score or adoption.')
+print('Offline baseline checks only; no runner, grader, model or API execution.')
+for part in ('train', 'test'):
+    print(f"METRIC baseline_{part}_Q={aggregate[part]['Q_mean']:.17g}")
+    for key in ('F1_A', 'F1_B', 'Hit_A'):
+        print(f"METRIC baseline_{part}_{key}_mean={statistics.mean(r[key] for r in aggregate[part]['repeats']):.17g}")
+print('METRIC min_Q_gain=0')
+PY
+write_check_context baseline ''
+fi
+case "$mode" in
+  --prepare-candidate)
+    /tmp/hackapertus-ost-contract/.venv/bin/python -B .auto/run_candidate.py --candidate "$version" --prepare-only
+    ;;
+  --execute-approved)
+    /tmp/hackapertus-ost-contract/.venv/bin/python -B .auto/run_candidate.py --candidate "$version" --execute-approved
+    /tmp/ost-official-evaluator-3U4yO9/env/bin/python -B .auto/score_candidate.py --candidate "$version"
+    /tmp/ost-official-evaluator-3U4yO9/env/bin/python -B .auto/compare_candidate.py --candidate "$version"
+    python3 -B .auto/results.py --candidate "$version"
+    write_check_context candidate "$version"
+    printf '%s\n' 'STOP: candidate finished. No automatic adoption or production change.'
+    ;;
+esac
