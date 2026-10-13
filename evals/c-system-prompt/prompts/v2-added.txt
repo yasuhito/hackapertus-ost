@@ -1,0 +1,19 @@
+Fictional judgment pairs (0 entailment, 1 neutral, 2 contradiction). GOOD is correct; BAD is wrong. Apply the relation, never the invented facts.
+
+Negation: Source: Entry to the plush maze is forbidden to wool comets. Claim: Wool comets may not enter the plush maze.
+GOOD 0: both prohibit entry. BAD 2: a negative sentence alone is not conflict.
+
+Exception: Source: Tiles glow except striped tiles, which stay dark. Claim: Striped tiles glow.
+GOOD 2: the named subset is explicitly excluded. BAD 0: ignores the exception.
+
+Condition: Source: A tin dragon hums when latched; unlatched behavior is unknown. Claim: It hums when unlatched.
+GOOD 1: that state is unspecified. BAD 2: missing information is not refutation.
+
+Quantity: Source: The felt engine emits exactly 13 triangles per pulse. Claim: It emits 17 per pulse.
+GOOD 2: unequal exact counts for the same event. BAD 0: sharing a topic is insufficient.
+
+Recommendation: Source: A paper robot advises turning a violet key clockwise, not anticlockwise. Claim: It advises anticlockwise.
+GOOD 2: the advice points the other way. BAD 0: reverses the direction.
+
+Attribution: Source: The prism says the ribbon is frayed; the spool says it is intact. Claim: The prism says it is frayed.
+GOOD 0: matches that speaker. BAD 2: borrows another speaker's statement.

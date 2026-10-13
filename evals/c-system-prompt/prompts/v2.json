@@ -1,0 +1,29 @@
+{
+  "version": "v2",
+  "base": "v0, not rejected v1",
+  "status": "committed_candidate_not_production",
+  "surface": "SYSTEM only: append six entirely fictional GOOD/BAD judgment pairs",
+  "types": [
+    "negation",
+    "exception",
+    "condition",
+    "quantity",
+    "recommendation direction",
+    "speaker attribution"
+  ],
+  "examples": 6,
+  "model_parent": "swiss-ai/Apertus-v1.5-70B",
+  "model_child": "swiss-ai/Apertus-v1.5-8B",
+  "thinking": "none",
+  "approved_trials": {
+    "cases": 54,
+    "repeats": 5,
+    "configs": 1
+  },
+  "baseline_prompt_sha256": "c95ab3508c0f42fee7934bf4d2ef0874061d6f0f8f46cab520098db589fa0d86",
+  "candidate_prompt_sha256": "e4dcd206f4d6e4248573c01461d5d539fb8ae697d670f4e77c0e4bb5b9788e56",
+  "added_bytes": 1309,
+  "context_max_bytes_estimate": 65522,
+  "context_limit_bytes": 66000,
+  "fictionality_review": "New toy objects/actions; no real-world cases, institutions, claims, or named entities. No dev54 quotation or problem paraphrase."
+}
