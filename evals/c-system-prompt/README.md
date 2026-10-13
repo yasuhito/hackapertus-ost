@@ -92,13 +92,17 @@ train outputs only; test outputs are machine-scored and aggregate-only.
 secondary metrics for repeat5. Train temporal detectable difference is0.017051,
 below0.02; test observed run SD is0 (not proof of zero true noise).
 `prompts/v0-system.txt` freezes baseline SYSTEM; `prompts/v1.patch` proposes
-activating existing FINAL_VERIFICATION in SYSTEM. v1 is a draft, not applied
-or evaluated. Its general policy has0 examples and0 approved-dev54 word8-gram
-overlaps. `check_prompt_overlap.py` performs that mechanical check; its unit
+activating existing FINAL_VERIFICATION in SYSTEM. v1 was evaluated in5 isolated source-only copies and rejected under both adoption
+interpretations. Production was not changed. Its general policy has0 examples
+and0 approved-dev54 word8-gram overlaps. `check_prompt_overlap.py` performs that mechanical check; its unit
 tests use fictional data only. Test fixture text is never displayed by the check.
-A five-repeat candidate means54×5×1 trials (~25-30 minutes,~5.3m tokens).
-Await explicit run-size approval before candidate inference. Do not mistake
-a committed prompt draft for an adopted change to production.
+Candidate1 completed54×5×1 trials in1680.203 summed command seconds,
+815 POSTs/5,463,187 tokens, all valid54/54 per run. Train Q gain-0.002756,
+test gain-0.210920; test fails both safety thresholds. Hit@5 improved but does
+not override label/gate regressions. No candidate2 inference is approved.
+Literal adoption: gain>=0.02 AND gain>side's noise width on both splits.
+Strict reference: gain>=noise width+0.02. Both rejectv1.
+Await STOP approval for any next round and for any production change.
 
 Raw outputs, transcripts and local metrics remain under ignored `output/`.
 No raw outputs are committed. `grader-review.md` records the official scoring
