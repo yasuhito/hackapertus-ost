@@ -174,3 +174,115 @@ No adopted prompt change to production, no model/tool/harness change.
 
 All metrics are aggregate records. Raw outputs/transcripts/logs stay ignored
 under output/cscs. No raw output committed.
+
+## v2 candidate: six fictional GOOD/BAD pairs, evaluated and rejected
+
+Basev0, notv1. SYSTEM alone gains6 short GOOD/BAD judgment pairs covering
+negation, exception, condition, exact quantities, recommendation direction and
+speaker attribution. Each alternative has a short reason; toy objects/actions
+were newly invented and do not quote/paraphrase dev54. No real institutions,
+votes, names or case facts. v1 final-verification policy is not included.
+Prompt files committed BEFORE evaluation at459a139. Normalized word8-gram
+check on all54 approved cases:0 overlaps; context maximum65522/66000 bytes.
+Artifacts: prompts/v2-system.txt, v2-added.txt, v2.patch, v2.json,v2-overlap.json.
+
+Five fresh source-only workspaces, production prompt unchanged. Only predict.py
+SYSTEM differs; machine audit confirms all supplied user messages/pages/IDs
+match baseline. Official evaluator/adapter/split/models unchanged. Exact jobs
+output/cscs/prompt-C-v2-r1..r5, exclusive timestamps, all5 exit0, valid54/54,
+fallback neutral0, usage known, no API retry/fence clearing.
+
+After r1 successfully completed, the local reporting helper had a model-name
+KeyError caused by a broad version-string substitution. No transport/model
+configuration was affected. Completion/exit0/usage/fences were verified; r1
+was not repeated. Only not-yet-started r2..r5 ran after the display fix.
+
+### Per-repeat primary metrics
+
+| Split | Repeat | Q | F1 A | F1 B | Hit@5 A | A/B gates |
+|---|---:|---:|---:|---:|---:|---|
+| train | 1 | 0.767488 | 0.657143 | 0.885714 | 0.500000 | pass/pass |
+| train | 2 | 0.767488 | 0.657143 | 0.885714 | 0.500000 | pass/pass |
+| train | 3 | 0.767488 | 0.657143 | 0.885714 | 0.500000 | pass/pass |
+| train | 4 | 0.767488 | 0.657143 | 0.885714 | 0.500000 | pass/pass |
+| train | 5 | 0.767488 | 0.657143 | 0.885714 | 0.500000 | pass/pass |
+| test | 1 | 0.649425 | 0.555556 | 0.750000 | 0.333333 | FAIL/pass |
+| test | 2 | 0.649425 | 0.555556 | 0.750000 | 0.333333 | FAIL/pass |
+| test | 3 | 0.649425 | 0.555556 | 0.750000 | 0.333333 | FAIL/pass |
+| test | 4 | 0.649425 | 0.555556 | 0.750000 | 0.333333 | FAIL/pass |
+| test | 5 | 0.649425 | 0.555556 | 0.750000 | 0.333333 | FAIL/pass |
+
+| Split | Baseline Q mean | v2 Q mean | Gain | Baseline noise | Literal | Strict | Paired group delta95 |
+|---|---:|---:|---:|---:|---|---|---|
+| train | 0.748300 | 0.767488 | +0.019188 | 0.017051 | FAIL | FAIL | [-0.019379, 0.079156] |
+| test | 0.815517 | 0.649425 | -0.166092 | 0.000000 | FAIL | FAIL | [-0.301737, 0.000000] |
+
+Literal: gain>=0.02 AND gain>noise width on BOTH splits. Train gain0.019188
+exceeds temporal noise0.017051 but falls short of0.02; do not round it up.
+Test gain is negative. Strict reference train threshold0.037051/test0.020000
+also fails. Test A fails0.60 in all5 repeats; B meets0.75 exactly.
+Candidate Q SD0 on both sides is observed repeat stability, not proof of zero
+noise. Paired group bootstrap20,000 samples seed20261016 pools5 repeat
+contributions before nonlinear F1; it is not unseen-generalization evidence.
+
+| Split | Metric | Baseline mean | v2 mean | Delta |
+|---|---|---:|---:|---:|
+| train | F1 A | 0.620047 | 0.657143 | +0.037096 |
+| train | F1 B | 0.885714 | 0.885714 | +0.000000 |
+| train | Hit@5 A | 0.416667 | 0.500000 | +0.083333 |
+| test | F1 A | 0.750000 | 0.555556 | -0.194444 |
+| test | F1 B | 0.885714 | 0.750000 | -0.135714 |
+| test | Hit@5 A | 0.333333 | 0.333333 | +0.000000 |
+
+### Per-repeat secondary metrics
+
+| Split | Repeat | Valid | Fallback neutral | Contradiction→entailment | Tokens | Case mean/p95 ms | API wait s |
+|---|---:|---:|---:|---:|---:|---|---:|
+| train | 1 | 36/36 | 0 | 6 | 679,528 | 6581.916/9394.719 | 191.944 |
+| train | 2 | 36/36 | 0 | 6 | 679,528 | 5775.220/7566.613 | 169.063 |
+| train | 3 | 36/36 | 0 | 6 | 679,528 | 5744.411/7779.449 | 169.110 |
+| train | 4 | 36/36 | 0 | 6 | 679,528 | 5993.426/7547.080 | 174.234 |
+| train | 5 | 36/36 | 0 | 6 | 679,528 | 5807.257/7629.536 | 171.430 |
+| test | 1 | 18/18 | 0 | 5 | 433,154 | 6635.607/11624.858 | 100.469 |
+| test | 2 | 18/18 | 0 | 5 | 433,154 | 5613.370/7161.300 | 81.870 |
+| test | 3 | 18/18 | 0 | 5 | 433,154 | 5871.815/7578.949 | 83.711 |
+| test | 4 | 18/18 | 0 | 5 | 433,154 | 5702.528/7040.863 | 81.733 |
+| test | 5 | 18/18 | 0 | 5 | 433,154 | 6107.341/8465.386 | 92.707 |
+
+| Split | Secondary metric mean | Baseline | v2 | Delta |
+|---|---|---:|---:|---:|
+| train | valid | 36.000 | 36.000 | +0.000 |
+| train | fallback_neutral | 0.000 | 0.000 | +0.000 |
+| train | contradiction_entailment | 5.800 | 6.000 | +0.200 |
+| train | tokens | 641810.000 | 679528.000 | +37718.000 |
+| train | case_mean_ms | 5780.930 | 5980.446 | +199.516 |
+| train | case_p95_ms | 8556.796 | 7983.479 | -573.317 |
+| train | API_wait_ms | 168990.870 | 175156.266 | +6165.396 |
+| test | valid | 18.000 | 18.000 | +0.000 |
+| test | fallback_neutral | 0.000 | 0.000 | +0.000 |
+| test | contradiction_entailment | 3.000 | 5.000 | +2.000 |
+| test | tokens | 425868.000 | 433154.000 | +7286.000 |
+| test | case_mean_ms | 6065.183 | 5986.132 | -79.051 |
+| test | case_p95_ms | 8310.811 | 8374.271 | +63.460 |
+| test | API_wait_ms | 89378.586 | 88097.917 | -1280.669 |
+
+| Repeat | POST | Tokens | Command s | API wait s |
+|---|---:|---:|---:|---:|
+| 1 | 162 | 1,112,682 | 364.983 | 292.413 |
+| 2 | 162 | 1,112,682 | 317.058 | 250.933 |
+| 3 | 162 | 1,112,682 | 317.883 | 252.821 |
+| 4 | 162 | 1,112,682 | 328.001 | 255.967 |
+| 5 | 162 | 1,112,682 | 329.765 | 264.138 |
+
+Total810 POST,**5,563,410 tokens**,**1657.689s** summed command time.
+Tokens vs baseline5,338,390: **+225,020 (+4.215%)**.
+No schema repairs needed in v2. Time comparisons above are observations, not
+prompt-caused latency claims or official non-LLM processing-time scores.
+
+**Decision: rejectv2 under both interpretations; production staysv0.**
+Train label/evidence improve but Q gain misses minimum; test labels regress,
+Hit@5 unchanged; tokens rise. No threshold relaxation or score-based re-split.
+Two consecutive nonimproving rounds now trigger eval-hillclimb stall STOP.
+No candidate3 made or evaluated. Next phase is only the user-queued read-only
+post-v2 research, then separately authorized no-API runbook work.
+Raw outputs/transcripts/logs remain ignored; no raw outputs committed.

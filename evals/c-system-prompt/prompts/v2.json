@@ -1,7 +1,7 @@
 {
   "version": "v2",
   "base": "v0, not rejected v1",
-  "status": "committed_candidate_not_production",
+  "status": "evaluated_rejected_production_unchanged",
   "surface": "SYSTEM only: append six entirely fictional GOOD/BAD judgment pairs",
   "types": [
     "negation",
@@ -25,5 +25,8 @@
   "added_bytes": 1309,
   "context_max_bytes_estimate": 65522,
   "context_limit_bytes": 66000,
-  "fictionality_review": "New toy objects/actions; no real-world cases, institutions, claims, or named entities. No dev54 quotation or problem paraphrase."
+  "fictionality_review": "New toy objects/actions; no real-world cases, institutions, claims, or named entities. No dev54 quotation or problem paraphrase.",
+  "adopt_literal": false,
+  "adopt_strict": false,
+  "evaluated_repeats": 5
 }
