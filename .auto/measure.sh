@@ -3,20 +3,20 @@
 set -euo pipefail
 usage() {
   printf '%s\n' \
-    'Usage: .auto/measure.sh --baseline | --saved v3|v4|v5 | --prepare-candidate v4|v5 | --execute-approved v4|v5' \
+    'Usage: .auto/measure.sh --baseline | --saved v3..v10 | --prepare-candidate v5..v10 | --execute-approved v5..v10' \
     'Default refuses. --baseline is offline, min_Q_gain=0. --saved only reads completed reports.' \
     'Preparation is offline and creates no jobs or prompts. Execution requires explicit selected-candidate metadata approval.' \
-    'Future candidates v4/v5 only; five total including historical v1/v2/v3. No retries, resume or adoption.' \
-    'Tool callers export AUTO_CANDIDATE=v4 (or v5). For baseline checks only export AUTO_BASELINE=1.'
+    'Future candidates v5..v10 only; ten total including archived v1..v4. No retries, resume or adoption.' \
+    'Tool callers export AUTO_CANDIDATE to the selected future version. Baseline checks use AUTO_BASELINE=1.'
 }
 if [[ $# == 1 && $1 == --help ]]; then usage; exit 0; fi
 mode=${1:-}
 version=${2:-}
 case "$mode" in
   --baseline) [[ $# == 1 ]] || { usage >&2; exit 2; } ;;
-  --saved) [[ $# == 2 && $version =~ ^v[345]$ ]] || { usage >&2; exit 2; } ;;
+  --saved) [[ $# == 2 && $version =~ ^(v3|v4|v5|v6|v7|v8|v9|v10)$ ]] || { usage >&2; exit 2; } ;;
   --prepare-candidate|--execute-approved)
-    [[ $# == 2 && $version =~ ^v[45]$ ]] || { printf '%s\n' 'REFUSED: select future v4/v5 only; archived v3 cannot execute.' >&2; exit 2; } ;;
+    [[ $# == 2 && $version =~ ^(v5|v6|v7|v8|v9|v10)$ ]] || { printf '%s\n' 'REFUSED: select future v5..v10 only; archived v3/v4 cannot execute.' >&2; exit 2; } ;;
   *) printf '%s\n' 'REFUSED: explicit mode and candidate required. No inference performed.' >&2; usage >&2; exit 2 ;;
 esac
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
@@ -117,6 +117,7 @@ case "$mode" in
     /tmp/hackapertus-ost-contract/.venv/bin/python -B .auto/run_candidate.py --candidate "$version" --execute-approved
     /tmp/ost-official-evaluator-3U4yO9/env/bin/python -B .auto/score_candidate.py --candidate "$version"
     /tmp/ost-official-evaluator-3U4yO9/env/bin/python -B .auto/compare_candidate.py --candidate "$version"
+    # Completed quality rejections belong to checks.sh (checks_failed), not execution errors.
     python3 -B .auto/results.py --candidate "$version"
     write_check_context candidate "$version"
     printf '%s\n' 'STOP: candidate finished. No automatic adoption or production change.'

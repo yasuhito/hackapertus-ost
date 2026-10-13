@@ -1,0 +1,32 @@
+{
+  "version": "v5",
+  "base": "v0",
+  "status": "approved_window_candidate_not_production",
+  "surface": "SYSTEM only: replace overridden raw output instruction with frozen submit contract",
+  "hypothesis": "Removing competing raw-JSON evidence/span_id output instructions may make existing submit-tool use more consistent. Tool reminder already overrides raw output, so benefit is uncertain. No semantic judgment changes.",
+  "examples": 0,
+  "model_parent": "swiss-ai/Apertus-v1.5-70B",
+  "model_child": "swiss-ai/Apertus-v1.5-8B",
+  "thinking": "none",
+  "proposed_trials": {
+    "cases": 54,
+    "repeats": 5,
+    "configs": 1
+  },
+  "approved_trials": {
+    "cases": 54,
+    "repeats": 5,
+    "configs": 1
+  },
+  "inference_approved": true,
+  "approval_scope": {
+    "candidate": "v5",
+    "cases": 54,
+    "repeats": 5,
+    "configs": 1
+  },
+  "approval_note": "Owner-approved v5..v10 autonomous window; start before2026-10-14T11:00+09, soft finish noon; fixed54x5, no retries/adoption/push",
+  "baseline_prompt_sha256": "c95ab3508c0f42fee7934bf4d2ef0874061d6f0f8f46cab520098db589fa0d86",
+  "candidate_prompt_sha256": "06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c",
+  "context_limit_bytes": 66000
+}

@@ -1,7 +1,7 @@
 """Aggregate-only candidate comparison, no model calls or test transcript display."""
 import argparse
 parser=argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--candidate', required=True, choices=('v3','v4','v5'))
+parser.add_argument('--candidate', required=True, choices=('v3','v4','v5','v6','v7','v8','v9','v10'))
 version=parser.parse_args().candidate
 import importlib.util,json,math,statistics
 from pathlib import Path

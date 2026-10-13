@@ -15,7 +15,7 @@ if mode == 'baseline':
     assert candidate == '' and not os.environ.get('AUTO_CANDIDATE'), 'CHECK_SELECTOR_CONFLICT'
     subprocess.run(['bash', '.auto/measure.sh', '--baseline'], check=True)
 else:
-    assert mode == 'candidate' and candidate in ('v3', 'v4', 'v5'), 'CHECK_SELECTOR_MISSING'
+    assert mode == 'candidate' and candidate in ('v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10'), 'CHECK_SELECTOR_MISSING'
     assert not os.environ.get('AUTO_BASELINE'), 'CHECK_SELECTOR_CONFLICT'
     assert os.environ.get('AUTO_CANDIDATE', candidate) == candidate, 'CHECK_SELECTOR_CONFLICT'
     subprocess.run([sys.executable, '-B', '.auto/results.py', '--candidate', candidate, '--check'], check=True)

@@ -1,79 +1,117 @@
-# C SYSTEM autoresearch
+# Overnight C SYSTEM autoresearch
 
-## Current STOP
+## Owner-approved window
 
-Autoresearch mode and the experiment config are initialized. The user approved
-the next candidate in principle and suggested inspecting agent logs. v4 has
-been prepared and passed offline 54 x 5 source/input audits; no inference yet.
-Its conditional parent-ownership SYSTEM SHA256 is
-e14dff10a25dbab7e8ae92b6af8a4bbe7adb38d8ba0d99a5b119952783d58a9e.
-The user has approved the next candidate and this experiment branch's setup
-save and log_experiment automatic commit/revert behavior. Record the saved
-historical baseline with keep to checkpoint preparation/v3/v4 draft records
-before authorizing v4 metadata and starting inference. No manual commit/revert.
-Record each tool run immediately. Do not rerun v3. After the one v4 candidate,
-STOP regardless of outcome; v5, production adoption and push are not approved.
+The user approved autonomous additional candidates v5 through v10, at most six,
+with no per-candidate confirmation during this window. Total prompt cap is now
+10, overriding the earlier cap5 only for this session. Each candidate still
+requires fixed54 cases x5 repeats x1 configuration. Timezone Asia/Tokyo:
+The owner rescheduled on the morning of October14 after sleeping; all other
+scope/limits remain unchanged. Start new candidates strictly before
+2026-10-14T11:00:00+09:00; finish target2026-10-14T12:00:00+09:00. An already-started five-repeat batch may finish;
+never forcibly interrupt an in-flight API request merely for the time target.
+`.auto/window.json` is enforced before preflight and immediately before the
+first request. No new starts after cutoff or v10, even if tool slots remain.
 
-## Protocol
+Git setup saving and log_experiment's automatic experiment-branch commits and
+rollbacks are authorized. Production adoption and push are not. Keep original
+sibling and external dependencies read-only. On actual execution/API/transport/
+usage errors or STOP fences, STOP the entire overnight loop; no retry/resume,
+next candidate, fence deletion or secret logging. A successfully completed
+candidate failing quality/adoption gates is rejection, not an execution error:
+record it and move to a genuinely different policy while time/candidate slots
+remain. Do not loosen gates to make a rejected candidate pass.
 
-Read `evals/c-system-prompt/README.md`, `docs/prompt-eval-log.md`, and
-`docs/autoresearch-preparation.md`. The fixed split/evaluator, two split gain
-requirements, evidence objective and per-repeat F1 gates remain authoritative.
-Change only SYSTEM in isolated source-only workspaces. Keep FINAL_VERIFICATION,
-model roles, tools, PDFs/extraction, user inputs, transport and scoring frozen.
-Examples must be entirely fictional; no dev-case copying/paraphrase, tuning
-split/seeds/grader, or protected holdout access. Individual test outputs and
-transcripts stay machine-only. Report Hit as a local reference surrogate.
+## Existing session
 
-## Tools after approval
+`.auto/log.jsonl` contains config and two records: historical v0 baseline0 and
+v4 checks_failed at min_Q_gain -0.11379310344827587. Do not initialize again,
+rerun baseline, or rerun archived v1/v2/v3/v4. maxIterations8 includes these two
+records and at most six new candidates. Runtime caches limits: after changing
+config use Pi /reload before activating mode; retain the existing config/log.
+Checkpoint409d39f preserves setup and draft v4 records. Rejected metadata may
+revert to draft; existing completed jobs still categorically forbid replay.
 
-Config already exists in `.auto/log.jsonl`: do not initialize again for this
-same target. Primary `min_Q_gain`, higher better, is the minimum of train and
-test five-repeat mean Q gains against the fixed v0 baseline. Baseline is zero.
-This conservative logging reduction does not replace either split's individual
-noise threshold, F1/evidence requirements, or secondary regression reporting.
+## Frozen protocol and anti-overfitting
 
-1. Once Git/logging permission and a safe checkpoint are established, record
-   the saved baseline with run_experiment using:
-   `export AUTO_BASELINE=1; unset AUTO_CANDIDATE; ./.auto/measure.sh --baseline`.
-   No inference occurs. Call log_experiment afterwards with metric 0, baseline
-   status keep, description explicitly saved historical baseline, and ASI.
-2. Prepare a genuinely new v4 policy and obtain hash/scale approval. Set its
-   candidate-specific metadata approval, never borrow v3 approval. Offline
-   `./.auto/measure.sh --prepare-candidate v4` must pass first. Resolve any
-   mandatory metric coverage gaps before inference.
-3. Use run_experiment with sufficient timeout (7200 seconds):
-   `export AUTO_CANDIDATE=v4; unset AUTO_BASELINE; ./.auto/measure.sh --execute-approved v4`.
-   A successful measurement writes `.auto/check-context.json` for checks.sh,
-   which runs in a separate process (shell exports alone do not propagate).
-   Always log the completed tool run;
-   use the parsed min_Q_gain and all available secondary metrics, with ASI
-   hypothesis and, on rejection, rollback_reason/next_action_hint.
-4. Keep only measured primary improvements passing checks. Checks failure,
-   crash or unknown usage stops the batch. log_experiment Git retention is NOT
-   production adoption. Report all regressions before separate adoption approval.
-   STOP after this one candidate even on success. v5 needs new approval.
+Read evals/c-system-prompt/README.md, docs/prompt-eval-log.md and
+.auto/window.json. The owner override changes only count and autonomous
+permission, not scoring, split, noise/safety requirements or model workflow.
+SYSTEM-only changes in isolated source-only copies; FINAL_VERIFICATION, parent
+70B/actual child8B, thinkingoff, tools, source extraction, quotes, communication,
+user inputs, graders/data/split stay frozen. Do not modify measure/check/report
+scripts during the loop except a demonstrable integration defect; report it.
 
-`.auto/config.json` permits two tool records: historical baseline plus one new
-candidate. At most five prompt candidates total, including historical v1/v2/v3.
-Preserve all uncertain-request fences; no retry, auto-resume, fence clearing,
-production edits or push. Raw jobs remain ignored under clone output/cscs;
-original sibling/external dependencies are read-only. Keep bytecode disabled.
+Only verified TRAIN individual records/transcripts may inform hypotheses.
+Use a small representative sample to identify general behavior, not exhaustive
+case-specific rule mining. Never open individual test outputs/transcripts or
+protected holdout. Test aggregate scores are acceptance checks only: do not
+use them to invent the next policy, probe test failure topics, select seeds,
+change references or move split cases. This exposed internal dev split is not
+an unseen holdout; repeated selection cannot prove generalization.
+Examples, if used, must be wholly fictional and neither copied nor paraphrased
+from dev54. Prefer no examples. No external facts, case IDs, gold labels,
+booklet details or exceptions targeted at benchmark cases in SYSTEM. Run the
+existing overlap check on added text; lexical pass is not semantic proof.
 
-## History
+## Tool loop
 
-v1 rejected (see authoritative log). v2 state unknown; proceed independently,
-without duplication. v3 completed all 54 x 5, valid 54/54 each, and was rejected:
-train gain -0.006028454304316422, test gain -0.1660919540229886; per-repeat test
-F1 gates fail. Saved results are only a historical reference, not a new trial.
-v4 is prepared from v0, not v3. It conditionally asks the parent to treat a
-child recommendation as a proposal and judge it against original source within
-the normal final submission; no forced disagreement, extra calls or examples.
-Eight sampled train executions copy child labels/IDs unchanged; this does NOT
-prove absence of internal review. v4 has zero dev54 8-gram overlap and passed
-five offline isolated input/source audits. No v4/v5 inference has run.
+1. Check actual local time and slots before designing each candidate. Choose
+   the next unexecuted ID in v5..v10. Use one general hypothesis distinguishable
+   from prior policies; keep discarded policies available for hash checks.
+   No automatic v4 retry. If an idea needs changed assumptions, explain them
+   rather than cosmetic edits or duplicate prompt replay.
+2. Create evals/c-system-prompt/prompts/vN-system.txt, vN-added.txt, vN.patch,
+   vN-overlap.json and vN.json. Freeze candidate SYSTEM/hash before evaluation.
+   Use initial metadata proposed_trials and approved_trials54/5/1,
+   inference_approved:true, approval_scope:{candidate:vN,cases:54,repeats:5,
+   configs:1}; cite this approved overnight window, not old v4 permission.
+   Do not alter metadata after preparation: archive is byte-exact immutable.
+3. Offline prepare with bash .auto/measure.sh --prepare-candidate vN. It audits
+   five fresh isolated workspaces against baseline user inputs/pages/IDs and
+   source hashes (only predict.py changes). Required role/split usage coverage
+   already exists; repair-window slots are a subset, not a third additive role.
+   Candidates are archived under ignored output/cscs/candidate-archive/vN before
+   execution so tool rollback does not destroy prior hash/history evidence.
+4. Use run_experiment with direct command
+   `bash .auto/measure.sh --execute-approved vN`, timeout7200, checks_timeout180.
+   No shell exports/prefixes: the tool enforces the measure entrypoint.
+   Successful measurements write check-context.json for separate-process checks.
+5. ALWAYS log a real completed tool run immediately. Primary is parsed
+   min_Q_gain, higher better: minimum of train and test five-repeat mean Q gains
+   over fixed v0. Zero is existing baseline. Use all parsed secondary metrics
+   PLUS previously tracked baseline constants from run1; tool logging requires
+   all earlier metric names. Secondary schemas do not change across candidates.
+   ASI includes hypothesis, candidate/hash, general learning, diagnostic scope,
+   and on rejection rollback_reason and next_action_hint.
+6. Completed quality gate failure -> log status checks_failed, preserve ignored
+   raw outputs, then next genuinely different candidate if allowed. Actual
+   execution failure -> log crash (measured failure, not invented scores), STOP.
+   Primary improvement with passing checks -> keep, but not production adoption.
+   Unchanged/worse without checks failures -> discard. Never manually commit or
+   revert. Never rerun to game noise or conceal failures.
+7. Stop at start cutoff, last v10, six additional candidates, any execution STOP,
+   or maxIterations8. Report aggregates/limitations; do not autoextend bounds.
 
-Usage measurement now reconciles ledger digests/counters with parent/child
-and train/test input/output/total tokens. Extra parent>=2 or child>=1 request
-slots are repair-window subsets, not a third additive role or proof of exact
-schema-repair payload contents. Missing/invalid usage fails closed.
+Both split gain>=.02 AND gain>side measured noise, strict supplementary
+interpretation, A>=.60/B>=.75 EACH repeat, evidence objective and secondary
+regression reporting remain required. Scalar min_Q_gain does not replace them.
+Local Hit@5 is an estimated-reference surrogate, not official overall score.
+Retain all diagnostic/token/time/validity/fallback counts even on rejection.
+
+## History and hypotheses
+
+v1 appended FINAL_VERIFICATION and failed. v2 is independent/unknown; do not
+wait for it or duplicate its fictional GOOD/BAD-pair policy. v3 evidence
+sufficiency/minimal citations failed train/test gains. v4 conditional parent
+ownership failed: train gain-.004683439166197734, test gain-.11379310344827587;
+test B F1.65. All v4 runs valid54/54/fallback0;815 requests/5,433,529 tokens.
+Eight sampled train executions copied child labels/IDs, but this does not prove
+skipped internal review caused errors. Neither longer cautionary instructions
+nor forcing disagreement is established as a solution.
+
+Reasonable distinct avenues, not validated prescriptions: simplify redundant
+judgment instructions while preserving guards; concise relation alignment
+before delegation; resolve ambiguous entailment-vs-contradiction wording without
+new benchmark facts. Choose from train evidence and independent logic, never
+from individual test failures or test-aggregate-driven targeting.

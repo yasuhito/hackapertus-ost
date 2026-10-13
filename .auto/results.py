@@ -9,7 +9,7 @@ import usage
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'output/cscs'
-VERSIONS = ('v3', 'v4', 'v5')
+VERSIONS = ('v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10')
 FENCES = {'STOP.json', 'inflight.json', 'state.pending'}
 
 
@@ -19,7 +19,7 @@ def load(path):
 
 def completed_jobs(out, version):
     if version not in VERSIONS:
-        raise ValueError('REFUSED: selected candidate must be v3/v4/v5')
+        raise ValueError('REFUSED: selected saved candidate must be v3..v10')
     split = load(ROOT / 'evals/c-system-prompt/split.json')
     ids = split['train'] + split['test']
     assert len(ids) == len(set(ids)) == 54, 'SPLIT_IDS_CHANGED'

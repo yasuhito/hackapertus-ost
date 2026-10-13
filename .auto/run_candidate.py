@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Future v4/v5 batch only. Offline by default; execution requires explicit scoped approval."""
+"""Future v5..v10 batches only. Offline by default; execution requires scoped approval."""
 import argparse
 import ast
 import hashlib
+from datetime import datetime, timezone
 import io
 import json
 import os
@@ -18,6 +19,90 @@ OUT = ROOT / 'output/cscs'
 PYTHON = '/tmp/hackapertus-ost-contract/.venv/bin/python'
 ENV = dict(os.environ, PI_PACKAGE_ROOT='/home/yasuhito/.pi/agent/install/releases/1.1.0/node_modules/@earendil-works/pi-coding-agent', PI_SUBAGENTS_ROOT='/home/yasuhito/.pi/agent/npm/node_modules/@tintinweb/pi-subagents', PYTHONDONTWRITEBYTECODE='1')
 PROMPTS = ROOT / 'evals/c-system-prompt/prompts'
+FUTURE = ('v5', 'v6', 'v7', 'v8', 'v9', 'v10')
+TRIALS = {'cases': 54, 'repeats': 5, 'configs': 1}
+WINDOW = ROOT / '.auto/window.json'
+ARTIFACT_SUFFIXES = ('.json', '-system.txt', '-added.txt', '.patch', '-overlap.json')
+
+
+def require_future(version):
+    if version not in FUTURE:
+        raise SystemExit('REFUSED: only future v5..v10; archived candidates cannot prepare or execute')
+
+
+def validate_window(version, window, now):
+    """Pure validation for synthetic tests; runtime callers use the actual UTC clock."""
+    require_future(version)
+    expected = {'timezone': 'Asia/Tokyo',
+                'candidate_start_before': '2026-10-14T11:00:00+09:00',
+                'soft_finish_by': '2026-10-14T12:00:00+09:00',
+                'approved_candidates': list(FUTURE), 'max_new_candidates': 6,
+                'trials': TRIALS, 'approved': True, 'stop_on_execution_error': True}
+    if (not isinstance(window, dict)
+            or json.dumps({k: window.get(k) for k in expected}, sort_keys=True)
+            != json.dumps(expected, sort_keys=True)):
+        raise SystemExit('REFUSED: missing or invalid fixed overnight window/scope')
+    try:
+        cutoff = datetime.fromisoformat(window['candidate_start_before'])
+        finish = datetime.fromisoformat(window['soft_finish_by'])
+        if (not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None
+                or cutoff.utcoffset() is None or finish.utcoffset() is None
+                or not cutoff < finish or now.astimezone(timezone.utc) >= cutoff):
+            raise ValueError('unknown clock or start cutoff reached')
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise SystemExit('REFUSED: unknown clock or candidate start cutoff reached') from exc
+
+
+def check_window(version):
+    try:
+        window = json.loads(WINDOW.read_text())
+        now = datetime.now(timezone.utc)
+    except (OSError, ValueError, OverflowError) as exc:
+        raise SystemExit('REFUSED: unavailable window or UTC clock') from exc
+    validate_window(version, window, now)
+
+
+def prior_prompt_hash(version):
+    """Rollback may remove eval artifacts; never trust metadata without SYSTEM bytes."""
+    location = PROMPTS
+    if not all((location / (version + suffix)).is_file() for suffix in ('.json', '-system.txt')):
+        location = OUT / 'candidate-archive' / version
+    try:
+        meta = json.loads((location / f'{version}.json').read_text())
+        actual = digest((location / f'{version}-system.txt').read_bytes())
+    except (OSError, ValueError) as exc:
+        raise SystemExit('PREVIOUS_PROMPT_ARTIFACTS_MISSING_OR_INVALID') from exc
+    assert meta['version'] == version, 'PREVIOUS_METADATA_VERSION_CHANGED'
+    assert actual == meta['candidate_prompt_sha256'], 'PREVIOUS_PROMPT_HASH_CHANGED'
+    return actual
+
+
+def refuse_duplicates(version, candidate_hash):
+    for previous in range(1, int(version[1:])):
+        assert candidate_hash != prior_prompt_hash(f'v{previous}'), 'DUPLICATE_CANDIDATE'
+
+
+def preserve_candidate(version):
+    """Preserve exact offline inputs once; an identical archive is not a job fence."""
+    payload = {version + suffix: (PROMPTS / (version + suffix)).read_bytes()
+               for suffix in ARTIFACT_SUFFIXES}
+    archive = OUT / 'candidate-archive' / version
+    if archive.exists():
+        assert {p.name for p in archive.iterdir()} == set(payload), 'CANDIDATE_ARCHIVE_CHANGED'
+        assert all((archive / name).read_bytes() == data for name, data in payload.items()), 'CANDIDATE_ARCHIVE_CHANGED'
+        return payload
+    archive.mkdir(parents=True, exist_ok=False)
+    for name, data in payload.items():
+        with (archive / name).open('xb') as handle:
+            handle.write(data)
+    return payload
+
+
+def verify_candidate_artifacts(version, payload):
+    archive = OUT / 'candidate-archive' / version
+    for name, data in payload.items():
+        assert (PROMPTS / name).read_bytes() == data, 'CANDIDATE_ARTIFACT_CHANGED'
+        assert (archive / name).read_bytes() == data, 'CANDIDATE_ARCHIVE_CHANGED'
 
 
 def digest(data):
@@ -42,15 +127,17 @@ def refuse_batch(version):
 
 
 def validate_metadata(version, meta, execute):
-    trials = {'cases': 54, 'repeats': 5, 'configs': 1}
-    if meta.get('version') != version or meta.get('proposed_trials') != trials:
+    require_future(version)
+    trials = TRIALS
+    if (meta.get('version') != version
+            or json.dumps(meta.get('proposed_trials'), sort_keys=True) != json.dumps(trials, sort_keys=True)):
         raise SystemExit('REFUSED: candidate version/proposed_trials must match 54 x 5 x 1')
     if execute:
         # A candidate-specific machine-readable scope cannot inherit v3 permission.
         scope = {'candidate': version, 'cases': 54, 'repeats': 5, 'configs': 1}
         if (meta.get('inference_approved') is not True
-                or meta.get('approved_trials') != trials
-                or meta.get('approval_scope') != scope):
+                or json.dumps(meta.get('approved_trials'), sort_keys=True) != json.dumps(trials, sort_keys=True)
+                or json.dumps(meta.get('approval_scope'), sort_keys=True) != json.dumps(scope, sort_keys=True)):
             raise SystemExit('REFUSED: explicit selected-candidate approval and fixed approved_trials/scope required')
 
 
@@ -79,14 +166,15 @@ def audit(manifest, baseline, mapping):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--candidate', required=True, choices=('v3', 'v4', 'v5'))
+    parser.add_argument('--candidate', required=True, choices=('v3', 'v4', *FUTURE))
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument('--prepare-only', action='store_true')
     modes.add_argument('--execute-approved', action='store_true', help='Only after human approval for this candidate, exactly 54 x 5 x 1')
     args = parser.parse_args()
     version = args.candidate
-    if version == 'v3':
-        raise SystemExit('REFUSED: archived v3 was evaluated; no preparation, execution or resume')
+    require_future(version)
+    if args.execute_approved:
+        check_window(version)  # Before archive extraction or costly preflights.
     refuse_batch(version)
     if not all((PROMPTS / name).is_file() for name in (f'{version}.json', f'{version}-system.txt')):
         raise SystemExit('CANDIDATE_ARTIFACTS_MISSING: selected metadata/system required; no requests or jobs created')
@@ -95,13 +183,11 @@ def main():
     candidate = (PROMPTS / f'{version}-system.txt').read_text()
     assert digest(candidate.encode()) == meta['candidate_prompt_sha256']
     assert digest((PROMPTS / 'v0-system.txt').read_bytes()) == meta['baseline_prompt_sha256']
-    for previous in range(1, int(version[1:])):
-        prior = json.loads((PROMPTS / f'v{previous}.json').read_text())
-        prior_hash = digest((PROMPTS / f'v{previous}-system.txt').read_bytes())
-        assert prior_hash == prior['candidate_prompt_sha256'], 'PREVIOUS_PROMPT_HASH_CHANGED'
-        assert meta['candidate_prompt_sha256'] != prior_hash, 'DUPLICATE_CANDIDATE'
+    refuse_duplicates(version, meta['candidate_prompt_sha256'])
+    payload = preserve_candidate(version)  # Offline, before any workspace or inference.
     original = (ROOT / 'track_2a/src/predict.py').read_bytes()
     archive = subprocess.check_output(['/usr/bin/git', 'archive', 'HEAD', 'track_2a/src', 'track_2a/dev/cscs', 'track_2a/dev/format'], cwd=ROOT)
+    archive_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     baseline = json.loads((OUT / 'format-C-r5/manifest.json').read_text())
     provenance = json.loads((OUT / 'preparation-provenance.json').read_text())
     pdfs = {x['case']['booklet']['path'] for x in baseline['frozen'] if 'booklet' in x['case']}
@@ -163,14 +249,21 @@ def main():
         validate_metadata(version, current_meta, True)
         assert current_meta == meta, 'APPROVAL_OR_METADATA_CHANGED'
         assert digest((PROMPTS / f'{version}-system.txt').read_bytes()) == meta['candidate_prompt_sha256'], 'CANDIDATE_PROMPT_CHANGED'
-        for previous in range(1, int(version[1:])):
-            prior = json.loads((PROMPTS / f'v{previous}.json').read_text())
-            assert digest((PROMPTS / f'v{previous}-system.txt').read_bytes()) == prior['candidate_prompt_sha256'], 'PREVIOUS_PROMPT_HASH_CHANGED'
+        verify_candidate_artifacts(version, payload)
+        for relative, expected_hash in sources(prepared).items():
+            source = workspace / relative
+            assert source.resolve().is_relative_to(workspace) and not source.is_symlink(), 'WORKSPACE_SOURCE_NONLOCAL'
+            assert digest(source.read_bytes()) == expected_hash, 'WORKSPACE_SOURCE_CHANGED'
+        refuse_duplicates(version, meta['candidate_prompt_sha256'])
+        assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip() == archive_commit, 'SOURCE_PROVENANCE_CHANGED'
+        assert subprocess.check_output(['/usr/bin/git', 'archive', 'HEAD', 'track_2a/src', 'track_2a/dev/cscs', 'track_2a/dev/format'], cwd=ROOT) == archive, 'SOURCE_ARCHIVE_CHANGED'
         job = OUT / f'prompt-C-{version}-r{repeat}'
         prefix = OUT / f'prompt-C-{version}-r{repeat}'
         # Refuse future batch paths too, while preserving completed repeats.
         for future in range(repeat, 6):
             assert not list(OUT.glob(f'prompt-C-{version}-r{future}*')), 'PREEXISTING_BATCH_PATH'
+        if repeat == 1:
+            check_window(version)  # Last gate before first request; never gate later repeats.
         with Path(str(prefix) + '-start.txt').open('x') as f:
             f.write(str(time.time()) + '\n')
         with Path(str(prefix) + '-run.log').open('x') as stdout, Path(str(prefix) + '-stderr.log').open('x') as stderr:
@@ -183,7 +276,7 @@ def main():
             raise SystemExit('CANDIDATE_STOP: PRESERVE FENCES; NO RETRY OR NEXT REPEAT')
         assert json.loads((job / 'manifest.json').read_text()) == prepared
         assert json.loads((job / 'summary.json').read_text())['status'] == 'completed'
-        Path(str(prefix) + '-provenance.json').write_text(json.dumps({'workspace': str(workspace), 'version': version, 'repeat': repeat, 'prompt_sha256': meta['candidate_prompt_sha256'], 'pdf_mapping': mapping, 'production_unchanged': True, 'archive_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), 'only_source_change': 'track_2a/src/predict.py SYSTEM assignment'}, indent=2) + '\n')
+        Path(str(prefix) + '-provenance.json').write_text(json.dumps({'workspace': str(workspace), 'version': version, 'repeat': repeat, 'prompt_sha256': meta['candidate_prompt_sha256'], 'pdf_mapping': mapping, 'production_unchanged': True, 'archive_commit': archive_commit, 'only_source_change': 'track_2a/src/predict.py SYSTEM assignment'}, indent=2) + '\n')
         print(f'{version} repeat {repeat}: completed', flush=True)
 
 
