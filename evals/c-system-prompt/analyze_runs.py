@@ -127,7 +127,11 @@ def operations(job, preds, ids, byid, official):
                 counts = variant.child_emissions(load(path).get('response'))
                 for k, v in counts.items():
                     emissions[k] += v
-    return {**emissions, 'valid': sum(r['output_valid'] for r in rr) if complete else None,
+    membership = [(r.get('sdk') or {}).get('id_check', {}) for r in rr]
+    frozen_byid = {item['case']['id']: item for item in load(job / 'manifest.json')['frozen']}
+    is_id_variant = load(job / 'manifest.json').get('variant') == 'id-existence-check'
+    id_metrics = {'id_check_call_count': sum(x.get('call_count', 0) for x in membership), 'id_check_successful_cases': sum(x.get('successful', False) for x in membership), 'id_check_unknown_ids': sum(len(x.get('unknown_ids', [])) for x in membership), 'id_check_checked_vs_submitted_mismatches': sum(x.get('checked_vs_submitted_mismatch', False) for x in membership), 'id_check_structural_all': complete and all(id_check_structure(r, frozen_byid[r['case_id']]['candidate_ids']) and id_check_attempts(job, r) for r in rr)} if is_id_variant else {}
+    return {**emissions, **id_metrics, 'valid': sum(r['output_valid'] for r in rr) if complete else None,
             'fallback_neutral': sum(r.get('error') == 'NO_ACCEPTED_SUBMIT' and r['prediction']['label'] == 1 for r in rr) if complete else None,
             'contradiction_entailment': sum(byid[id]['expect']['label'] == 2 and official.label_of(preds[id])[0] == 0 for id in ids),
             'tokens': total, 'tokens_per_case': total / len(ids) if total is not None else None,
@@ -139,6 +143,63 @@ def operations(job, preds, ids, byid, official):
             'API_wait_ms': sum(r['api_wait_ms'] for r in rr) if complete and all('api_wait_ms' in r for r in rr) else None,
             'requests_full_run': summary.get('generation_requests'),
             **command_time(job)}
+
+
+def id_check_structure(record, source_ids=None):
+    """Protocol only, not a judgment about labels or semantic support."""
+    sdk = record.get('sdk') or {}
+    check = sdk.get('id_check', {})
+    entries = check.get('inputs_results', [])
+    if check.get('call_count') != 1 or check.get('successful') is not True or len(entries) != 1:
+        return False
+    entry = entries[0]
+    ids, results = entry.get('candidate_ids'), entry.get('checks')
+    if not isinstance(ids, list) or len(ids) > 5 or any(not isinstance(x, str) for x in ids) or not isinstance(results, list) or len(ids) != len(results):
+        return False
+    if any(not isinstance(c, dict) or set(c) != {'candidate_id', 'exists'} or c['candidate_id'] != id or type(c['exists']) is not bool for id, c in zip(ids, results)):
+        return False
+    if source_ids is not None and results != [{'candidate_id': id, 'exists': id in source_ids} for id in ids]:
+        return False
+    submitted = check.get('submitted_ids')
+    if (check.get('checked_ids') != ids or check.get('unknown_ids') != [c['candidate_id'] for c in results if not c['exists']]
+            or check.get('checked_vs_submitted_mismatch') != (submitted is not None and submitted != ids)
+            or submitted != ((sdk.get('recommendation') or {}).get('candidate_ids'))):
+        return False
+    events = sdk.get('events', [])
+    parent = [e.get('toolName') for e in events if e.get('role') == 'parent' and e.get('type') == 'tool_execution_start']
+    children = [e for e in events if e.get('type') == 'package_child_completed']
+    return (parent == ['subagent', 'check_candidate_ids', 'submit'] and len(children) == 1
+            and children[0].get('model') == 'swiss-ai/Apertus-v1.5-8B' and children[0].get('tools') == ['submit']
+            and sdk.get('counts', {}).get('parent') == 3 and sdk.get('counts', {}).get('child') in (1, 2))
+
+
+def id_check_attempts(job, record):
+    """Independent raw wire identity/order audit, including rejected responses."""
+    index = record['case_index']
+    expected = {'parent': ['subagent', 'check_candidate_ids', 'submit'], 'child': ['submit'] * (record.get('sdk') or {}).get('counts', {}).get('child', 0)}
+    for role, names in expected.items():
+        for number, name in enumerate(names):
+            path = job / f'70b-{index:02}-{role}-{number}.json'
+            if not path.is_file():
+                return False
+            attempt = load(path)
+            model = MODEL if role == 'parent' else 'swiss-ai/Apertus-v1.5-8B'
+            if attempt.get('request_model') != model or attempt.get('response', {}).get('model') != model:
+                return False
+            choices = (attempt.get('response') or {}).get('choices', [])
+            if len(choices) != 1:
+                return False
+            calls = choices[0].get('message', {}).get('tool_calls', [])
+            if len(calls) != 1 or calls[0].get('function', {}).get('name') != name:
+                return False
+            if name == 'check_candidate_ids':
+                try:
+                    args = json.loads(calls[0]['function']['arguments'])
+                except (KeyError, ValueError, TypeError):
+                    return False
+                if args != {'candidate_ids': record['sdk']['id_check']['checked_ids']}:
+                    return False
+    return True
 
 
 def source_hashes(m):
@@ -155,16 +216,16 @@ def normalize_case(case):
 def audit(jobs, allow_cli, requested_variant=None):
     manifests = [load(j / 'manifest.json') for j in jobs]
     variant_jobs = [j for j, m in zip(jobs, manifests) if m.get('variant')]
-    if variant_jobs and requested_variant != variant.NAME:
+    if variant_jobs and requested_variant not in variant.NAMES:
         raise ValueError('VARIANT_REQUIRES_EXPLICIT_OPTION')
     if requested_variant and not variant_jobs:
         raise ValueError('REQUESTED_VARIANT_MISSING')
     historical_differences = []
     for job, m in zip(jobs, manifests):
         if m.get('variant'):
-            variant.verify_manifest(m)
+            variant.verify_manifest(m, requested_variant)
         elif requested_variant:
-            historical_differences.append({'job': str(job), 'differences_from_current_base': variant.verify_baseline(m, allow_cli)})
+            historical_differences.append({'job': str(job), 'differences_from_current_base': variant.verify_baseline(m, allow_cli, requested_variant)})
     reference = manifests[0]
     if reference.get('strategy') != 'C' or reference.get('role_models') != {'parent': MODEL, 'child': 'swiss-ai/Apertus-v1.5-8B'}:
         raise ValueError('FIXED_C_ROLE_MODELS_REQUIRED')
@@ -178,7 +239,9 @@ def audit(jobs, allow_cli, requested_variant=None):
         for a, b in zip(reference['frozen'], m['frozen']):
             if normalize_case(a['case']) != normalize_case(b['case']):
                 raise ValueError('SOURCE_INPUT_CHANGED')
-            if {k: v for k, v in a.items() if k not in ('case', 'messages', 'messages_sha256')} != {k: v for k, v in b.items() if k not in ('case', 'messages', 'messages_sha256')}:
+            frozen_exceptions = ('case', 'messages', 'messages_sha256') + (('schema_sha256',) if requested_variant == 'id-existence-check' else ())
+            # The explicit variant audit pins the exact base and new declaration digest.
+            if {k: v for k, v in a.items() if k not in frozen_exceptions} != {k: v for k, v in b.items() if k not in frozen_exceptions}:
                 raise ValueError('PAGES_CANDIDATES_SCHEMA_CHANGED')
             if a['messages'][1:] != b['messages'][1:]:
                 raise ValueError('USER_MESSAGES_CHANGED')
@@ -189,7 +252,7 @@ def audit(jobs, allow_cli, requested_variant=None):
         changed = sorted(set_changes | {k for k in set(a) & set(b) if a[k] != b[k]})
         permitted = {'track_2a/src/predict.py'} | (CLI_ONLY if allow_cli else set())
         if requested_variant and bool(reference.get('variant')) != bool(m.get('variant')):
-            spec, _ = variant.specification()
+            spec, _ = variant.specification(requested_variant)
             permitted |= set(spec['role_hashes'])
         if set(changed) - permitted:
             raise ValueError('NON_PROMPT_CODE_CHANGED: ' + repr(changed))
@@ -236,7 +299,7 @@ def score(jobs, dest, part, byid, split, official_repo, python, samples):
             if hashlib.sha256(encoded).hexdigest() != sha:
                 raise ValueError('LEDGER_RECORD_CHANGED')
         attempts = [load(job / name) for name in state.get('attempts', {})]
-        if load(job / 'manifest.json').get('variant'):
+        if load(job / 'manifest.json').get('variant') == variant.NAME:
             for attempt in attempts:
                 if attempt['role'] == 'child' and attempt.get('child_output_audit') != variant.child_emissions(attempt.get('response')):
                     raise ValueError('RAW_CHILD_OUTPUT_AUDIT_MISMATCH')
@@ -284,6 +347,8 @@ def score(jobs, dest, part, byid, split, official_repo, python, samples):
                         'metrics': {key: noise([r[key] for r in runs]) for key in ('F1_A', 'F1_B', 'Q')},
                         'child_label_emissions_total': sum(r['operations']['child_label_emissions'] for r in runs),
                         'child_label_free_all': all(r['operations']['child_label_emissions'] == 0 for r in runs),
+                        'id_check_structural_all': all(r['operations'].get('id_check_structural_all') is True for r in runs),
+                        'id_check_totals': {k: sum(r['operations'].get(k, 0) for r in runs) for k in ('id_check_call_count', 'id_check_successful_cases', 'id_check_unknown_ids', 'id_check_checked_vs_submitted_mismatches')},
                         'Hit_A_mean': statistics.mean(r['Hit_A'] for r in runs) if all(r['Hit_A'] is not None for r in runs) else None,
                         'Q_pooled': float(q(f1(conf.sum(axis=(0, 1))))),
                         'Q_pooled_group_bootstrap_95': np.quantile(pooled, [.025, .975]).tolist(),
@@ -307,9 +372,10 @@ def paired(base, candidate, seed, samples):
 
 
 def adoption(comparisons, candidate, requested_variant=None):
-    child_free = not requested_variant or all(candidate[side].get('child_label_free_all') is True for side in ('train', 'test'))
-    return {'adopt_literal': child_free and all(r['literal_pass'] is True and r['candidate_safe_all'] for r in comparisons.values()),
-            'adopt_strict': child_free and all(r['strict_reference_pass'] is True and r['candidate_safe_all'] for r in comparisons.values())}
+    child_free = requested_variant != variant.NAME or all(candidate[side].get('child_label_free_all') is True for side in ('train', 'test'))
+    structure = requested_variant != 'id-existence-check' or all(candidate[side].get('id_check_structural_all') is True for side in ('train', 'test'))
+    return {'adopt_literal': structure and child_free and all(r['literal_pass'] is True and r['candidate_safe_all'] for r in comparisons.values()),
+            'adopt_strict': structure and child_free and all(r['strict_reference_pass'] is True and r['candidate_safe_all'] for r in comparisons.values())}
 
 
 def main():
@@ -323,7 +389,7 @@ def main():
     parser.add_argument('--destination', type=Path, required=True)
     parser.add_argument('--part', choices=['full', 'split'], default='split')
     parser.add_argument('--bootstrap-samples', type=int, default=20000)
-    parser.add_argument('--variant', choices=[variant.NAME])
+    parser.add_argument('--variant', choices=variant.NAMES)
     parser.add_argument('--allow-cli-only-hash-changes', action='store_true')
     args = parser.parse_args()
     if args.bootstrap_samples <= 0:

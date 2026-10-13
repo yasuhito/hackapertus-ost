@@ -1,0 +1,213 @@
+diff --git a/track_2a/dev/format/submit-extension.ts b/track_2a/dev/format/submit-extension.ts
+--- a/track_2a/dev/format/submit-extension.ts
++++ b/track_2a/dev/format/submit-extension.ts
+@@ -10,6 +10,8 @@
+   let attempts = 0;
+   let accepted = false;
+   let delegated = false;
++  let checked = false;
++  let checkAttempts = 0;
+   return (pi: ExtensionAPI) => {
+     pi.registerTool({
+       name: 'submit', label: 'Submit NLI',
+@@ -20,6 +22,7 @@
+         candidate_ids: Type.Array(ids.length ? Type.Union(ids.map(id => Type.Literal(id))) : Type.Never(), { maxItems: 5, uniqueItems: true }),
+       }, { additionalProperties: false }),
+       execute: async (_id, params) => {
++        if (child && !checked) throw new Error('CHECK_REQUIRED');
+         if (accepted || ++attempts > 2) return { content: [{ type: 'text', text: 'SUBMIT_LIMIT' }], details: undefined, isError: true, terminate: true };
+         const result = await bridge('assemble', params);
+         accepted = result.ok === true;
+@@ -27,6 +30,18 @@
+       },
+     });
+     if (child) pi.registerTool({
++      name: 'check_candidate_ids', label: 'Check candidate IDs',
++      description: 'Check exact membership in the frozen source candidate IDs, once after subagent and before submit. exists does not establish semantic support. No text, label, recommendation, or rule judgment.',
++      executionMode: 'sequential',
++      parameters: Type.Object({ candidate_ids: Type.Array(Type.String(), { maxItems: 5 }) }, { additionalProperties: false }),
++      execute: async (_id, params) => {
++        if (!delegated || accepted || ++checkAttempts > 1) throw new Error('CHECK_LIMIT_OR_ORDER');
++        const result = await bridge('check_candidate_ids', params);
++        checked = result.ok === true;
++        return { content: [{ type: 'text', text: JSON.stringify(result.checks) }], details: result, isError: !checked };
++      },
++    });
++    if (child) pi.registerTool({
+       name: 'subagent', label: 'Source-only recommendation',
+       description: 'Ask one depth-one agent with the same model and frozen source for a recommendation. Call with compact arguments {"mode":"source_only"}; no blank lines. Parent must submit the final decision.',
+       executionMode: 'sequential', parameters: Type.Object({ mode: Type.Literal('source_only') }, { additionalProperties: false }),
+diff --git a/track_2a/dev/format/sdk.ts b/track_2a/dev/format/sdk.ts
+--- a/track_2a/dev/format/sdk.ts
++++ b/track_2a/dev/format/sdk.ts
+@@ -17,6 +17,10 @@
+         candidate_ids: { type: 'array', items: { type: 'string', enum: [...ids] }, maxItems: 5 },
+       },
+     };
++    else if (t.name === 'check_candidate_ids') parameters = {
++      type: 'object', additionalProperties: false, required: ['candidate_ids'],
++      properties: { candidate_ids: { type: 'array', items: { type: 'string' }, maxItems: 5 } },
++    };
+     else if (t.name === 'subagent') parameters = {
+       type: 'object', additionalProperties: false, required: ['mode'],
+       properties: { mode: { type: 'string', enum: ['source_only'] } },
+@@ -72,7 +76,7 @@
+                 .replace('\n\n<cwd>\n' + cwd + '\n</cwd>', '\n\n<cwd>\n/tmp/ost-private-child\n</cwd>');
+             }
+             let payload: any = { model: m.id, messages, temperature: 0, max_tokens: 256, stream: false, tools,
+-              tool_choice: { type: 'function', function: { name: role === 'parent' && counts.parent === 0 ? 'subagent' : 'submit' } } };
++              tool_choice: { type: 'function', function: { name: role === 'parent' && counts.parent === 0 ? 'subagent' : role === 'parent' && counts.parent === 1 ? 'check_candidate_ids' : 'submit' } } };
+             payload = await options.onPayload?.(payload, m) ?? payload;
+             counts[role]++;
+             const response = await bridge('request', { role, payload });
+@@ -117,7 +121,7 @@
+     const extensionRuntime = sdk.createExtensionRuntime();
+     const submitFactory = createSubmitExtension(ids, async (kind, args) => {
+       const result = await bridge(kind, { role, args });
+-      if (result.ok) recommendation = args;
++      if (kind === 'assemble' && result.ok) recommendation = args;
+       return result;
+     }, role === 'parent' ? () => sessionRun('child') : undefined);
+     const factory = (pi: any) => {
+@@ -133,11 +137,11 @@
+       getExtensions: () => ({ extensions: [extension], errors: [], runtime: extensionRuntime }),
+       getSkills: () => ({ skills: [], diagnostics: [] }), getPrompts: () => ({ prompts: [], diagnostics: [] }),
+       getThemes: () => ({ themes: [], diagnostics: [] }), getAgentsFiles: () => ({ agentsFiles: [] }),
+-      getSystemPrompt: () => input.system + '\nUse only the declared tools. Do not return a text submission. ' + SUBMIT_PROTOCOL + ' ' + (role === 'child' ? 'Submit a recommendation. Use compact JSON arguments, no blank lines.' : 'First call subagent with compact arguments {"mode":"source_only"}; no blank lines. Then submit your final decision.'),
++      getSystemPrompt: () => input.system + '\nUse only the declared tools. Do not return a text submission. ' + SUBMIT_PROTOCOL + ' ' + (role === 'child' ? 'Submit a recommendation. Use compact JSON arguments, no blank lines.' : 'First call subagent with compact arguments {"mode":"source_only"}; no blank lines. Then call check_candidate_ids once with up to five strings (empty list and duplicates allowed; unknown IDs may be queried). exists does not establish semantic support. Then submit your final decision; final IDs may differ from checked IDs.'),
+       getSystemPromptSource: () => undefined, getAppendSystemPrompt: () => [], getAppendSystemPromptSources: () => [], extendResources: () => {}, reload: async () => {},
+     };
+     const settingsManager = sdk.SettingsManager.inMemory({ defaultTools: [], compaction: { enabled: false }, retry: { enabled: false, maxRetries: 0, provider: { maxRetries: 0 } }, cacheWarming: 'off', enableInstallTelemetry: false, enableAnalytics: false });
+-    const { session } = await sdk.createAgentSession({ cwd: '/tmp', agentDir: '/tmp/ost-no-discovery', modelRuntime: runtime, model, thinkingLevel: 'off', resourceLoader, tools: role === 'parent' ? ['submit', 'subagent'] : ['submit'], sessionManager: sdk.SessionManager.inMemory('/tmp'), settingsManager });
++    const { session } = await sdk.createAgentSession({ cwd: '/tmp', agentDir: '/tmp/ost-no-discovery', modelRuntime: runtime, model, thinkingLevel: 'off', resourceLoader, tools: role === 'parent' ? ['submit', 'subagent', 'check_candidate_ids'] : ['submit'], sessionManager: sdk.SessionManager.inMemory('/tmp'), settingsManager });
+     const unsubscribe = session.subscribe((event: any) => {
+       if (['agent_settled', 'tool_execution_start', 'tool_execution_end', 'auto_retry_start', 'auto_compaction_start'].includes(event.type)) events.push({ role, type: event.type, toolName: event.toolName, isError: event.isError });
+     });
+diff --git a/track_2a/dev/format/run_comparison.py b/track_2a/dev/format/run_comparison.py
+--- a/track_2a/dev/format/run_comparison.py
++++ b/track_2a/dev/format/run_comparison.py
+@@ -58,7 +58,17 @@
+ def schemas(ids, child=False):
+     submit = {'type': 'function', 'function': {'name': 'submit', 'description': 'Select NLI label and exact supporting candidate IDs.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['label', 'candidate_ids'], 'properties': {'label': {'enum': [0, 1, 2], 'type': 'integer'}, 'candidate_ids': {'type': 'array', 'maxItems': 5, 'items': {'type': 'string', 'enum': ids}}}}}}
+     delegate = {'type': 'function', 'function': {'name': 'subagent', 'description': 'One fixed source-only child recommendation.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['mode'], 'properties': {'mode': {'type': 'string', 'enum': ['source_only']}}}}}
+-    return [submit] if child else [submit, delegate]
++    check = {'type': 'function', 'function': {'name': 'check_candidate_ids', 'description': 'Exact frozen candidate ID membership only.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['candidate_ids'], 'properties': {'candidate_ids': {'type': 'array', 'maxItems': 5, 'items': {'type': 'string'}}}}}}
++    return [submit] if child else [submit, delegate, check]
++
++
++def check_candidate_ids(args, ids):
++    if not isinstance(args, dict) or set(args) != {'candidate_ids'}:
++        raise ValueError('CHECK_ARGUMENTS')
++    queried = args['candidate_ids']
++    if not isinstance(queried, list) or len(queried) > 5 or any(not isinstance(x, str) for x in queried):
++        raise ValueError('CHECK_ARGUMENTS')
++    return [{'candidate_id': x, 'exists': x in ids} for x in queried]
+ 
+ 
+ class Transport:
+@@ -134,6 +144,9 @@
+                     schema_repair_limit=1, native_schema='OpenAI tools only for B/C; no structured_output or json_schema' if strategy == 'C' else 'OpenAI tools only for B; no structured_output or json_schema', pi_version='1.1.0')
+     if strategy == 'C':
+         manifest.update(models=[MODELS[1]], role_models={'parent': MODELS[1], 'child': MODELS[0]})
++    if strategy != 'C':
++        raise Stop('VARIANT_C_ONLY')
++    manifest.update(variant='id-existence-check', variant_patch_sha256=os.environ.get('OST_VARIANT_PATCH_SHA256'))
+     files = [REPO / 'track_2a/src/submission.py'] + [p for p in HERE.iterdir() if p.suffix in ('.py', '.ts', '.mjs', '.json') and p.is_file()]
+     manifest['sources'].update({str(p.relative_to(REPO)): legacy.digest(p.read_bytes()) for p in files})
+     for item in manifest['frozen']:
+@@ -299,6 +312,11 @@
+         counters = Counter()
+         submit_calls = Counter()
+         accepted = None
++        checks = []
++        check_calls = 0
++        admitted_checks = 0
++        check_success = False
++        delegated = False
+         diagnostics = []
+         def send(value):
+             process.stdin.write(json.dumps(value, ensure_ascii=False, allow_nan=False) + '\n')
+@@ -317,6 +335,7 @@
+                 if kind == 'done':
+                     if not message['result']['counts']['child']:
+                         diagnostics.append('NO_SUBAGENT_CALL')
++                    message['result']['id_check'] = {'inputs_results': checks, 'call_count': check_calls, 'successful': check_success, 'unknown_ids': [c['candidate_id'] for entry in checks for c in entry['checks'] if not c['exists']], 'checked_ids': checks[-1]['candidate_ids'] if checks else None, 'submitted_ids': accepted['candidate_ids'] if accepted else None, 'checked_vs_submitted_mismatch': bool(accepted is not None and checks and accepted['candidate_ids'] != checks[-1]['candidate_ids'])}
+                     return accepted, diagnostics, message['result']
+                 if kind == 'fatal':
+                     raise Stop('SDK_FATAL_ALL_STOP')
+@@ -329,6 +348,9 @@
+                     if payload.get('model') != fixed_role_model(strategy, model, role):
+                         raise Stop('ROLE_MODEL_REFUSED')
+                     enforce_tools(payload, item['candidate_ids'], role)
++                    expected = ('subagent' if counters[role] == 0 else 'check_candidate_ids' if counters[role] == 1 else 'submit') if role == 'parent' else 'submit'
++                    if payload.get('tool_choice') != {'type': 'function', 'function': {'name': expected}}:
++                        raise Stop('TOOL_CHOICE_ORDER_REFUSED')
+                     if counters[role] >= (3 if role == 'parent' else 2) or accepted is not None:
+                         raise Stop('SDK_REQUEST_LIMIT')
+                     response = post(role, counters[role], payload)
+@@ -344,9 +366,15 @@
+                     for call in calls:
+                         if not isinstance(call, dict) or call.get('type') != 'function' or not isinstance(call.get('id'), str) or not isinstance(call.get('function'), dict):
+                             raise Stop('MALFORMED_TOOL_CALL_ALL_STOP')
++                        if role == 'parent' and call['function'].get('name') == 'check_candidate_ids':
++                            check_calls += 1
+                         if call['function'].get('name') == 'submit':
+                             submit_calls[role] += 1
+                         try:
++                            name = call['function'].get('name')
++                            expected_name = ('subagent' if counters[role] == 1 else 'check_candidate_ids' if counters[role] == 2 else 'submit') if role == 'parent' else 'submit'
++                            if name != expected_name:
++                                raise ValueError('TOOL_ORDER_OR_ROLE')
+                             if submit_calls[role] > 2 and call['function'].get('name') == 'submit':
+                                 raise ValueError('SUBMIT_LIMIT')
+                             call['parsed_arguments'] = submission.strict_json(call['function']['arguments'])
+@@ -354,6 +382,11 @@
+                             # let that change the strict integer tool protocol.
+                             if call['function'].get('name') == 'submit':
+                                 submission.assemble_tool(call['parsed_arguments'], item['case'], item['pages'], {'input_tokens': 0, 'output_tokens': 0, 'inference_time_ms': 0})
++                            elif call['function'].get('name') == 'check_candidate_ids':
++                                if role != 'parent' or admitted_checks >= 1:
++                                    raise ValueError('CHECK_LIMIT_OR_ROLE')
++                                check_candidate_ids(call['parsed_arguments'], item['candidate_ids'])
++                                admitted_checks += 1
+                             elif call['function'].get('name') == 'subagent' and call['parsed_arguments'] != {'mode': 'source_only'}:
+                                 raise ValueError('SUBAGENT_ARGUMENTS')
+                         except (ValueError, TypeError, KeyError) as exc:
+@@ -362,9 +395,20 @@
+                             diagnostics.append(code)
+                     if choice['finish_reason'] == 'length':
+                         choice['message']['tool_calls'] = []
++                    if role == 'parent' and counters[role] == 1 and any(c.get('parsed_arguments') == {'mode': 'source_only'} for c in calls):
++                        delegated = True
+                     result = response
++                elif kind == 'check_candidate_ids':
++                    if role != 'parent' or admitted_checks != 1 or check_success or not delegated:
++                        raise Stop('CHECK_LIMIT_OR_ROLE')
++                    values = check_candidate_ids(data['args'], item['candidate_ids'])
++                    checks.append({'candidate_ids': data['args']['candidate_ids'], 'checks': values})
++                    check_success = True
++                    result = {'ok': True, 'checks': values}
+                 elif kind == 'assemble':
+                     try:
++                        if role == 'parent' and not check_success:
++                            raise ValueError('CHECK_REQUIRED')
+                         submission.assemble_tool(data['args'], item['case'], item['pages'], {'input_tokens': 0, 'output_tokens': 0, 'inference_time_ms': 0})
+                         if role == 'parent':
+                             if accepted is not None:
+@@ -392,7 +436,7 @@
+ 
+ def enforce_tools(payload, ids, role):
+     tools = payload.get('tools')
+-    names = ['submit', 'subagent'] if role == 'parent' else ['submit']
++    names = ['submit', 'subagent', 'check_candidate_ids'] if role == 'parent' else ['submit']
+     if not isinstance(tools, list) or any(not isinstance(t, dict) or not isinstance(t.get('function'), dict) or not isinstance(t['function'].get('name'), str) for t in tools) or sorted(t['function']['name'] for t in tools) != sorted(names):
+         raise Stop('TOOLS_REFUSED')
+     # Native HTTP declarations are a compatibility projection, not the stronger
+@@ -448,6 +492,7 @@
+ 
+ def summarize(ledger):
+     summary = {'status': 'completed', 'mode': ledger.manifest.get('mode', 'user-run'), 'cost': 'unknown; no financial cap asserted', 'strategy': ledger.manifest['strategy'], 'generation_requests': ledger.state['requests'], 'actual_total_tokens': ledger.state['tokens'], 'token_budget': ledger.manifest['token_budget'], 'models': {}}
++    summary['id_check'] = {'call_count': sum(r['sdk']['id_check']['call_count'] for n, r in ledger.records.items() if n in ledger.state['cases']), 'successful_cases': sum(r['sdk']['id_check']['successful'] for n, r in ledger.records.items() if n in ledger.state['cases']), 'unknown_ids': sum(len(r['sdk']['id_check']['unknown_ids']) for n, r in ledger.records.items() if n in ledger.state['cases']), 'checked_vs_submitted_mismatches': sum(r['sdk']['id_check']['checked_vs_submitted_mismatch'] for n, r in ledger.records.items() if n in ledger.state['cases'])}
+     summary['calls_by_actual_model'] = dict(Counter(r.get('request_model', r['model']) for n, r in ledger.records.items() if n in ledger.state['attempts']))
+     if 'role_models' in ledger.manifest:
+         summary['role_models'] = ledger.manifest['role_models']

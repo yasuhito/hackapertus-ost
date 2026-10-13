@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 
 NAME = 'evidence-only-child'
+NAMES = (NAME, 'id-existence-check')
 ROOT = Path(__file__).parent / 'variants'
 ROLE_FILES = {'track_2a/dev/format/' + x for x in
               ('submit-extension.ts', 'package-child.mjs', 'sdk.ts', 'run_comparison.py')}
@@ -12,18 +13,21 @@ ROLE_FILES = {'track_2a/dev/format/' + x for x in
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
-def specification():
-    spec = json.loads((ROOT / (NAME + '.json')).read_text())
-    patch = (ROOT / (NAME + '.patch')).read_bytes()
+def specification(name=NAME):
+    if name not in NAMES:
+        raise ValueError('UNKNOWN_VARIANT')
+    spec = json.loads((ROOT / (name + '.json')).read_text())
+    patch = (ROOT / (name + '.patch')).read_bytes()
     changed = {line[6:] for line in patch.decode().splitlines() if line.startswith('+++ b/')}
-    if changed != ROLE_FILES or set(spec['role_hashes']) != ROLE_FILES or set(spec['base_role_hashes']) != ROLE_FILES:
+    scope = ROLE_FILES if name == NAME else ROLE_FILES - {'track_2a/dev/format/package-child.mjs'}
+    if changed != scope or set(spec['role_hashes']) != scope or set(spec['base_role_hashes']) != scope:
         raise ValueError('VARIANT_ROLE_FILE_SCOPE_CHANGED')
     if digest(patch) != spec['patch_sha256']:
         raise ValueError('VARIANT_PATCH_FINGERPRINT_CHANGED')
     return spec, patch
 
-def apply(workspace):
-    spec, patch = specification()
+def apply(workspace, name=NAME):
+    spec, patch = specification(name)
     for path, sha in spec['base_role_hashes'].items():
         if digest((workspace / path).read_bytes()) != sha:
             raise ValueError('VARIANT_BASE_SOURCE_CHANGED: ' + path)
@@ -34,9 +38,9 @@ def apply(workspace):
             raise ValueError('VARIANT_SOURCE_CHANGED: ' + path)
     return spec
 
-def verify_manifest(manifest):
-    spec, _ = specification()
-    if manifest.get('variant') != NAME or manifest.get('variant_patch_sha256') != spec['patch_sha256']:
+def verify_manifest(manifest, name=NAME):
+    spec, _ = specification(name)
+    if manifest.get('variant') != name or manifest.get('variant_patch_sha256') != spec['patch_sha256']:
         raise ValueError('VARIANT_MARKER_OR_FINGERPRINT_CHANGED')
     mapped = {k[k.index('track_2a/'):]: v for k, v in manifest['sources'].items()}
     if mapped != spec['source_hashes']:
@@ -44,17 +48,48 @@ def verify_manifest(manifest):
     policy = {k: v for k, v in manifest.items() if k not in ('sources', 'frozen', 'variant', 'variant_patch_sha256')}
     if policy != spec['policy']:
         raise ValueError('VARIANT_FIXED_POLICY_CHANGED')
+    verify_policy_frozen(manifest, spec)
+    if name == 'id-existence-check':
+        verify_schema_delta(manifest, spec)
+
+
+def verify_schema_delta(manifest, spec):
+    base = json.loads(json.dumps(manifest))
+    if len(spec['schema_audit']) != len(base['frozen']):
+        raise ValueError('VARIANT_SCHEMA_AUDIT_CHANGED')
+    for item, audit in zip(base['frozen'], spec['schema_audit']):
+        if item['schema_sha256'] != audit['parent_schema_sha256']:
+            raise ValueError('VARIANT_DECLARED_PARENT_SCHEMA_CHANGED')
+        item['schema_sha256'] = audit['base_parent_schema_sha256']
+    # The only frozen delta is the exact approved parent tool declaration.
+    # Source hashes and focused schema tests independently pin submit and child.
+    if frozen_hashes(base) != spec['base_frozen_hashes']:
+        raise ValueError('VARIANT_UNAPPROVED_FROZEN_DELTA')
+
+
+def frozen_hashes(manifest):
     hashes = []
     for item in manifest['frozen']:
         item = json.loads(json.dumps(item))
         if 'booklet' in item['case']:
             item['case']['booklet']['path'] = Path(item['case']['booklet']['path']).name
         hashes.append(digest(json.dumps(item, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()))
-    if hashes != spec['frozen_hashes']:
+    return hashes
+
+
+def verify_policy_frozen(manifest, spec, baseline=False):
+    policy = {k: v for k, v in manifest.items() if k not in ('sources', 'frozen', 'variant', 'variant_patch_sha256')}
+    if policy != spec['policy']:
+        raise ValueError('VARIANT_FIXED_POLICY_CHANGED')
+    expected = spec['base_frozen_hashes'] if baseline else spec['frozen_hashes']
+    if frozen_hashes(manifest) != expected:
         raise ValueError('VARIANT_FROZEN_SOURCE_OR_PARENT_SCHEMA_CHANGED')
 
-def verify_baseline(manifest, allow_cli):
-    spec, _ = specification()
+
+def verify_baseline(manifest, allow_cli, name=NAME):
+    spec, _ = specification(name)
+    if name == 'id-existence-check':
+        verify_policy_frozen(manifest, spec, baseline=True)
     mapped = {k[k.index('track_2a/'):]: v for k, v in manifest['sources'].items()}
     current = {**spec['source_hashes'], **spec['base_role_hashes']}
     if mapped == current:

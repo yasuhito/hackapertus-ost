@@ -375,3 +375,44 @@ Each run:0117-A child duplicate IDs rejected, deduplicated repair accepted.0557-
 TRAIN correct counts22/23/22/22/22 of36, versus v0 28/27/27/27/27 and v2 28each.20 case-repetition improvements versus45 regressions. All36 child ID lists are repeat-stable; parent labels stable35/36 (1306-B varies), parent ID lists stable35/36 (0924-A varies). Final parent IDs match baseline21/36 and restored evidence26/36 each run, so the intervention changes evidence selection as well as removing child labels; their effects are not causally isolated. Unchanged-evidence improvements include0117-A/1316-A/0073-A; regressions include0508-A/0835-A. Remaining TRAIN errors include age-threshold mismatch, worship-place exceptions, attribution, and unrelated claims classified as contradiction. No individual TEST diagnosis was performed.
 
 Detailed TRAIN review, source rationales, audit JSON and reproducible offline scripts remain in ignored output/cscs/role-C-evidence-only-train-review*. Raw model output/source quotations are not committed. No next experiment is proposed or started; wait at STATUS: SKILL-STOP.
+
+## Single native-tool experiment: id-existence-check (offline implementation)
+
+Owner authorized exactly one deterministic parent-only membership tool on v0 C.
+Production/default paths and the child's label recommendation remain v0; the
+rejected evidence-only-child patch is not applied. The separate hash-pinned
+variant changes only three archived format sources, adding the forced order
+subagent/check_candidate_ids/submit. Membership is not semantic support; final
+IDs remain unconstrained by checked IDs and mismatch is logged. All models,
+budgets, deadlines and validation caps are unchanged. Adding the check makes the
+normal parent sequence three completions, so a failed final schema cannot obtain
+a fourth repair request.
+
+Offline synthetic actual Pi SDK/pinned runAgent tests exercise membership,
+duplicates/unknown queries, strict arguments, role/order/repeat guards,
+independent final label/IDs, unchanged source and compatibility wire schemas.
+No live calls, key reads, installs, commits or pushes during implementation. A subsequent parent review found an excluded-test boundary violation; see the incident below. Do not claim that no protected data was read.
+The portable recipe and exact schema/source/policy audits are in
+`evals/c-system-prompt/README.md` and `variants/id-existence-check.*`.
+
+Parent must verify the implementation commit before the approved54x5 live run.
+After that run, mandatory full TRAIN log/evidence/label review precedes any next
+proposal or STOP decision; TEST remains aggregate-only. No evaluation outcome,
+quality gain, adoption or additional experiment is asserted here.
+
+Verification: eval suite **79 passed**. The implementation agent's **243 passed** result included the forbidden `test_no_split_leakage` because its `-k 'not protected'` filter did not exclude that name. It is not a scope-compliant verification. Parent reran `track_2a -k 'not test_no_split_leakage'` with the pinned Pi package overrides: **242 passed,1 deselected**. An intermediate parent test invocation omitted those package overrides and failed; the failed log was preserved, then the configured offline invocation passed. No model requests were involved. `run_batch.py --variant id-existence-check --count 5
+--prepare-only` prepared five54-case archives, **remote_calls0/credential_reads0**.
+Automatic approved54 8-gram check: **overlapping_cases0**. Production three role
+source hashes match the pinned base; package-child matches unchanged v0.
+`git diff --check` passed. These are offline plumbing/regression results, not
+live model accuracy, service compatibility, latency or quality measurements.
+
+### Pre-live boundary incident: STOP, no model evaluation
+
+Owner confirmed STOP-10 role split rejected; production/default C remain v0. During this new tool's implementation, two offline pytest invocations used `-k 'not protected'`, which does not exclude `test_no_split_leakage`. That existing test JSON-decodes train_cases.jsonl/dev_cases.jsonl, including the reserved date, and inspects date-set overlap and total row count. Thus protected data was read by the test despite the explicit exclusion. No protected-case prediction, grading, gold diagnosis, prompt selection or case text was output. This distinction does not excuse the boundary violation.
+
+Parent identified the mistake before any live run and stopped launch. New tool live calls/tokens:0; candidate Q, safety and all model secondary metrics are unmeasured. Approved54x5 scale remains approved, but is not executed past this incident without owner direction. The original wrong test outputs remain preserved; no fence or evidence was deleted. README now uses the exact exclusion, and the new offline fixture links only the six approved-dev54 PDFs rather than all booklet files. Correctly scoped tests pass as above. No protected data was used to change the candidate.
+
+Mandatory live TRAIN agent-log review is not claimed complete: there are no new live parent/child logs to review. Only synthetic actual-SDK membership/order/role/limit tests were reviewed; they are not Apertus quality evidence. No individual TEST transcript was inspected. A new STOP report records the incident, baseline table, unmeasured candidate metrics and continuation question. No additional tool, production change or model job was started.
+
+A nonmutating code review found an additional offline defect: multiple check tool calls in one response, or an early out-of-order call, could poison a global counter and stop the legitimate first lookup. Two synthetic actual-SDK regressions were RED before repair. Raw attempts and admitted calls are now counted separately; extras remain visible and rejected, without blocking the legitimate one-time lookup. No source/cap/schema policy changed. GREEN validation: **81 eval tests passed;242 track tests passed,1 excluded** with the exact protected-test exclusion and pinned package overrides. Final patch SHA256 `8302ee66480c3ebacf635fe9549b9c3d3e245b1ed73b24b836eb295f7ff1952d`. Live launch remains stopped; these repairs do not authorize continuing past the boundary incident.

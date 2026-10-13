@@ -186,3 +186,67 @@ Focused offline tests (pytest in the selected interpreter, NumPy for analysis):
 "$RUN_PYTHON" -m pytest -q -p no:cacheprovider track_2a/dev/format/test_cli_paths.py
 "$EVAL_PYTHON" -m pytest -q -p no:cacheprovider evals/c-system-prompt/test_runbook_cli.py
 ```
+
+## Owner-approved single-tool experiment: id-existence-check
+
+Production and default paths remain **v0 C**. Only an explicit
+`--variant id-existence-check` applies its separately tracked `.patch` and
+`.json` specification in a source-only temporary archive. The rejected
+`evidence-only-child` overlay is never composed with this experiment.
+Only archived `submit-extension.ts`, `sdk.ts`, and `run_comparison.py` change;
+`package-child.mjs`, v0 SYSTEM, parent submit validator/schema and the child's
+label-plus-IDs recommendation protocol are unchanged.
+
+Parent order is forced native function choice:
+`subagent -> check_candidate_ids -> submit`. The one new parent-only tool
+accepts exactly `candidate_ids: string[]`, max5, empty/duplicates/unknown queries
+allowed, no extra properties. Its ordered results contain only
+`{candidate_id, exists}`; exact membership is **not semantic support**.
+No filtering, deduplication, search, rule checking or automatic correction.
+Final submitted IDs may differ; that mismatch is recorded, not prohibited.
+
+**Tradeoff:** the check consumes the existing third parent completion slot.
+A failed final submit cannot obtain a fourth request for repair. All caps stay
+unchanged: 270 POSTs/run, 6m tokens, parent3/child2, at most one schema repair,
+256 output tokens, existing deadlines/reservation/fences/private child isolation.
+The child still uses the real pinned `runAgent` with its sole submit tool.
+
+With the pre-existing interpreters/dependencies and six approved local PDFs
+set up as above (no install or credential operation needed for preparation):
+
+```sh
+"$RUN_PYTHON" -B evals/c-system-prompt/run_batch.py \
+  --repo "$REPO" --python "$RUN_PYTHON" --count 5 \
+  --prefix "$REPO/output/cscs/id-check-C" \
+  --variant id-existence-check --prepare-only
+```
+
+Preparation automatically checks the new patch's added instruction lines for
+approved54 word8-gram overlap, verifies exact source maps, immutable policy and
+frozen input/base-vs-new declaration hashes, and performs no key reads/API calls.
+The lexical check is not a semantic nonparaphrase proof. Live operation is the
+parent's separately approved54x5 run only, after commit verification; retain all
+jobs/fences and never retry an uncertain send. Use the same explicit variant on
+`analyze_runs.py score/compare`. Comparison with the five historical v0 jobs also
+requires `--allow-cli-only-hash-changes`; exact historical source maps are pinned.
+No old role experiment or prompt mixture is accepted.
+
+Case SDK records include deterministic inputs/results, check call count,
+unknown IDs, checked IDs, accepted submitted IDs and their ordered mismatch.
+Run summaries and split analysis aggregate counts. Structural qualification
+checks success, exact source membership, label-free local result shape, ordering
+and model/tool identity independently of classification quality. Existing
+classification, evidence, cost, literal/strict adoption and safety metrics remain.
+Child-label-free qualification applies **only** to evidence-only-child, not
+this v0-label child. Default analysis rejects both variants.
+
+After the new live54x5, review **all TRAIN** exchanges/tool calls/source evidence/
+labels before any next proposal or STOP decision; TEST stays aggregate-only.
+Do not commit raw model logs. No live results are available from implementation
+or synthetic SDK tests.
+
+```sh
+"$EVAL_PYTHON" -B -m pytest -q -p no:cacheprovider evals/c-system-prompt
+"$RUN_PYTHON" -B -m pytest -q -p no:cacheprovider \
+  track_2a/dev/format track_2a/dev/cscs track_2a/tests -k 'not test_no_split_leakage'
+```

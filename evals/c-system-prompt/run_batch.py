@@ -86,7 +86,7 @@ def main():
     targets = p.add_mutually_exclusive_group(required=True)
     targets.add_argument('--prefix')
     targets.add_argument('--jobs', nargs='+')
-    p.add_argument('--variant', choices=[variant.NAME])
+    p.add_argument('--variant', choices=variant.NAMES)
     p.add_argument('--prompt-file', type=Path, help='UTF-8 SYSTEM addition, not Python')
     p.add_argument('--metadata', type=Path, help='baseline_prompt_sha256 and candidate_prompt_sha256')
     p.add_argument('--prepare-only', action='store_true')
@@ -121,6 +121,13 @@ def main():
         raise ValueError('APPROVED_54_SIX_PDFS_REQUIRED')
     added = args.prompt_file.read_text() if args.prompt_file else ''
     metadata = json.loads(args.metadata.read_text()) if args.metadata else None
+    if args.variant == 'id-existence-check':
+        from check_prompt_overlap import check
+        _, patch = variant.specification(args.variant)
+        added_instructions = '\n'.join(line[1:] for line in patch.decode().splitlines() if line.startswith('+') and not line.startswith('+++'))
+        overlap = check(added_instructions, [json.loads(line) for line in (repo / 'evals/c-system-prompt/cases.jsonl').read_text().splitlines()])
+        if not overlap['pass']:
+            raise ValueError('VARIANT_APPROVED54_INSTRUCTION_OVERLAP')
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
     prepared = []
     # Preflight every workspace before the first live request.
@@ -128,7 +135,7 @@ def main():
         workspace = Path(tempfile.mkdtemp(prefix=f'ost-source-r{index}-'))
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(workspace, filter='data')
-        variant_spec = variant.apply(workspace) if args.variant else None
+        variant_spec = variant.apply(workspace, args.variant) if args.variant else None
         if variant_spec:
             env['OST_VARIANT_PATCH_SHA256'] = variant_spec['patch_sha256']
         (workspace / 'booklets').mkdir()
@@ -156,6 +163,9 @@ def main():
                                 capture_output=True, text=True)
         if result.returncode:
             raise ValueError('PREPARE_FAILED: no live request')
+        if args.variant == 'id-existence-check':
+            audit_result = subprocess.run([str(python), '-B', '-c', 'import sys,json; sys.path.insert(0,"track_2a/dev/format"); import run_comparison as r; print(json.dumps(r.prepare("C")))'], cwd=workspace, env=env, capture_output=True, text=True, check=True)
+            variant.verify_manifest(json.loads(audit_result.stdout), args.variant)
         prepared.append((index, job, workspace, command, sha, result.stdout))
     if not args.user_run:
         print(json.dumps({'prepared': [{'index': i, 'job': str(j), 'workspace': str(w),
