@@ -28,6 +28,10 @@ if mode in ('train_baseline', 'train_candidate'):
         assert candidate in train.VERSIONS and type(context.get('attempt')) is int and context['attempt'] in (1, 2, 3), 'TRAIN_SELECTOR_MISSING'
         command = ['/tmp/ost-official-evaluator-3U4yO9/env/bin/python', '-B', '.auto/train_results.py', '--candidate', candidate, '--attempt', str(context['attempt']), '--check']
     subprocess.run(command, check=True)
+elif mode in ('public_continue_baseline', 'public_continue_candidate'):
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/public_validation_continue.py', '--check'], check=True)
+elif mode in ('public_baseline', 'public_candidate'):
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/public_validation.py', '--check'], check=True)
 elif mode == 'baseline':
     assert candidate == '' and not os.environ.get('AUTO_CANDIDATE'), 'CHECK_SELECTOR_CONFLICT'
     subprocess.run(['bash', '.auto/measure.sh', '--baseline'], check=True)

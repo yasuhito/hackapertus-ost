@@ -81,8 +81,9 @@ languages of the same voting date together. See `track_2a/data/dataset_stats.jso
 ```sh
 make download PYTHON=.venv/bin/python BOOKLET_DIR="$PWD/booklets"
 make prepare PYTHON=.venv/bin/python BOOKLET_DIR="$PWD/booklets"
-# Do not run dev-eval on the historical full dev files: they include the
-# protected 2024-06-09 holdout. Use the approved fixed54 workflow instead.
+# For the existing fixed54 research workflow, use the command below.
+# Public validation excludes reused problems; 2024-06-09 is not a confirmed
+# competition prohibition. The official private evaluation set is separate.
 ./track_2a/dev/cscs/run.sh --prepare-only
 ```
 

@@ -28,7 +28,7 @@ v2はAPI usageが既知の全応答をdurable台帳へ加算する。無効出�
 
 ## 範囲とbudget
 
-固定dev54 A27/B27、portable case SHA256 `4e152ed1118149c4ca0fecc5d7b20d7676f43a24b613b8cb465bb5eb0d80a44a`。投票日は2020-09-27と2021-03-07だけで、2024-06-09のholdoutは含みません。非thinking v1.5 8B/70B各54、総上限108POST、各3件(B,A,B)先行。両モデル同一vote_pages/context、temperature0、出力256/request（最大27,648）。全ジョブ2,000,000 token予算、次POST前に公式文脈262,144＋256＝262,400を保守予約。usage knownと上限適合を別検証し、既知usageは不合格でも計上してから停止/続行を決定。サービスの文脈制限/usageが正しい前提の制限で、金額上限ではない。UTF8 bytes/4をhard capにしない。
+固定dev54 A27/B27、portable case SHA256 `4e152ed1118149c4ca0fecc5d7b20d7676f43a24b613b8cb465bb5eb0d80a44a`。投票日は2020-09-27と2021-03-07だけで、2024-06-09の公開問題は含みません。この日付を大会の利用禁止範囲とする根拠は確認されていません。非thinking v1.5 8B/70B各54、総上限108POST、各3件(B,A,B)先行。両モデル同一vote_pages/context、temperature0、出力256/request（最大27,648）。全ジョブ2,000,000 token予算、次POST前に公式文脈262,144＋256＝262,400を保守予約。usage knownと上限適合を別検証し、既知usageは不合格でも計上してから停止/続行を決定。サービスの文脈制限/usageが正しい前提の制限で、金額上限ではない。UTF8 bytes/4をhard capにしない。
 
 POST wall deadline60秒/socket45秒、retry/redirect/proxy/fallbackなし。各モデル5-30分を仮置き、108件すべて60秒なら最大約108分のAPI待ち＋ローカル処理。軽い準備約9秒。重みダウンロード/生成サーバーなし。
 

@@ -3,6 +3,35 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+  --public-continue-baseline|--public-continue-candidate)
+    mode=$1
+    if [[ $mode == --public-continue-baseline ]]; then
+      [[ $# == 1 ]] || exit 2
+      phase=--baseline-continue
+    else
+      [[ $# == 2 && $2 == v16 ]] || exit 2
+      phase=--candidate
+    fi
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/public_validation_continue.py" "$phase" --approved-at "$(date +%s)" ;;
+  --public-continue-prepare)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/public_validation_continue.py" --prepare-only ;;
+  --public-baseline|--public-candidate)
+    mode=$1
+    if [[ $mode == --public-baseline ]]; then
+      [[ $# == 1 ]] || exit 2
+      phase=--baseline
+    else
+      [[ $# == 2 && $2 == v16 ]] || exit 2
+      phase=--candidate
+    fi
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/public_validation.py" "$phase" --approved-at "$(date +%s)" ;;
+  --public-preflight)
+    [[ $# == 1 ]] || exit 2
+    /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/public_validation.py" --prepare-only
+    # Readiness alone is never a measured PUBLIC60 baseline or gain.
+    printf '%s\n' 'PUBLIC_PREFLIGHT_ONLY: no quality measurement; live adapter required.' >&2
+    exit 1 ;;
   --route-baseline)
     [[ $# == 1 ]] || exit 2
     export TRAIN_ROUND=v16
