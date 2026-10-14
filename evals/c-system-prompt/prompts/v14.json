@@ -1,0 +1,32 @@
+{
+  "version": "v14",
+  "base": "v5 independent, not cumulative",
+  "status": "user_approved_train_only_candidate_not_production",
+  "surface": "SYSTEM only",
+  "hypothesis": "Classify from all supplied source spans before selecting supporting citation anchors; procedural comparison order only, no new semantic rules or examples.",
+  "examples": 0,
+  "model_parent": "swiss-ai/Apertus-v1.5-70B",
+  "model_child": "swiss-ai/Apertus-v1.5-8B",
+  "thinking": "none",
+  "proposed_trials": {
+    "cases": 36,
+    "repeats": 5,
+    "configs": 1
+  },
+  "approved_trials": {
+    "cases": 36,
+    "repeats": 5,
+    "configs": 1
+  },
+  "inference_approved": true,
+  "approval_scope": {
+    "candidate": "v14",
+    "cases": 36,
+    "repeats": 5,
+    "configs": 1
+  },
+  "approval_note": "User activated autoresearch and explicitly approved .auto/next-round-plan.md: two independent candidates TRAIN36x5x1; HTTP504-only60sec wait/max2 additional fresh whole-batch attempts; new90/120minutewindow14:14:17JST/15:44:17cutoff/16:14:17softfinish; stop before final validation; no test output inspection/adoption/push.",
+  "baseline_prompt_sha256": "06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c",
+  "candidate_prompt_sha256": "6d902f5e75e06484c5082fa6d46086cda835364aaab8bb707bc36872010be194",
+  "context_limit_bytes": 66000
+}

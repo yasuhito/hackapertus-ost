@@ -126,7 +126,22 @@ class Transport:
             connection.close()
 
 
-def prepare(strategy):
+def select_cases(manifest, case_ids):
+    """Gold-free explicit research selection, preserving frozen source order."""
+    if (not isinstance(case_ids, list) or not case_ids
+            or any(not isinstance(case_id, str) for case_id in case_ids)
+            or len(set(case_ids)) != len(case_ids)):
+        raise Stop('INVALID_CASE_SELECTION')
+    available = {item['case']['id'] for item in manifest['frozen']}
+    if not set(case_ids) <= available:
+        raise Stop('UNKNOWN_CASE_SELECTION')
+    manifest['frozen'] = [item for item in manifest['frozen'] if item['case']['id'] in set(case_ids)]
+    manifest['selected_case_ids'] = [item['case']['id'] for item in manifest['frozen']]
+    manifest['selected_case_count'] = len(manifest['frozen'])
+    return manifest
+
+
+def prepare(strategy, case_ids=None):
     manifest = legacy.prepare()
     manifest.update(version='format-1', strategy=strategy, request_limit=LIMITS[strategy], token_budget=TOKEN_BUDGET,
                     request_token_reserve=RESERVE, request_wall_seconds=60, socket_seconds=45, case_wall_seconds=CASE_SECONDS,
@@ -139,7 +154,7 @@ def prepare(strategy):
     for item in manifest['frozen']:
         item['candidate_ids'] = [x['span_id'] for x in candidates(item['pages'], 'reference' in item['case'])]
         item['schema_sha256'] = legacy.digest(legacy.encode(schemas(item['candidate_ids'])))
-    return manifest
+    return select_cases(manifest, case_ids) if case_ids is not None else manifest
 
 
 def initialize(job, manifest):
@@ -425,7 +440,10 @@ def run(job, manifest, client_factory):
 def run_locked(job, manifest, client_factory):
     ledger = Ledger(job, manifest, client_factory)
     models = manifest.get('models', MODELS)
-    order = [(model, i) for model in models for i in range(3)] + [(model, i) for model in models for i in range(3, 54)]
+    count = len(manifest['frozen'])
+    if not count:
+        raise Stop('EMPTY_CASE_SELECTION')
+    order = [(model, i) for model in models for i in range(min(3, count))] + [(model, i) for model in models for i in range(3, count)]
     for model, index in order:
         name = legacy.result_name(model, index).replace('.json', '-case.json')
         if name in ledger.state['cases']:
@@ -447,16 +465,17 @@ def run_locked(job, manifest, client_factory):
 
 
 def summarize(ledger):
+    count = len(ledger.manifest['frozen'])
     summary = {'status': 'completed', 'mode': ledger.manifest.get('mode', 'user-run'), 'cost': 'unknown; no financial cap asserted', 'strategy': ledger.manifest['strategy'], 'generation_requests': ledger.state['requests'], 'actual_total_tokens': ledger.state['tokens'], 'token_budget': ledger.manifest['token_budget'], 'models': {}}
     summary['calls_by_actual_model'] = dict(Counter(r.get('request_model', r['model']) for n, r in ledger.records.items() if n in ledger.state['attempts']))
     if 'role_models' in ledger.manifest:
         summary['role_models'] = ledger.manifest['role_models']
     for model in ledger.manifest.get('models', MODELS):
-        subset = [ledger.records[legacy.result_name(model, i).replace('.json', '-case.json')] for i in range(54)]
+        subset = [ledger.records[legacy.result_name(model, i).replace('.json', '-case.json')] for i in range(count)]
         wall = sorted(r['case_wall_ms'] for r in subset)
         waits = sorted(r['api_wait_ms'] for r in subset)
         attempts = [record for name, record in ledger.records.items() if name in ledger.state['attempts'] and record['model'] == model]
-        summary['models'][model] = {'cases': 54, 'output_valid': sum(r['output_valid'] for r in subset), 'evaluation_failures': sum(not r['output_valid'] for r in subset), 'invalid_reasons': dict(Counter(r['error'] for r in subset if r['error'])), 'diagnostic_counts': dict(Counter(d for r in subset for d in r['diagnostics'])), 'prompt_tokens': sum(r['prediction']['metrics']['input_tokens'] for r in subset), 'completion_tokens': sum(r['prediction']['metrics']['output_tokens'] for r in subset), 'total_tokens': sum(r['prediction']['metrics']['input_tokens'] + r['prediction']['metrics']['output_tokens'] for r in subset), 'mean_ms': sum(wall) / 54, 'p95_ms': wall[math.ceil(.95 * 54) - 1], 'api_wait_ms': sum(waits), 'mean_api_wait_ms': sum(waits) / 54, 'p95_api_wait_ms': waits[math.ceil(.95 * 54) - 1], 'generation_requests': len(attempts), 'calls_by_role': dict(Counter(record['role'] for record in attempts))}
+        summary['models'][model] = {'cases': count, 'output_valid': sum(r['output_valid'] for r in subset), 'evaluation_failures': sum(not r['output_valid'] for r in subset), 'invalid_reasons': dict(Counter(r['error'] for r in subset if r['error'])), 'diagnostic_counts': dict(Counter(d for r in subset for d in r['diagnostics'])), 'prompt_tokens': sum(r['prediction']['metrics']['input_tokens'] for r in subset), 'completion_tokens': sum(r['prediction']['metrics']['output_tokens'] for r in subset), 'total_tokens': sum(r['prediction']['metrics']['input_tokens'] + r['prediction']['metrics']['output_tokens'] for r in subset), 'mean_ms': sum(wall) / count, 'p95_ms': wall[math.ceil(.95 * count) - 1], 'api_wait_ms': sum(waits), 'mean_api_wait_ms': sum(waits) / count, 'p95_api_wait_ms': waits[math.ceil(.95 * count) - 1], 'generation_requests': len(attempts), 'calls_by_role': dict(Counter(record['role'] for record in attempts))}
         prefix = '8b' if model == MODELS[0] else '70b'
         rows = [r['prediction'] if r['output_valid'] else {**r['prediction'], 'error': r['error']} for r in subset]
         for suffix, values in [('predictions', rows), ('canonical', [r['prediction'] for r in subset]), ('diagnostics', [{'id': r['case_id'], 'error': r['error'], 'diagnostics': r['diagnostics']} for r in subset])]:
@@ -475,13 +494,17 @@ def main():
     parser.add_argument('--strategy', choices=['A', 'B', 'C'], required=True)
     parser.add_argument('--repeat', type=int, choices=[1, 2], default=1)
     parser.add_argument('--job', type=Path)
+    parser.add_argument('--case-ids-file', type=Path, help='Nonempty gold-free JSON list of frozen research input IDs')
     args = parser.parse_args()
     legacy.c.protect()
     if not args.prepare_only and not args.user_run:
         raise Stop('EXPLICIT_USER_RUN_REQUIRED')
-    manifest = prepare(args.strategy)
+    case_ids = json.loads(args.case_ids_file.read_text()) if args.case_ids_file else None
+    if args.case_ids_file and not isinstance(case_ids, list):
+        raise Stop('INVALID_CASE_SELECTION')
+    manifest = prepare(args.strategy, case_ids)
     if args.prepare_only:
-        print(json.dumps({'prepared_cases': 54, 'strategy': args.strategy, 'manifest_sha256': legacy.digest(legacy.encode(manifest)), 'request_limit': manifest['request_limit'], 'token_budget': manifest['token_budget'], 'credential_reads': 0, 'remote_calls': 0}))
+        print(json.dumps({'prepared_cases': len(manifest['frozen']), 'strategy': args.strategy, 'manifest_sha256': legacy.digest(legacy.encode(manifest)), 'request_limit': manifest['request_limit'], 'token_budget': manifest['token_budget'], 'credential_reads': 0, 'remote_calls': 0}))
         return
     job = args.job or REPO / f'output/cscs/format-{args.strategy}-r{args.repeat}'
     job.mkdir(mode=0o700, parents=True, exist_ok=True)

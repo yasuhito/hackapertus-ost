@@ -9,7 +9,7 @@ import usage
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'output/cscs'
-VERSIONS = ('v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13')
+VERSIONS = ('v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v12-retry1', 'v13-retry1')
 FENCES = {'STOP.json', 'inflight.json', 'state.pending'}
 
 
@@ -18,7 +18,7 @@ def load(path):
 
 
 def reference_name(version):
-    return 'hillclimb-v5-analysis' if int(version[1:]) >= 11 else 'hillclimb-split5-date-balanced-analysis'
+    return 'hillclimb-v5-analysis' if int(version.split('-')[0][1:]) >= 11 else 'hillclimb-split5-date-balanced-analysis'
 
 
 def reference_noise(out, version, part):
@@ -77,7 +77,7 @@ def saved(out, version):
         assert math.isclose(c['baseline_mean_Q'], baseline[part]['Q_mean'], abs_tol=1e-12)
         assert math.isclose(c['gain'], side['Q_mean'] - baseline[part]['Q_mean'], abs_tol=1e-12)
         assert c['baseline_noise'] == reference_noise(out, version, part)
-        if int(version[1:]) >= 11:
+        if int(version.split('-')[0][1:]) >= 11:
             assert comparison['reference_version'] == 'v5', 'REFERENCE_CHANGED'
         assert all(math.isfinite(r[k]) for r in side['repeats'] for k in ('Q', 'F1_A', 'F1_B', 'Hit_A'))
     assert [o['repeat'] for o in comparison['operations']] == list(range(1, 6)), 'INCOMPLETE_OPERATIONS'
@@ -86,7 +86,7 @@ def saved(out, version):
 
 def report(out, version, check=False):
     aggregate, comparison, summaries = saved(out, version)
-    if int(version[1:]) >= 11:
+    if int(version.split('-')[0][1:]) >= 11:
         baseline_metrics(load(out / reference_name(version) / 'aggregate.json'))
     role_usage = usage.candidate_usage(out, version, summaries,
                                        load(ROOT / 'evals/c-system-prompt/split.json'))
@@ -117,7 +117,7 @@ def report(out, version, check=False):
         print(f'METRIC {part}_Hit_reference_surrogate_gain={hit_delta:.17g}')
         if c['gain'] < .02 or c['gain'] <= c['baseline_noise']:
             failures.append(f'{part}: gain must be >=0.02 and > measured baseline noise')
-    metric = 'min_Q_gain_v5' if int(version[1:]) >= 11 else 'min_Q_gain'
+    metric = 'min_Q_gain_v5' if int(version.split('-')[0][1:]) >= 11 else 'min_Q_gain'
     print(f'METRIC {metric}={min(gains):.17g}')
     for key, label in (('seconds', 'command_seconds'), ('API_wait_seconds', 'API_wait_seconds'), ('tokens', 'total_tokens'), ('POST', 'generation_requests')):
         values = [op.get(key) for op in comparison['operations']]

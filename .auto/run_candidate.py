@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Future v11..v13 batches only. Offline by default; execution requires scoped approval."""
+"""Scoped v11..v13 or exact HTTP504 fresh-job retries. Offline by default."""
 import argparse
 import ast
 import hashlib
@@ -21,21 +21,27 @@ PYTHON = '/tmp/hackapertus-ost-contract/.venv/bin/python'
 ENV = dict(os.environ, PI_PACKAGE_ROOT='/home/yasuhito/.pi/agent/install/releases/1.1.0/node_modules/@earendil-works/pi-coding-agent', PI_SUBAGENTS_ROOT='/home/yasuhito/.pi/agent/npm/node_modules/@tintinweb/pi-subagents', PYTHONDONTWRITEBYTECODE='1')
 PROMPTS = ROOT / 'evals/c-system-prompt/prompts'
 FUTURE = ('v11', 'v12', 'v13')
+RETRIES = {
+    'v12-retry1': ('v12', 11, 4, '4f6a19abaf8cda671db005b96f86d4b1c9302d5cb5f8511268b63754b0ba5cce'),
+    'v13-retry1': ('v13', 12, 1, '6ff3d080bbd65076685b0d0a6f2f8500fd9d339d22769c56729bab6209998f28'),
+}
+SELECTABLE = FUTURE + tuple(RETRIES)
 TRIALS = {'cases': 54, 'repeats': 5, 'configs': 1}
 WINDOW = ROOT / '.auto/window.json'
 ARTIFACT_SUFFIXES = ('.json', '-system.txt', '-added.txt', '.patch', '-overlap.json')
 
 
 def require_future(version):
-    if version not in FUTURE:
-        raise SystemExit('REFUSED: only future v11..v13; archived candidates cannot prepare or execute')
+    if version not in SELECTABLE:
+        raise SystemExit('REFUSED: only v11..v13 or exact approved v12-retry1/v13-retry1; no archived execution')
 
 
 def validate_window(version, window, now):
     """Pure validation for synthetic tests; runtime callers use the actual UTC clock."""
     require_future(version)
+    segment = tuple(RETRIES) if version in RETRIES else FUTURE
     expected = {'timezone': 'Asia/Tokyo',
-                'approved_candidates': list(FUTURE), 'max_new_candidates': 3,
+                'approved_candidates': list(segment), 'max_new_candidates': len(segment),
                 'baseline_version': 'v5', 'trials': TRIALS,
                 'approved': True, 'stop_on_execution_error': True}
     if (not isinstance(window, dict)
@@ -81,9 +87,31 @@ def prior_prompt_hash(version):
     return actual
 
 
+def original_retry_artifacts(version):
+    """Read-only original archive validation; never restore approval into a retry."""
+    original, run, repeat, expected = RETRIES[version]
+    archive = OUT / 'candidate-archive' / original
+    meta = json.loads((archive / f'{original}.json').read_text())
+    data = (archive / f'{original}-system.txt').read_bytes()
+    assert meta['version'] == original, 'RETRY_ORIGINAL_METADATA_CHANGED'
+    assert meta['candidate_prompt_sha256'] == digest(data) == expected, 'RETRY_ORIGINAL_HASH_CHANGED'
+    stop = json.loads((OUT / f'prompt-C-{original}-r{repeat}/STOP.json').read_text())
+    assert stop.get('status') == 'STOP' and type(stop.get('http_status')) is int and stop['http_status'] == 504, 'RETRY_REQUIRES_ORIGINAL_STOP_504'
+    return meta, data
+
+
 def refuse_duplicates(version, candidate_hash):
-    for previous in range(1, int(version[1:])):
-        assert candidate_hash != prior_prompt_hash(f'v{previous}'), 'DUPLICATE_CANDIDATE'
+    require_future(version)
+    if version in RETRIES:
+        original, _, _, expected = RETRIES[version]
+        original_retry_artifacts(version)
+        assert candidate_hash == expected, 'RETRY_PROMPT_HASH_CHANGED'
+        # Check all original candidates, including later ones, except the exact pair.
+        previous_versions = [f'v{i}' for i in range(1, 14) if f'v{i}' != original]
+    else:
+        previous_versions = [f'v{i}' for i in range(1, int(version[1:]))]
+    for previous in previous_versions:
+        assert candidate_hash != prior_prompt_hash(previous), 'DUPLICATE_CANDIDATE'
 
 
 def preserve_candidate(version):
@@ -122,7 +150,11 @@ def system(text):
 
 
 def candidate_source(text, candidate):
-    """Replace the adopted final SYSTEM assignment, leaving all other source intact."""
+    """Override SYSTEM after frozen assembly, leaving all other source intact."""
+    anchor = 'SYSTEM += "\\n\\n" + NEUTRAL_GUARD + "\\n\\n" + PARAPHRASE_GUARD'
+    if text.count(anchor) == 1:
+        return text.replace(anchor, anchor + '\nSYSTEM = ' + repr(candidate))
+    # Also support source-only snapshots whose final SYSTEM is already literal.
     assignments = [node for node in ast.parse(text).body
                    if isinstance(node, ast.Assign)
                    and any(isinstance(t, ast.Name) and t.id == 'SYSTEM' for t in node.targets)]
@@ -148,7 +180,15 @@ def validate_metadata(version, meta, execute):
     if (meta.get('version') != version
             or json.dumps(meta.get('proposed_trials'), sort_keys=True) != json.dumps(trials, sort_keys=True)):
         raise SystemExit('REFUSED: candidate version/proposed_trials must match 54 x 5 x 1')
-    if execute:
+    if version in RETRIES:
+        original, run, _, expected = RETRIES[version]
+        original_meta, original_data = original_retry_artifacts(version)
+        assert meta.get('original_candidate_version') == original, 'RETRY_ORIGINAL_PAIR_CHANGED'
+        assert type(meta.get('retry_of_run')) is int and meta['retry_of_run'] == run, 'RETRY_ORIGINAL_PAIR_CHANGED'
+        assert meta.get('candidate_prompt_sha256') == expected, 'RETRY_PROMPT_HASH_CHANGED'
+        assert (PROMPTS / f'{version}-system.txt').read_bytes() == original_data, 'RETRY_SYSTEM_BYTES_CHANGED'
+        assert meta.get('baseline_prompt_sha256') == original_meta['baseline_prompt_sha256'], 'RETRY_BASELINE_CHANGED'
+    if execute or version in RETRIES:
         # A candidate-specific machine-readable scope cannot inherit v3 permission.
         scope = {'candidate': version, 'cases': 54, 'repeats': 5, 'configs': 1}
         if (meta.get('inference_approved') is not True
@@ -180,9 +220,17 @@ def audit(manifest, baseline, mapping):
             assert actual[key] == old[key], 'FROZEN_INPUT_CHANGED: ' + key
 
 
+def workspace_env(workspace, execute):
+    env = dict(ENV, TMPDIR=str(workspace / 'output/cscs/tmp'))
+    if not execute:
+        for key in ('API_KEY', 'BASE_URL', 'OPENAI_API_KEY'):
+            env.pop(key, None)
+    return env
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--candidate', required=True, choices=tuple(f'v{i}' for i in range(1, 14)))
+    parser.add_argument('--candidate', required=True, choices=tuple(f'v{i}' for i in range(1, 14)) + tuple(RETRIES))
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument('--prepare-only', action='store_true')
     modes.add_argument('--execute-approved', action='store_true', help='Only after human approval for this candidate, exactly 54 x 5 x 1')
@@ -236,11 +284,7 @@ def main():
         assert text.count(anchor) == 1
         target.write_text(candidate_source(text, candidate))
         assert digest(system(target.read_text()).encode()) == meta['candidate_prompt_sha256']
-        env = dict(ENV, TMPDIR=str(workspace / 'output/cscs/tmp'))
-        if not args.execute_approved:
-            # Offline preparation must not receive credentials.
-            for key in ('API_KEY', 'BASE_URL', 'OPENAI_API_KEY'):
-                env.pop(key, None)
+        env = workspace_env(workspace, args.execute_approved)
         command = [PYTHON, '-B', 'track_2a/dev/format/run_comparison.py', '--prepare-only', '--strategy', 'C']
         result = subprocess.run(command, cwd=workspace, env=env, capture_output=True, text=True)
         (workspace / 'prepare.log').write_text(result.stdout + result.stderr)
@@ -295,7 +339,7 @@ def main():
             raise SystemExit('CANDIDATE_STOP: PRESERVE FENCES; NO RETRY OR NEXT REPEAT')
         assert json.loads((job / 'manifest.json').read_text()) == prepared
         assert json.loads((job / 'summary.json').read_text())['status'] == 'completed'
-        Path(str(prefix) + '-provenance.json').write_text(json.dumps({'workspace': str(workspace), 'version': version, 'repeat': repeat, 'prompt_sha256': meta['candidate_prompt_sha256'], 'pdf_mapping': mapping, 'production_unchanged': True, 'archive_commit': archive_commit, 'only_source_change': 'track_2a/src/predict.py SYSTEM assignment'}, indent=2) + '\n')
+        Path(str(prefix) + '-provenance.json').write_text(json.dumps({'workspace': str(workspace), 'version': version, **({k: meta[k] for k in ('original_candidate_version', 'retry_of_run')} if version in RETRIES else {}), 'repeat': repeat, 'prompt_sha256': meta['candidate_prompt_sha256'], 'pdf_mapping': mapping, 'production_unchanged': True, 'archive_commit': archive_commit, 'only_source_change': 'track_2a/src/predict.py SYSTEM assignment'}, indent=2) + '\n')
         print(f'{version} repeat {repeat}: completed', flush=True)
 
 

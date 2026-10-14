@@ -128,6 +128,15 @@ class Controls(unittest.TestCase):
         self.assertEqual(run_candidate.system(changed), 'new candidate')
         self.assertEqual(changed.replace("SYSTEM = 'new candidate'", 'SYSTEM = "adopted"'), text)
 
+    def test_candidate_override_preserves_assembled_source(self):
+        text = ('SYSTEM = "intro"\nNEUTRAL_GUARD = "neutral"\n'
+                'PARAPHRASE_GUARD = "paraphrase"\n'
+                'SYSTEM += "\\n\\n" + NEUTRAL_GUARD + "\\n\\n" + PARAPHRASE_GUARD\n'
+                'def main(): pass\n')
+        changed = run_candidate.candidate_source(text, 'new candidate')
+        self.assertEqual(run_candidate.system(changed), 'new candidate')
+        self.assertEqual(changed.replace("\nSYSTEM = 'new candidate'", ''), text)
+
     def test_archive_fallback_duplicate_integrity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

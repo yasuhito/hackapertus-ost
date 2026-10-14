@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 # No candidate selection or approval is inferred from historical results.
 set -euo pipefail
+# The experiment tool requires this canonical entry point; TRAIN controls stay separate.
+case "${1:-}" in
+  --train-baseline)
+    [[ $# == 1 ]] || exit 2
+    exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --baseline ;;
+  --train-prepare-candidate)
+    [[ $# == 2 ]] || exit 2
+    exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --prepare-candidate "$2" ;;
+  --train-execute-approved)
+    [[ $# == 4 ]] || exit 2
+    exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --execute-approved "$2" "$3" "$4" ;;
+esac
 usage() {
   printf '%s\n' \
-    'Usage: .auto/measure.sh --baseline | --saved v3..v13 | --prepare-candidate v11..v13 | --execute-approved v11..v13' \
+    'Usage: .auto/measure.sh --baseline | --saved VERSION | --prepare-candidate VERSION | --execute-approved VERSION' \
     'Default refuses. --baseline is offline, min_Q_gain_v5=0. --saved only reads completed reports.' \
     'Preparation is offline and creates no jobs or prompts. Execution requires explicit selected-candidate metadata approval.' \
-    'Future candidates v11..v13 only; three new candidates; archived v1..v10 refused. No retries, resume or adoption.' \
+    'Selectors: v11..v13 or v12-retry1/v13-retry1; saved also accepts v3..v10. Only exact approved fresh v12-retry1/v13-retry1 jobs; no same-job restart, resume or adoption.' \
     'Tool callers export AUTO_CANDIDATE to the selected future version. Baseline checks use AUTO_BASELINE=1.'
 }
 if [[ $# == 1 && $1 == --help ]]; then usage; exit 0; fi
@@ -14,9 +26,9 @@ mode=${1:-}
 version=${2:-}
 case "$mode" in
   --baseline) [[ $# == 1 ]] || { usage >&2; exit 2; } ;;
-  --saved) [[ $# == 2 && $version =~ ^(v3|v4|v5|v6|v7|v8|v9|v10|v11|v12|v13)$ ]] || { usage >&2; exit 2; } ;;
+  --saved) [[ $# == 2 && $version =~ ^(v3|v4|v5|v6|v7|v8|v9|v10|v11|v12|v13|v12-retry1|v13-retry1)$ ]] || { usage >&2; exit 2; } ;;
   --prepare-candidate|--execute-approved)
-    [[ $# == 2 && $version =~ ^(v11|v12|v13)$ ]] || { printf '%s\n' 'REFUSED: select future v11..v13 only; archived v1..v10 cannot prepare or execute.' >&2; exit 2; } ;;
+    [[ $# == 2 && $version =~ ^(v11|v12|v13|v12-retry1|v13-retry1)$ ]] || { printf '%s\n' 'REFUSED: select v11..v13 or exact v12-retry1/v13-retry1; archived v1..v10 cannot prepare or execute.' >&2; exit 2; } ;;
   *) printf '%s\n' 'REFUSED: explicit mode and candidate required. No inference performed.' >&2; usage >&2; exit 2 ;;
 esac
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."

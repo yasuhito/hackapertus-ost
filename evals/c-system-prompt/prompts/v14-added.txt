@@ -1,0 +1,1 @@
+Determine the label using all supplied source_spans before choosing citation IDs. First compare the claim with the source as a whole, including relevant statements outside the spans you initially noticed; then select the provided IDs that justify that decision. Do not let an initial citation choice limit which supplied source statements can determine the label.

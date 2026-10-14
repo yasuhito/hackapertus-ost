@@ -1,14 +1,14 @@
-# Predeclared general hypotheses for the approved window
+# Next bounded round
 
-These are general instruction-design alternatives, not fitted to test scores.
-Use train evidence or independent interface/semantic reasoning for selection.
-All preserve uncertain-source guards, model roles, tools and output behavior.
+See `.auto/next-round-plan.md` for the next execution design and `.auto/v5-training-diagnosis.md` for TRAIN-only evidence.
 
-- v5: Align the SYSTEM output sentence with the existing submit tool's label/candidate_ids contract instead of asking for the overridden raw evidence/span_id JSON. Existing tool reminder already overrides it, so no improvement is assumed.
-- Simplify the introductory SYSTEM wording while keeping NEUTRAL_GUARD and PARAPHRASE_GUARD verbatim. Remove redundant imperatives rather than add more cautions.
-- Separate a source's attributed report from the truth of the reported proposition. Speaker assertions and different speakers' positions are not interchangeable; do not add dataset entities/examples.
-- Cross-language semantic normalization: privately align source/claim propositions in a common language while retaining original-language evidence IDs. No output translations or external knowledge.
-- Focus evidence selection on the exact relationship that determined the label, with co-reference resolved from supplied neighboring spans. Avoid blanket requests for extra citations or inventing attribution.
-- Distinguish a claim's assertive content from evaluative framing without assuming all advocacy sentences support one stance. Preserve explicit negation, conditions and real uncertainty.
+- Compare classification-before-citation selection against v5 as one SYSTEM hypothesis; distinguish an operational comparison order from adding another final/context caution.
+- Independently test semantic-safeguard presentation before tool/citation instructions, preserving every original instruction verbatim. No broad introduction shortening or accumulated rejected policies.
+- TRAIN evidence-surrogate Hit@5 is already at the frozen reachable ceiling6/12, independently verified through real restoration and official matching. Keep reference/scorer/extraction unchanged; focus prompt research on classification and evidence non-regression.
+- Prepare train-only case selection in the research runner, preserving original54-case behavior and frozen per-case role/tool/model semantics. Freeze protocol and hash audits before experiments.
+- Define bounded HTTP504 waiting/reexecution with preserved partial logs/fences and explicit unknown-usage reporting before activation; never retry completed quality failures or choose favorable repeats.
+- Final confirmation needs genuinely unused independently labeled validation data, not the repeatedly exposed internal TEST. Obtain owner-provided provenance or separate public-data preparation approval; protected competition holdout stays off limits.
 
-Do not turn these into retries of v1/v3/v4. No disagreement quota, test-topic exceptions, seed selection, grader changes or model/tool changes. Quality gate rejection alone permits the next distinct candidate; execution/usage uncertainty stops the whole window.
+Completed v12-retry1 and v13-retry1 both finished54x5 without transport failures and failed quality gates. They are no longer unresolved ideas. Prior v1..v13 instructions and both retry batches are exhausted; no replay without materially new assumptions and authorization. Numeric crash sentinels are unavailable values, not measured zero usage or gains.
+
+No new model calls yet. Adoption, sibling changes, push and deployment remain outside scope.

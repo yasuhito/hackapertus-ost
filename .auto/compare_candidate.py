@@ -1,7 +1,7 @@
 """Aggregate-only candidate comparison, no model calls or test transcript display."""
 import argparse
 parser=argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--candidate', required=True, choices=('v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13'))
+parser.add_argument('--candidate', required=True, choices=('v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v12-retry1','v13-retry1'))
 version=parser.parse_args().candidate
 import importlib.util,json,math,statistics
 from pathlib import Path
@@ -13,7 +13,7 @@ if (DEST/'comparison.json').exists(): raise SystemExit('REFUSED: existing compar
 spec=importlib.util.spec_from_file_location('official','/tmp/ost-official-evaluator-3U4yO9/repo/evaluate.py');official=importlib.util.module_from_spec(spec);spec.loader.exec_module(official)
 base=json.loads((OUT/reference_name(version)/'aggregate.json').read_text());candidate=json.loads((DEST/'aggregate.json').read_text());split=json.loads((ROOT/'evals/c-system-prompt/split.json').read_text());gold={r['id']:r['label'] for r in map(json.loads,(OUT/'official-rescore-evidence/expected.jsonl').read_text().splitlines())}
 basepred=[];candpred=[];baserec=[];candrec=[];operations=[]
-new_segment=int(version[1:])>=11
+new_segment=int(version.split('-')[0][1:])>=11
 basem=json.loads((OUT/('prompt-C-v5-r5' if new_segment else 'format-C-r5')/'manifest.json').read_text())
 def normalized_sources(m):return {k[k.index('track_2a/'):]:v for k,v in m['sources'].items()}
 for i in range(1,6):

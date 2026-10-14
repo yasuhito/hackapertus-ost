@@ -1,112 +1,109 @@
-# C SYSTEM autoresearch: v5 reference, v11..v13
+# TRAIN-only prompt comparison: v14 and v15 from adopted v5
 
-## Current authorization and clock
+## Approved scope and frozen protocol
 
-The user approved this NEW target segment: improve the locally adopted v5,
-not the historical v0. Existing records stay in .auto/log.jsonl. Old v0 window
-and v5..v10 segment are exhausted; never replay them. New candidates ONLY
-v11,v12,v13, at most3, each fixed54 cases x5 repeats x1 configuration.
-Started2026-10-14T09:47:02+09:00 Asia/Tokyo. No new candidates at/after
-2026-10-14T11:17:02+09:00 (+90min). Soft finish2026-10-14T11:47:02+09:00 (+120min).
-Finish already-started five-repeat batches; do not kill in-flight API requests.
-Enforced early and before first API request by .auto/window.json.
+User activated autoresearch and approved `.auto/next-round-plan.md`, including
+HTTP504-only retries: wait60 seconds, fresh entire-batch attempt ID, at most two
+additional attempts per candidate. Two independent candidates v14/v15, each
+36 frozen TRAIN cases x5 repeats x1 configuration. No TEST scoring/individual
+output inspection, competition holdout, final validation, adoption, push or
+sibling changes. Stop before final validation even if a candidate improves.
 
-Experiment-branch automatic setup commits/rollback are approved. Preserve
-owner-adopted track_2a/src/predict.py v5 and its regression test/documentation
-by recording the saved-reference baseline with keep before candidate inference.
-Candidate SYSTEM changes execute ONLY in isolated source copies; never edit
-adopted application SYSTEM during this segment. Original sibling, push,
-deployment and adoption of a new candidate are outside approval.
+Start2026-10-14T14:14:17+09:00, candidate/attempt cutoff15:44:17 (+90min),
+soft finish16:14:17 (+120min), Asia/Tokyo. `.auto/train-window.json` and the
+first actual POST enforce the cutoff. Finish already-started five-repeat batches.
+Seven segment records maximum: one read-only reference import plus at most six
+candidate execution attempts. Never extend time/counts autonomously.
 
-## New segment / measurement
+Frozen control `output/cscs/train-protocol.json` SHA256:
+3f3f98aa898f21d01b5db0ca56508632d6e1c6fad017e4c5133b1bb27102b9af.
+Both candidate texts/artifacts, runner/control/source/runtime/split/reference
+and PDF hashes are immutable before trials. Freeze was performed after offline
+review and pending-check-selector repair, before any new model request.
 
-Target min_Q_gain_v5, higher better: minimum of train/test five-repeat mean Q
-improvement over SAVED v5 scores. v5 trainQ0.8275862068965517, testQ
-0.8857142857142859. Baseline0. No model rerun, new split or new reference grading.
-Config maxIterations4 is one saved-baseline tool record plus at most3 trials
-in this new segment. Initialize once for this changed v5-reference target;
-retain old log/config headers. Do not initialize again within the new segment.
+## Measurement and commands
 
-Use run_experiment direct `bash .auto/measure.sh --baseline` for a read-only
-saved-v5 verification, then log metric0 keep as historical-reference import,
-not new inference. This establishes the safe adopted-v5 checkpoint. All real
-runs use `bash .auto/measure.sh --execute-approved vN`, timeout7200,
-checks_timeout180. No shell prefix/exports. Always log the completed run.
+NEW workload/target train_Q_gain_v5, higher better: candidate five-repeat TRAIN
+mean Q minus SAVED v5 TRAIN Q0.8275862068965517. Initialize once for this changed
+TRAIN-only workload; preserve historical log/config headers. Do not initialize
+again in this segment. Baseline verification imports saved results only, no
+model rerun or new baseline grading. Reference import keep establishes the
+approved source/control checkpoint required before candidate execution.
 
-Both split gains>=.02 AND >side measured noise are mandatory. Conservative
-noise uses max(v5 observed temporal noise, existing v0 measured noise): train
-.017051043674621427,test0; observed zero does not prove zero true noise.
-Strict supplementary reference gain>=noise+.02 remains reported. Per-repeat
-F1A>=.60/B>=.75, canonical/source validity, evidence objective and secondary
-regression reporting remain. Scalar primary does not replace individual gates.
-Hit@5 is estimated-reference local surrogate, not official overall score.
+Use run_experiment direct commands:
+- `bash .auto/measure.sh --train-baseline`, timeout180/checks180; log0 keep as
+  saved-reference import, not new inference.
+- `bash .auto/measure.sh --train-execute-approved v14 --attempt 1`, timeout7200,
+  checks_timeout180, then v15 attempt1 if v14 completes, regardless of quality
+  rejection. Offline preparation of both candidates has passed.
+- After HTTP504 only and incomplete batch, log crash, then use attempt2/3 for
+  the SAME candidate, with unchanged artifacts. Startup/firstPOST enforce60sec
+  since prior failure. Never reuse jobs/prefixes or selectively retain repeats.
 
-## Frozen scope / anti-overfitting
+Gain>=.02 AND >conservative TRAIN noise.017051043674621427, each repeat
+F1A>=.60/F1B>=.75, canonical validity36/36/fallback0, and TRAIN HitA>=.50 are
+mandatory. Strict gain>=noise+.02 is supplementary, not a replacement gate.
+Preserve original official scorer, source groups, 20k bootstrap/seed20261016,
+labels, references, extraction/restoration/tools/model roles70Bparent/actual8B
+child/thinkingoff and per-case request/communication limits. Only research
+case selection/count handling changed; default54 behavior is preserved and
+candidate per-case inputs/pages/IDs match saved v5 TRAIN except SYSTEM.
 
-Read evals/c-system-prompt/README.md and docs/prompt-eval-log.md for frozen
-models, parent70B/actual child8B/thinkingoff, tools, FINAL_VERIFICATION, source
-extraction, citation restoration, communication caps, grader/data/split.
-Owner override changes candidate count/clock/reference and autonomous approval,
-not scorer formulas or fixtures. Update measurement wiring only for this approved
-reference switch; freeze it before trials. Do not loosen gates or validators.
+## Candidate hypotheses and provenance
 
-Only verified TRAIN individual records/transcripts may inform hypotheses.
-No individual test outputs, protected holdout, test-topic failure mining,
-seed/split/reference manipulation, case IDs or benchmark-specific exceptions
-in prompts. Test aggregates are acceptance checks, not candidate-design input.
-Prefer no examples; any examples entirely fictional, never dev54 copies or
-paraphrases. Run existing added-text overlap check, not proof of semantics.
-This exposed internal split and adaptive selection do not establish unseen
-performance. Cost/repair improvements are not classification/evidence gains.
+v14 SHA6d902f5e75e06484c5082fa6d46086cda835364aaab8bb707bc36872010be194:
+Add explicit classification-before-citation selection order. Missing decisive
+anchors in verified TRAIN calls motivate an order experiment; they do not prove
+hidden reasoning or permit gold/case-specific instructions. Distinct from v9's
+selected-evidence context caution and v1's final verification append.
 
-## Candidate sequence / loop
+v15 SHAb2027887d2c9de4507d2ee8b2cb231cae3d4b63a6b55e353bfe3fcef80d9f6c3:
+Move existing semantic safeguards before unchanged submit/citation instructions.
+Every original instruction line and whole guard retained verbatim; no shortening
+or added text. Offline Counter/block-preservation assertions passed. Independent
+v5 base, no v14 policy. Both candidates have no examples and overlap checks.
 
-v11: Normalize output-only empty-evidence terminology to candidate_ids. Preserve
-meaning, all semantic judgment rules and full introduction. Do not repeat v6's
-broad shortening or v7..v10's failed general rule appendings.
+Adopted v5 SYSTEM hash remains06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c.
+`.auto/v5-training-diagnosis.md` records six stable TRAIN Task A label failures,
+no B failures, and evidence-surrogate ceiling6/12 independently verified using
+actual restoration and official matching. No classification/evidence-gain claim
+may be inferred merely from fewer formatting repairs or stable source validity.
 
-v12: Next distinct narrow hypothesis from TRAIN logs: remove duplicate IDs
-before submit, even if one span supports several points. Verified train cases
-in v5 child0 emitted duplicate existing IDs and child1 repaired to singleton;
-diagnostic DUPLICATE_ID. No claim about unseen cases or hidden reasoning.
+## Logging, retries and stopping
 
-v13: Only if clock remains and distinct assumptions are clear: explicitly
-constrain empty candidate_ids to neutral while preserving existing non-neutral
-support requirement. One verified TRAIN child emitted label2/empty list twice,
-reported INVALID_TOOL_JSON due to missing supporting span, not malformed syntax.
-Do not change the label solely to satisfy formatting; retain source judgment.
-If this duplicates v11's actual change, choose no cosmetic retry or stop early.
+Always log every run_experiment and EVERY tracked secondary metric. Record ASI
+hypothesis/version/hash/attempt/control digest, observations limited to TRAIN,
+and rollback_reason/next_action_hint on rejection/crash. Completed quality-gate
+failure =>checks_failed, never transport retry. With checks passing, keep only
+primary improvement over retained TRAIN best; unchanged/worse=>discard. Keep is
+research retention, not production adoption or evidence of unseen performance.
 
-Each candidate has one hypothesis, based on v5 (or a retained genuine improvement
-without test-targeted tweaks), never cumulative discarded policies. Create
-vN-system.txt/added.txt/json/patch/overlap under evals/c-system-prompt/prompts;
-metadata baseline_prompt_sha256 MUST be v5 hash06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c,
-proposed/approved_trials54/5/1, inference_approved:true, exact approval_scope
-candidate/version54/5/1 citing this user window. Freeze metadata/artifacts before
-prepare; immutable ignored archive preserves hashes on rollback.
+HTTP504-only incomplete execution=>crash with preserved attempt record/STOP/
+inflight and documented unavailable numeric crash sentinels if required by
+logger. At most attempts1,2,3, each starts full36x5; wait60sec after failedend.
+Include ASI.revisits_run linking a transport retry to its earlier crashed tool
+record and state only authorization/new execution attempt changed, not prompt.
+Any other API/transport/unknown-usage/error, orphan state, scoring error, exhausted
+504 attempts or cutoff stops the round. No gate/validator weakening or fence
+removal. Failed-request usage remains unknown; complete-batch metrics exclude
+previous failed attempts and are not total session cost. Repair-window usage is
+a positional subset of parent/child, not an additive third role or decoded
+payload diagnosis.
 
-Offline `bash .auto/measure.sh --prepare-candidate vN` must audit five isolated
-source-only workspaces against v5 frozen user inputs/pages/IDs/role models and
-code hashes (only predict.py differs). Existing job paths/STOP/fences prohibit
-replay. Required parent/child/split usage is ledger/digest verified; repair-window
-usage is a subset, not additive third role or proof of decoded repair payloads.
+Stop after both candidates complete. Select from TRAIN only; final verification
+requires separately frozen genuinely unused independently labeled data and
+owner input/authorization. Existing internal TEST is exposed, not unseen.
 
-After each actual run, log parsed primary and EVERY previously tracked secondary
-metric, including new-segment saved baseline_v5 constants. ASI records hypothesis,
-version/hash, observed general learning, diagnostic scope, and rollback_reason/
-next_action_hint on rejection. Completed quality gate failure => checks_failed,
-then next distinct candidate while window open. Primary improvement with all
-checks passing => keep for research only; unchanged/worse => discard. Actual
-API/transport/execution/unknown usage/STOP => log crash and STOP entire loop,
-without retries, resume, fence deletion or next candidate. No manual commits/
-reverts. Stop at cutoff,3 candidates or4 segment records; never autoextend.
+## Offline validation
 
-## Previous outcomes
-
-v5 aligned raw output sentence with existing submit contract; improved v0 train
-+.079286/test+.070197, per-repeat safety/validity pass. Owner adopted it locally.
-Tokens+3.1521%, requests820->835, repair-window10->25 were disclosed. v6 broad
-shortening produced8 fallback cases perrepeat and was rejected; v7/v8/v9 failed
-quality gates, v10 passed baseline gates but was inferior to v5. Those are NOT
-new authorizations or grounds for reruns. Baseline v5 repeated label scores had
-observed temporal noise0, distinct from wider sampling uncertainty.
+Initial combined relevant suite245 passed/3 skipped; subsequent TRAIN suite31
+passed including pending selector rejection. ShellCheck/syntax/diff checks pass.
+Reviewer found no critical/high/medium defects; inherited stale selector risk
+was repaired before freeze. Five isolated source-only preflight workspaces per
+candidate pass TRAIN inputs/pages/IDs/schema/source parity with zero requests.
+The experiment tool requires `.auto/measure.sh`; its TRAIN dispatch was added
+before reference import after a no-execution tool refusal. It delegates to the
+already-frozen train_measure.sh without changing its controls or model inputs.
+See `.auto/train-protocol.md` for commands/control metadata and independent
+`.auto/next-round-plan.md` for final-validation boundary. Deferred ideas go to
+`.auto/ideas.md`; do not replay exhausted v1..v13/retry policies.
