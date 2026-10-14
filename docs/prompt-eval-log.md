@@ -174,3 +174,42 @@ No adopted prompt change to production, no model/tool/harness change.
 
 All metrics are aggregate records. Raw outputs/transcripts/logs stay ignored
 under output/cscs. No raw output committed.
+
+## v5: evaluated, selected, adopted in the independent clone
+
+On 2026-10-14 the owner approved adopting v5 in
+`hackapertus-ost-autoresearch`; the original sibling and remote are unchanged.
+The only production source edit replaces SYSTEM's raw JSON output instruction
+with the existing submit tool's exact `label`/`candidate_ids` contract. No tools,
+models, FINAL_VERIFICATION, extraction, quotes, transport, split or grader edits.
+No examples. Exact evaluated SYSTEM SHA256:
+`06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c`.
+
+| Split | Baseline mean Q | v5 mean Q | Gain | v5 F1 A | v5 F1 B | Local Hit@5 baseline / v5 |
+|---|---:|---:|---:|---:|---:|---|
+| train | 0.748300 | 0.827586 | +0.079286 | 0.666667 | 1.000000 | 0.416667 / 0.500000 |
+| test | 0.815517 | 0.885714 | +0.070197 | 0.885714 | 0.885714 | 0.333333 / 0.333333 |
+
+Fixed54 x5 x1 completed, validity54/54 and fallback0 on every repeat. Both
+literal/strict label gain rules and per-repeat F1 gates pass. Local Hit@5 uses
+estimated paired references: it is a surrogate, not the official overall
+score. Test evidence is unchanged. This is the same exposed internal dev split;
+selection across candidates is not evidence of unseen generalization.
+
+Secondary regression was reported before owner approval: tokens5,338,390 ->
+5,506,663 (+3.1521%); requests820 ->835; repair-window calls10 ->25. v5 role
+usage totals3,542,448 parent and1,964,215 child tokens;199,600 repair-window tokens
+are a subset, not additional usage or decoded-payload schema-repair proof.
+Command duration sum1660.326s, API wait sum1283.780s; missing baseline r4 start
+prevents a like-for-like baseline full-duration comparison.
+
+The approved continuation evaluated v5..v10 and stopped at six new candidates
+and eight tool records. v5 is retained in commit532a724 as a research candidate;
+v6/v7/v8/v9 failed gates, v10 passed baseline gates but was inferior to v5 and
+was discarded. Local source adoption is a subsequent owner-approved edit, not
+automatic tool keep adoption. Raw results remain ignored; no push or deployment.
+
+Offline regression checks: production SYSTEM exactly matches frozen v5 hash;
+91 tests pass including synthetic real parent/child SDK and canonical pipeline
+checks, using the same pinned Pi1.1.0/child package environment. No new model
+inference was needed for adoption.

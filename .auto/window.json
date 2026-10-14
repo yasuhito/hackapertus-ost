@@ -1,10 +1,12 @@
 {
   "timezone": "Asia/Tokyo",
-  "candidate_start_before": "2026-10-14T11:00:00+09:00",
-  "soft_finish_by": "2026-10-14T12:00:00+09:00",
-  "approved_candidates": ["v5", "v6", "v7", "v8", "v9", "v10"],
-  "max_new_candidates": 6,
+  "started_at": "2026-10-14T09:47:02+09:00",
+  "candidate_start_before": "2026-10-14T11:17:02+09:00",
+  "soft_finish_by": "2026-10-14T11:47:02+09:00",
+  "approved_candidates": ["v11", "v12", "v13"],
+  "max_new_candidates": 3,
   "trials": {"cases": 54, "repeats": 5, "configs": 1},
+  "baseline_version": "v5",
   "approved": true,
   "stop_on_execution_error": true
 }

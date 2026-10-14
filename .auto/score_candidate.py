@@ -1,7 +1,7 @@
 """Machine-only official baseline split scoring; print aggregate scores only."""
 import argparse
 parser=argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--candidate', required=True, choices=('v3','v4','v5','v6','v7','v8','v9','v10'))
+parser.add_argument('--candidate', required=True, choices=('v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13'))
 version=parser.parse_args().candidate
 import importlib.util,json,math,statistics,os,tempfile
 from pathlib import Path

@@ -9,7 +9,7 @@ import usage
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'output/cscs'
-VERSIONS = ('v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10')
+VERSIONS = ('v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13')
 FENCES = {'STOP.json', 'inflight.json', 'state.pending'}
 
 
@@ -17,9 +17,26 @@ def load(path):
     return json.loads(path.read_text())
 
 
+def reference_name(version):
+    return 'hillclimb-v5-analysis' if int(version[1:]) >= 11 else 'hillclimb-split5-date-balanced-analysis'
+
+
+def reference_noise(out, version, part):
+    legacy = load(out / 'hillclimb-split5-date-balanced-analysis/aggregate.json')[part]['Q_temporal_detectable_difference']
+    current = load(out / reference_name(version) / 'aggregate.json')[part]['Q_temporal_detectable_difference']
+    return max(current, legacy)
+
+
+def baseline_metrics(aggregate, prefix='baseline_v5'):
+    for part in ('train', 'test'):
+        print(f"METRIC {prefix}_{part}_Q={aggregate[part]['Q_mean']:.17g}")
+        for key in ('F1_A', 'F1_B', 'Hit_A'):
+            print(f"METRIC {prefix}_{part}_{key}_mean={statistics.mean(r[key] for r in aggregate[part]['repeats']):.17g}")
+
+
 def completed_jobs(out, version):
     if version not in VERSIONS:
-        raise ValueError('REFUSED: selected saved candidate must be v3..v10')
+        raise ValueError('REFUSED: selected saved candidate must be v3..v13')
     split = load(ROOT / 'evals/c-system-prompt/split.json')
     ids = split['train'] + split['test']
     assert len(ids) == len(set(ids)) == 54, 'SPLIT_IDS_CHANGED'
@@ -49,7 +66,7 @@ def saved(out, version):
     assert not any(p.name in FENCES for p in dest.rglob('*')), 'ANALYSIS_FENCE'
     aggregate = load(dest / 'aggregate.json')
     comparison = load(dest / 'comparison.json')
-    baseline = load(out / 'hillclimb-split5-date-balanced-analysis/aggregate.json')
+    baseline = load(out / reference_name(version) / 'aggregate.json')
     for part, count in (('train', 36), ('test', 18)):
         side = aggregate[part]
         assert side['cases'] == count and [r['repeat'] for r in side['repeats']] == list(range(1, 6)), 'INCOMPLETE_AGGREGATE'
@@ -59,7 +76,9 @@ def saved(out, version):
         assert math.isclose(c['candidate_mean_Q'], side['Q_mean'], abs_tol=1e-12)
         assert math.isclose(c['baseline_mean_Q'], baseline[part]['Q_mean'], abs_tol=1e-12)
         assert math.isclose(c['gain'], side['Q_mean'] - baseline[part]['Q_mean'], abs_tol=1e-12)
-        assert c['baseline_noise'] == baseline[part]['Q_temporal_detectable_difference']
+        assert c['baseline_noise'] == reference_noise(out, version, part)
+        if int(version[1:]) >= 11:
+            assert comparison['reference_version'] == 'v5', 'REFERENCE_CHANGED'
         assert all(math.isfinite(r[k]) for r in side['repeats'] for k in ('Q', 'F1_A', 'F1_B', 'Hit_A'))
     assert [o['repeat'] for o in comparison['operations']] == list(range(1, 6)), 'INCOMPLETE_OPERATIONS'
     return aggregate, comparison, summaries
@@ -67,6 +86,8 @@ def saved(out, version):
 
 def report(out, version, check=False):
     aggregate, comparison, summaries = saved(out, version)
+    if int(version[1:]) >= 11:
+        baseline_metrics(load(out / reference_name(version) / 'aggregate.json'))
     role_usage = usage.candidate_usage(out, version, summaries,
                                        load(ROOT / 'evals/c-system-prompt/split.json'))
     for scope, prefix in [('totals', 'candidate')] + [(part, f'candidate_{part}') for part in ('train', 'test')]:
@@ -96,7 +117,8 @@ def report(out, version, check=False):
         print(f'METRIC {part}_Hit_reference_surrogate_gain={hit_delta:.17g}')
         if c['gain'] < .02 or c['gain'] <= c['baseline_noise']:
             failures.append(f'{part}: gain must be >=0.02 and > measured baseline noise')
-    print(f'METRIC min_Q_gain={min(gains):.17g}')
+    metric = 'min_Q_gain_v5' if int(version[1:]) >= 11 else 'min_Q_gain'
+    print(f'METRIC {metric}={min(gains):.17g}')
     for key, label in (('seconds', 'command_seconds'), ('API_wait_seconds', 'API_wait_seconds'), ('tokens', 'total_tokens'), ('POST', 'generation_requests')):
         values = [op.get(key) for op in comparison['operations']]
         if all(isinstance(value, (int, float)) for value in values):

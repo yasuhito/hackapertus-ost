@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Future v5..v10 batches only. Offline by default; execution requires scoped approval."""
+"""Future v11..v13 batches only. Offline by default; execution requires scoped approval."""
 import argparse
 import ast
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import io
 import json
 import os
@@ -19,7 +20,7 @@ OUT = ROOT / 'output/cscs'
 PYTHON = '/tmp/hackapertus-ost-contract/.venv/bin/python'
 ENV = dict(os.environ, PI_PACKAGE_ROOT='/home/yasuhito/.pi/agent/install/releases/1.1.0/node_modules/@earendil-works/pi-coding-agent', PI_SUBAGENTS_ROOT='/home/yasuhito/.pi/agent/npm/node_modules/@tintinweb/pi-subagents', PYTHONDONTWRITEBYTECODE='1')
 PROMPTS = ROOT / 'evals/c-system-prompt/prompts'
-FUTURE = ('v5', 'v6', 'v7', 'v8', 'v9', 'v10')
+FUTURE = ('v11', 'v12', 'v13')
 TRIALS = {'cases': 54, 'repeats': 5, 'configs': 1}
 WINDOW = ROOT / '.auto/window.json'
 ARTIFACT_SUFFIXES = ('.json', '-system.txt', '-added.txt', '.patch', '-overlap.json')
@@ -27,30 +28,33 @@ ARTIFACT_SUFFIXES = ('.json', '-system.txt', '-added.txt', '.patch', '-overlap.j
 
 def require_future(version):
     if version not in FUTURE:
-        raise SystemExit('REFUSED: only future v5..v10; archived candidates cannot prepare or execute')
+        raise SystemExit('REFUSED: only future v11..v13; archived candidates cannot prepare or execute')
 
 
 def validate_window(version, window, now):
     """Pure validation for synthetic tests; runtime callers use the actual UTC clock."""
     require_future(version)
     expected = {'timezone': 'Asia/Tokyo',
-                'candidate_start_before': '2026-10-14T11:00:00+09:00',
-                'soft_finish_by': '2026-10-14T12:00:00+09:00',
-                'approved_candidates': list(FUTURE), 'max_new_candidates': 6,
-                'trials': TRIALS, 'approved': True, 'stop_on_execution_error': True}
+                'approved_candidates': list(FUTURE), 'max_new_candidates': 3,
+                'baseline_version': 'v5', 'trials': TRIALS,
+                'approved': True, 'stop_on_execution_error': True}
     if (not isinstance(window, dict)
             or json.dumps({k: window.get(k) for k in expected}, sort_keys=True)
             != json.dumps(expected, sort_keys=True)):
-        raise SystemExit('REFUSED: missing or invalid fixed overnight window/scope')
+        raise SystemExit('REFUSED: missing or invalid segment window/scope')
     try:
-        cutoff = datetime.fromisoformat(window['candidate_start_before'])
-        finish = datetime.fromisoformat(window['soft_finish_by'])
+        start, cutoff, finish = (datetime.fromisoformat(window[k]) for k in
+                                ('started_at', 'candidate_start_before', 'soft_finish_by'))
+        tokyo = ZoneInfo('Asia/Tokyo')
         if (not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None
-                or cutoff.utcoffset() is None or finish.utcoffset() is None
-                or not cutoff < finish or now.astimezone(timezone.utc) >= cutoff):
-            raise ValueError('unknown clock or start cutoff reached')
-    except (TypeError, ValueError, OverflowError) as exc:
-        raise SystemExit('REFUSED: unknown clock or candidate start cutoff reached') from exc
+                or any(t.utcoffset() is None or t.utcoffset() != t.astimezone(tokyo).utcoffset()
+                       for t in (start, cutoff, finish))
+                or cutoff.astimezone(timezone.utc) - start.astimezone(timezone.utc) != timedelta(minutes=90)
+                or finish.astimezone(timezone.utc) - start.astimezone(timezone.utc) != timedelta(minutes=120)
+                or not start <= now < cutoff):
+            raise ValueError('unknown clock or outside candidate start window')
+    except (KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise SystemExit('REFUSED: invalid clock/window or candidate start cutoff reached') from exc
 
 
 def check_window(version):
@@ -117,6 +121,18 @@ def system(text):
     return ns['SYSTEM']
 
 
+def candidate_source(text, candidate):
+    """Replace the adopted final SYSTEM assignment, leaving all other source intact."""
+    assignments = [node for node in ast.parse(text).body
+                   if isinstance(node, ast.Assign)
+                   and any(isinstance(t, ast.Name) and t.id == 'SYSTEM' for t in node.targets)]
+    node = assignments[-1]
+    assert node.lineno == node.end_lineno and isinstance(node.value, ast.Constant), 'ADOPTED_SYSTEM_ASSIGNMENT_CHANGED'
+    lines = text.splitlines(keepends=True)
+    lines[node.lineno - 1] = 'SYSTEM = ' + repr(candidate) + '\n'
+    return ''.join(lines)
+
+
 def refuse_batch(version):
     # Include every sidecar, including STOP/fences, before any request.
     for repeat in range(1, 6):
@@ -166,7 +182,7 @@ def audit(manifest, baseline, mapping):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--candidate', required=True, choices=('v3', 'v4', *FUTURE))
+    parser.add_argument('--candidate', required=True, choices=tuple(f'v{i}' for i in range(1, 14)))
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument('--prepare-only', action='store_true')
     modes.add_argument('--execute-approved', action='store_true', help='Only after human approval for this candidate, exactly 54 x 5 x 1')
@@ -182,14 +198,17 @@ def main():
     validate_metadata(version, meta, args.execute_approved)
     candidate = (PROMPTS / f'{version}-system.txt').read_text()
     assert digest(candidate.encode()) == meta['candidate_prompt_sha256']
-    assert digest((PROMPTS / 'v0-system.txt').read_bytes()) == meta['baseline_prompt_sha256']
+    assert digest((PROMPTS / 'v5-system.txt').read_bytes()) == meta['baseline_prompt_sha256']
     refuse_duplicates(version, meta['candidate_prompt_sha256'])
     payload = preserve_candidate(version)  # Offline, before any workspace or inference.
     original = (ROOT / 'track_2a/src/predict.py').read_bytes()
     archive = subprocess.check_output(['/usr/bin/git', 'archive', 'HEAD', 'track_2a/src', 'track_2a/dev/cscs', 'track_2a/dev/format'], cwd=ROOT)
     archive_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    baseline = json.loads((OUT / 'format-C-r5/manifest.json').read_text())
+    baseline = json.loads((OUT / 'prompt-C-v5-r5/manifest.json').read_text())
     provenance = json.loads((OUT / 'preparation-provenance.json').read_text())
+    historical_mapping = json.loads((OUT / 'prompt-C-v5-r5-provenance.json').read_text())['pdf_mapping']
+    provenance['pdf_mapping'] = {historical_mapping[old]: local
+                                 for old, local in provenance['pdf_mapping'].items()}
     pdfs = {x['case']['booklet']['path'] for x in baseline['frozen'] if 'booklet' in x['case']}
     assert len(pdfs) == 6 and pdfs == set(provenance['pdf_mapping'])
     workroot = OUT / 'workspaces'
@@ -212,10 +231,10 @@ def main():
             mapping[old] = str(target)
         target = workspace / 'track_2a/src/predict.py'
         text = target.read_text()
-        assert digest(system(text).encode()) == meta['baseline_prompt_sha256'], 'ARCHIVE_V0_CHANGED'
+        assert digest(system(text).encode()) == meta['baseline_prompt_sha256'], 'ARCHIVE_V5_CHANGED'
         anchor = 'SYSTEM += "\\n\\n" + NEUTRAL_GUARD + "\\n\\n" + PARAPHRASE_GUARD'
         assert text.count(anchor) == 1
-        target.write_text(text.replace(anchor, anchor + '\nSYSTEM = ' + repr(candidate)))
+        target.write_text(candidate_source(text, candidate))
         assert digest(system(target.read_text()).encode()) == meta['candidate_prompt_sha256']
         env = dict(ENV, TMPDIR=str(workspace / 'output/cscs/tmp'))
         if not args.execute_approved:

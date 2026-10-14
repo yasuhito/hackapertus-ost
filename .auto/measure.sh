@@ -3,10 +3,10 @@
 set -euo pipefail
 usage() {
   printf '%s\n' \
-    'Usage: .auto/measure.sh --baseline | --saved v3..v10 | --prepare-candidate v5..v10 | --execute-approved v5..v10' \
-    'Default refuses. --baseline is offline, min_Q_gain=0. --saved only reads completed reports.' \
+    'Usage: .auto/measure.sh --baseline | --saved v3..v13 | --prepare-candidate v11..v13 | --execute-approved v11..v13' \
+    'Default refuses. --baseline is offline, min_Q_gain_v5=0. --saved only reads completed reports.' \
     'Preparation is offline and creates no jobs or prompts. Execution requires explicit selected-candidate metadata approval.' \
-    'Future candidates v5..v10 only; ten total including archived v1..v4. No retries, resume or adoption.' \
+    'Future candidates v11..v13 only; three new candidates; archived v1..v10 refused. No retries, resume or adoption.' \
     'Tool callers export AUTO_CANDIDATE to the selected future version. Baseline checks use AUTO_BASELINE=1.'
 }
 if [[ $# == 1 && $1 == --help ]]; then usage; exit 0; fi
@@ -14,9 +14,9 @@ mode=${1:-}
 version=${2:-}
 case "$mode" in
   --baseline) [[ $# == 1 ]] || { usage >&2; exit 2; } ;;
-  --saved) [[ $# == 2 && $version =~ ^(v3|v4|v5|v6|v7|v8|v9|v10)$ ]] || { usage >&2; exit 2; } ;;
+  --saved) [[ $# == 2 && $version =~ ^(v3|v4|v5|v6|v7|v8|v9|v10|v11|v12|v13)$ ]] || { usage >&2; exit 2; } ;;
   --prepare-candidate|--execute-approved)
-    [[ $# == 2 && $version =~ ^(v5|v6|v7|v8|v9|v10)$ ]] || { printf '%s\n' 'REFUSED: select future v5..v10 only; archived v3/v4 cannot execute.' >&2; exit 2; } ;;
+    [[ $# == 2 && $version =~ ^(v11|v12|v13)$ ]] || { printf '%s\n' 'REFUSED: select future v11..v13 only; archived v1..v10 cannot prepare or execute.' >&2; exit 2; } ;;
   *) printf '%s\n' 'REFUSED: explicit mode and candidate required. No inference performed.' >&2; usage >&2; exit 2 ;;
 esac
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
@@ -45,6 +45,9 @@ import os
 from pathlib import Path
 import subprocess
 import statistics
+import sys
+sys.path.insert(0, str(Path.cwd() / ".auto"))
+import results, run_candidate
 
 root = Path.cwd()
 out = root / 'output/cscs'
@@ -94,18 +97,34 @@ assert hashlib.sha256((repo / 'evaluate.py').read_bytes()).hexdigest() == offici
 subprocess.run([str(python), '-B', '-c',
                 'import sklearn, rapidfuzz, numpy'], check=True,
                cwd=out, capture_output=True, text=True)
-aggregate = json.loads((out / 'hillclimb-split5-date-balanced-analysis/aggregate.json').read_text())
+# Saved v5 only: verify the complete ledger/digests without grading or inference.
+summaries = results.completed_jobs(out, 'v5')
+results.usage.candidate_usage(out, 'v5', summaries,
+                            results.load(root / 'evals/c-system-prompt/split.json'))
+meta = results.load(root / 'evals/c-system-prompt/prompts/v5.json')
+prompt = (root / 'evals/c-system-prompt/prompts/v5-system.txt').read_bytes()
+assert run_candidate.digest(prompt) == meta['candidate_prompt_sha256'], 'BASELINE_PROMPT_CHANGED'
+assert run_candidate.digest(run_candidate.system((root / 'track_2a/src/predict.py').read_text()).encode()) == meta['candidate_prompt_sha256'], 'ADOPTED_SYSTEM_CHANGED'
+for repeat in range(1, 6):
+    manifest = results.load(out / f'prompt-C-v5-r{repeat}/manifest.json')
+    provenance_v5 = results.load(out / f'prompt-C-v5-r{repeat}-provenance.json')
+    assert provenance_v5['prompt_sha256'] == meta['candidate_prompt_sha256'], 'BASELINE_PROVENANCE_CHANGED'
+    for frozen in manifest['frozen']:
+        assert frozen['messages'][0]['content'] == prompt.decode() + '\n\n' + manifest['protocol_reminder'], 'BASELINE_SYSTEM_CHANGED'
+        assert results.usage.digest(frozen['messages']) == frozen['messages_sha256'], 'BASELINE_MESSAGES_CHANGED'
+    for source, sha in manifest['sources'].items():
+        path = Path(source) if Path(source).is_absolute() else Path(provenance_v5['workspace']) / source
+        assert run_candidate.digest(path.read_bytes()) == sha, 'BASELINE_SOURCE_CHANGED'
+        if source.endswith('track_2a/src/predict.py'):
+            assert run_candidate.digest(run_candidate.system(path.read_text()).encode()) == meta['candidate_prompt_sha256'], 'BASELINE_SOURCE_SYSTEM_CHANGED'
+aggregate = results.load(out / 'hillclimb-v5-analysis/aggregate.json')
 for part, count in (('train', 36), ('test', 18)):
     side = aggregate[part]
-    assert side['cases'] == count and len(side['repeats']) == 5, 'INCOMPLETE_AGGREGATE'
-    assert math.isfinite(side['Q_mean']), 'INVALID_BASELINE_METRIC'
-print('Offline checks passed. BASELINE ONLY: saved historical means; no candidate score or adoption.')
-print('Offline baseline checks only; no runner, grader, model or API execution.')
-for part in ('train', 'test'):
-    print(f"METRIC baseline_{part}_Q={aggregate[part]['Q_mean']:.17g}")
-    for key in ('F1_A', 'F1_B', 'Hit_A'):
-        print(f"METRIC baseline_{part}_{key}_mean={statistics.mean(r[key] for r in aggregate[part]['repeats']):.17g}")
-print('METRIC min_Q_gain=0')
+    assert side['cases'] == count and [r['repeat'] for r in side['repeats']] == list(range(1, 6)), 'INCOMPLETE_AGGREGATE'
+    assert math.isfinite(side['Q_mean']) and side['Q_mean'] == statistics.mean(r['Q'] for r in side['repeats']), 'INVALID_BASELINE_METRIC'
+print('Offline saved v5 baseline verified. No runner, grader, model or API execution.')
+results.baseline_metrics(aggregate)
+print('METRIC min_Q_gain_v5=0')
 PY
 write_check_context baseline ''
 fi

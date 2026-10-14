@@ -9,6 +9,20 @@ import predict as engine
 from source_spans import candidates
 
 
+def test_system_matches_submit_contract_without_duplicate_text_output():
+    case = {"id": "synthetic", "claim": {"text": "Claim"},
+            "reference": {"text": "Source."}}
+    _, messages = engine.context(case, Path("."))
+    system = messages[0]["content"]
+    assert "Use the declared submit tool for the final answer." in system
+    assert "candidate_ids (an array of provided span IDs)" in system
+    assert "Return ONLY JSON:" not in system
+    assert engine.NEUTRAL_GUARD in system
+    assert engine.PARAPHRASE_GUARD in system
+    assert engine.FINAL_VERIFICATION not in system
+    assert json.loads(messages[1]["content"])["final_verification"] == engine.FINAL_VERIFICATION
+
+
 def test_id_pipeline_restores_original_and_usage():
     case = {"id": "synthetic", "claim": {"text": "La proposition est refusée.", "language": "fr"},
             "reference": {"text": "La proposition est refusée.\n", "language": "fr"}}

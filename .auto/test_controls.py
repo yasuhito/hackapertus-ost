@@ -1,7 +1,7 @@
 """Synthetic offline safety and acceptance-gate tests. Never execute inference."""
 import contextlib
 import copy
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import io
 import json
 from pathlib import Path
@@ -16,13 +16,13 @@ import run_candidate
 class Controls(unittest.TestCase):
     def metadata(self):
         trials = {'cases': 54, 'repeats': 5, 'configs': 1}
-        return {'version': 'v5', 'proposed_trials': trials,
+        return {'version': 'v11', 'proposed_trials': trials,
                 'approved_trials': trials.copy(), 'inference_approved': True,
-                'approval_scope': {'candidate': 'v5', **trials}}
+                'approval_scope': {'candidate': 'v11', **trials}}
 
     def test_approval_is_candidate_specific(self):
         good = self.metadata()
-        run_candidate.validate_metadata('v5', good, True)
+        run_candidate.validate_metadata('v11', good, True)
         for key, bad in (('inference_approved', False), ('inference_approved', 1),
                          ('approved_trials', {'cases': 54, 'repeats': 1, 'configs': 1}),
                          ('approved_trials', {'cases': 54, 'repeats': 5, 'configs': True}),
@@ -30,79 +30,103 @@ class Controls(unittest.TestCase):
                          ('approval_scope', 'old v3 permission'), ('version', 'v3')):
             meta = {**good, key: bad}
             with self.assertRaises(SystemExit):
-                run_candidate.validate_metadata('v5', meta, True)
-        unapproved = {'version': 'v5', 'proposed_trials': good['proposed_trials']}
-        run_candidate.validate_metadata('v5', unapproved, False)
+                run_candidate.validate_metadata('v11', meta, True)
+        unapproved = {'version': 'v11', 'proposed_trials': good['proposed_trials']}
+        run_candidate.validate_metadata('v11', unapproved, False)
         with self.assertRaises(SystemExit):
-            run_candidate.validate_metadata('v5', unapproved, True)
+            run_candidate.validate_metadata('v11', unapproved, True)
 
     def window(self):
         return {'timezone': 'Asia/Tokyo',
-                'candidate_start_before': '2026-10-14T11:00:00+09:00',
-                'soft_finish_by': '2026-10-14T12:00:00+09:00',
+                'started_at': '2026-10-14T09:47:02+09:00',
+                'baseline_version': 'v5',
+                'candidate_start_before': '2026-10-14T11:17:02+09:00',
+                'soft_finish_by': '2026-10-14T11:47:02+09:00',
                 'approved_candidates': list(run_candidate.FUTURE),
-                'max_new_candidates': 6, 'trials': run_candidate.TRIALS.copy(),
+                'max_new_candidates': 3, 'trials': run_candidate.TRIALS.copy(),
                 'approved': True, 'stop_on_execution_error': True}
 
     def test_window_cutoff_and_rollover(self):
         for version in run_candidate.FUTURE:
             run_candidate.validate_window(version, self.window(),
-                                          datetime.fromisoformat('2026-10-14T01:59:59+00:00'))
-        for timestamp in ('2026-10-14T02:00:00+00:00', '2026-10-14T12:00:00+09:00',
+                                          datetime.fromisoformat('2026-10-14T02:17:01+00:00'))
+        for timestamp in ('2026-10-14T02:17:02+00:00', '2026-10-14T12:00:00+09:00',
                           '2026-10-14T12:00:01+09:00', '2026-10-14T10:59:59'):
             with self.assertRaises(SystemExit):
-                run_candidate.validate_window('v5', self.window(), datetime.fromisoformat(timestamp))
+                run_candidate.validate_window('v11', self.window(), datetime.fromisoformat(timestamp))
         with self.assertRaises(SystemExit):
-            run_candidate.validate_window('v5', self.window(), None)
+            run_candidate.validate_window('v11', self.window(), None)
+
+    def test_window_elapsed_not_calendar_and_runtime_utc(self):
+        window = self.window()
+        for key in ('started_at', 'candidate_start_before', 'soft_finish_by'):
+            window[key] = (datetime.fromisoformat(window[key]) + timedelta(days=2)).isoformat()
+        now = datetime.fromisoformat(window['started_at']) + timedelta(minutes=89)
+        run_candidate.validate_window('v11', window, now)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'window.json'
+            path.write_text(json.dumps(window))
+            with patch.object(run_candidate, 'WINDOW', path), patch.object(run_candidate, 'datetime') as clock:
+                clock.now.return_value = now
+                with patch.object(run_candidate, 'validate_window') as validate:
+                    run_candidate.check_window('v11')
+                clock.now.assert_called_once_with(timezone.utc)
+                validate.assert_called_once_with('v11', window, now)
 
     def test_window_scope_fails_closed(self):
-        now = datetime.fromisoformat('2026-10-14T00:00:00+00:00')
-        for key, value in (('timezone', None), ('max_new_candidates', 7),
-                           ('approved_candidates', ['v5']), ('approved', 1),
+        now = datetime.fromisoformat('2026-10-14T01:00:00+00:00')
+        for key, value in (('started_at', None), ('baseline_version', 'v0'),
+                           ('started_at', '2026-10-14T09:47:02+00:00'),
+                           ('candidate_start_before', '2026-10-14T11:17:03+09:00'),
+                           ('soft_finish_by', '2026-10-14T11:47:03+09:00'),
+                           ('timezone', None), ('max_new_candidates', 7),
+                           ('approved_candidates', ['v11']), ('approved', 1),
                            ('stop_on_execution_error', False),
                            ('candidate_start_before', '2026-10-14T11:00:00'),
                            ('soft_finish_by', '2026-10-14T12:00:00'),
                            ('trials', {'cases': 54, 'repeats': 1, 'configs': 1}),
                            ('trials', {'cases': 54, 'repeats': 5, 'configs': True})):
             with self.assertRaises(SystemExit):
-                run_candidate.validate_window('v5', {**self.window(), key: value}, now)
+                run_candidate.validate_window('v11', {**self.window(), key: value}, now)
         with self.assertRaises(SystemExit):
-            run_candidate.validate_window('v11', self.window(), now)
+            run_candidate.validate_window('v10', self.window(), now)
         for window in ({}, None):
             with self.assertRaises(SystemExit):
-                run_candidate.validate_window('v5', window, now)
+                run_candidate.validate_window('v11', window, now)
         with tempfile.TemporaryDirectory() as directory, patch.object(
                 run_candidate, 'WINDOW', Path(directory) / 'missing.json'):
             with self.assertRaises(SystemExit):
-                run_candidate.check_window('v5')
+                run_candidate.check_window('v11')
 
     def test_prepare_needs_no_approval_or_clock(self):
         with tempfile.TemporaryDirectory() as directory:
             prompts = Path(directory)
             candidate, baseline = b'synthetic new SYSTEM', b'synthetic baseline'
-            meta = {'version': 'v5', 'proposed_trials': run_candidate.TRIALS,
+            meta = {'version': 'v11', 'proposed_trials': run_candidate.TRIALS,
                     'candidate_prompt_sha256': run_candidate.digest(candidate),
                     'baseline_prompt_sha256': run_candidate.digest(baseline)}
-            (prompts / 'v5.json').write_text(json.dumps(meta))
-            (prompts / 'v5-system.txt').write_bytes(candidate)
-            (prompts / 'v0-system.txt').write_bytes(baseline)
+            (prompts / 'v11.json').write_text(json.dumps(meta))
+            (prompts / 'v11-system.txt').write_bytes(candidate)
+            (prompts / 'v5-system.txt').write_bytes(baseline)
             with patch.object(run_candidate, 'PROMPTS', prompts), patch.object(
                     run_candidate, 'refuse_batch'), patch.object(run_candidate, 'refuse_duplicates'), patch.object(
                     run_candidate, 'check_window') as clock, patch.object(
                     run_candidate, 'preserve_candidate', side_effect=RuntimeError('offline preservation reached')), patch(
-                    'sys.argv', ['run_candidate.py', '--candidate', 'v5', '--prepare-only']):
+                    'sys.argv', ['run_candidate.py', '--candidate', 'v11', '--prepare-only']):
                 with self.assertRaisesRegex(RuntimeError, 'offline preservation reached'):
                     run_candidate.main()
                 clock.assert_not_called()
 
-    def test_archived_v4_refused_before_io(self):
-        for mode in ('--prepare-only', '--execute-approved'):
-            with patch('sys.argv', ['run_candidate.py', '--candidate', 'v4', mode]), patch.object(
-                    run_candidate, 'check_window') as gate, patch.object(run_candidate, 'refuse_batch') as paths:
-                with self.assertRaises(SystemExit):
-                    run_candidate.main()
-                gate.assert_not_called()
-                paths.assert_not_called()
+    def test_archived_candidates_refused_before_io(self):
+        for number in range(1, 11):
+            with self.assertRaises(SystemExit):
+                run_candidate.require_future(f'v{number}')
+
+    def test_candidate_override_preserves_source(self):
+        text = 'SYSTEM = "original"\nSYSTEM += " guard"\nSYSTEM = "adopted"\ndef main(): pass\n'
+        changed = run_candidate.candidate_source(text, 'new candidate')
+        self.assertEqual(run_candidate.system(changed), 'new candidate')
+        self.assertEqual(changed.replace("SYSTEM = 'new candidate'", 'SYSTEM = "adopted"'), text)
 
     def test_archive_fallback_duplicate_integrity(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -110,7 +134,7 @@ class Controls(unittest.TestCase):
             prompts, out = root / 'prompts', root / 'out'
             prompts.mkdir()
             with patch.object(run_candidate, 'PROMPTS', prompts), patch.object(run_candidate, 'OUT', out):
-                for number in range(1, 5):
+                for number in range(1, 11):
                     version = f'v{number}'
                     archive = out / 'candidate-archive' / version
                     archive.mkdir(parents=True)
@@ -118,13 +142,13 @@ class Controls(unittest.TestCase):
                     (archive / f'{version}-system.txt').write_bytes(data)
                     (archive / f'{version}.json').write_text(json.dumps({
                         'version': version, 'candidate_prompt_sha256': run_candidate.digest(data)}))
-                run_candidate.refuse_duplicates('v5', run_candidate.digest(b'new SYSTEM'))
+                run_candidate.refuse_duplicates('v11', run_candidate.digest(b'new SYSTEM'))
                 with self.assertRaisesRegex(AssertionError, 'DUPLICATE_CANDIDATE'):
-                    run_candidate.refuse_duplicates('v5', run_candidate.digest(b'SYSTEM 4'))
+                    run_candidate.refuse_duplicates('v11', run_candidate.digest(b'SYSTEM 4'))
                 archive = out / 'candidate-archive/v4'
                 (archive / 'v4-system.txt').write_bytes(b'tampered')
                 with self.assertRaisesRegex(AssertionError, 'PREVIOUS_PROMPT_HASH_CHANGED'):
-                    run_candidate.refuse_duplicates('v5', run_candidate.digest(b'new SYSTEM'))
+                    run_candidate.refuse_duplicates('v11', run_candidate.digest(b'new SYSTEM'))
                 (archive / 'v4-system.txt').write_bytes(b'SYSTEM 4')
                 (archive / 'v4.json').write_text(json.dumps({
                     'version': 'v3', 'candidate_prompt_sha256': run_candidate.digest(b'SYSTEM 4')}))
@@ -138,17 +162,17 @@ class Controls(unittest.TestCase):
             prompts.mkdir()
             with patch.object(run_candidate, 'PROMPTS', prompts), patch.object(run_candidate, 'OUT', out):
                 for suffix in run_candidate.ARTIFACT_SUFFIXES:
-                    (prompts / ('v5' + suffix)).write_bytes(suffix.encode())
-                payload = run_candidate.preserve_candidate('v5')
-                self.assertEqual(run_candidate.preserve_candidate('v5'), payload)
-                run_candidate.refuse_batch('v5')  # Archive is not an execution fence.
-                run_candidate.verify_candidate_artifacts('v5', payload)
-                (prompts / 'v5.patch').write_bytes(b'changed')
+                    (prompts / ('v11' + suffix)).write_bytes(suffix.encode())
+                payload = run_candidate.preserve_candidate('v11')
+                self.assertEqual(run_candidate.preserve_candidate('v11'), payload)
+                run_candidate.refuse_batch('v11')  # Archive is not an execution fence.
+                run_candidate.verify_candidate_artifacts('v11', payload)
+                (prompts / 'v11.patch').write_bytes(b'changed')
                 with self.assertRaisesRegex(AssertionError, 'CANDIDATE_ARTIFACT_CHANGED'):
-                    run_candidate.verify_candidate_artifacts('v5', payload)
+                    run_candidate.verify_candidate_artifacts('v11', payload)
                 with self.assertRaisesRegex(AssertionError, 'CANDIDATE_ARCHIVE_CHANGED'):
-                    run_candidate.preserve_candidate('v5')
-                self.assertEqual((out / 'candidate-archive/v5/v5.patch').read_bytes(), b'.patch')
+                    run_candidate.preserve_candidate('v11')
+                self.assertEqual((out / 'candidate-archive/v11/v11.patch').read_bytes(), b'.patch')
 
     def test_existing_paths_refused_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
