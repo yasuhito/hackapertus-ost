@@ -1,0 +1,38 @@
+{
+  "version": "v16",
+  "status": "fresh_user_approved_train_only_task_order_routing_not_production",
+  "hypothesis": "Route instruction presentation order solely by existing input structure: TaskA document uses unchanged v15 SYSTEM, TaskB explicit reference uses unchanged v5 SYSTEM. No new semantic instructions, examples, label/claim/ID/gold routing. TRAIN-adaptive hypothesis, not unseen improvement evidence.",
+  "examples": 0,
+  "surface": "SYSTEM selection only in isolated copied source; adopted application remains v5",
+  "model_parent": "swiss-ai/Apertus-v1.5-70B",
+  "model_child": "swiss-ai/Apertus-v1.5-8B",
+  "thinking": "none",
+  "proposed_trials": {
+    "cases": 36,
+    "repeats": 5,
+    "configs": 1
+  },
+  "approved_trials": {
+    "cases": 36,
+    "repeats": 5,
+    "configs": 1
+  },
+  "inference_approved": true,
+  "approval_scope": {
+    "candidate": "v16",
+    "cases": 36,
+    "repeats": 5,
+    "configs": 1
+  },
+  "approval_note": "Owner explicitly approved one TaskA/B order candidate TRAIN36x5, fixedscoring and stopbeforefinal. New90/120minutewindow16:04:15JST/17:34:15cutoff/18:04:15softfinish. Preserve previously approved504-only60secondwait/max2additionalfreshwhole-batchattemptpolicy. No TEST/finalvalidation/adoption/push/sibling changes.",
+  "baseline_prompt_sha256": "06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c",
+  "candidate_prompt_sha256": "d61868e705aacb3fc69e09485ce9b0f215d3f90a672605638380fecf8aa25ec0",
+  "SYSTEM_by_task_sha256": {
+    "A": "b2027887d2c9de4507d2ee8b2cb231cae3d4b63a6b55e353bfe3fcef80d9f6c3",
+    "B": "06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c"
+  },
+  "source_artifacts": {
+    "A": "output/cscs/candidate-archive/v15/v15-system.txt",
+    "B": "evals/c-system-prompt/prompts/v5-system.txt"
+  }
+}

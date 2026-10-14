@@ -3,13 +3,28 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+  --route-baseline)
+    [[ $# == 1 ]] || exit 2
+    export TRAIN_ROUND=v16
+    exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --baseline ;;
+  --route-prepare-candidate)
+    [[ $# == 2 && $2 == v16 ]] || exit 2
+    export TRAIN_ROUND=v16
+    exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --prepare-candidate "$2" ;;
+  --route-execute-approved)
+    [[ $# == 4 && $2 == v16 ]] || exit 2
+    export TRAIN_ROUND=v16
+    exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --execute-approved "$2" "$3" "$4" ;;
   --train-baseline)
+    export TRAIN_ROUND=
     [[ $# == 1 ]] || exit 2
     exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --baseline ;;
   --train-prepare-candidate)
+    export TRAIN_ROUND=
     [[ $# == 2 ]] || exit 2
     exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --prepare-candidate "$2" ;;
   --train-execute-approved)
+    export TRAIN_ROUND=
     [[ $# == 4 ]] || exit 2
     exec bash "$(dirname -- "${BASH_SOURCE[0]}")/train_measure.sh" --execute-approved "$2" "$3" "$4" ;;
 esac

@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Bounded TRAIN36x5 research only. No implicit approval or same-job resume."""
+"""Bounded TRAIN36x5 research only. No implicit approval or same-job resume.
+
+Historical v14/v15 controls retain their bytes, not validity under revised code.
+Replay them only from their original code checkpoint. TRAIN_ROUND=v16 freezes a
+separate protocol; this never reinitializes the experiment or adopts a prompt.
+"""
 import argparse
 from datetime import datetime, timedelta, timezone
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -13,12 +19,17 @@ import time
 from zoneinfo import ZoneInfo
 
 import run_candidate as old
+import train_route as route
 
 ROOT, OUT, PROMPTS = old.ROOT, old.OUT, old.PROMPTS
 RUNNER = 'track_2a/dev/format/run_comparison.py'
-CONTROL = OUT / 'train-protocol.json'
-WINDOW = ROOT / '.auto/train-window.json'
-VERSIONS = ('v14', 'v15')
+ROUND = os.environ.get('TRAIN_ROUND', '')
+if ROUND not in ('', 'v16'):
+    raise ValueError('INVALID_TRAIN_ROUND')
+ROUTING = ROUND == 'v16'
+CONTROL = OUT / ('train-route-protocol.json' if ROUTING else 'train-protocol.json')
+WINDOW = ROOT / ('.auto/route-window.json' if ROUTING else '.auto/train-window.json')
+VERSIONS = ('v16',) if ROUTING else ('v14', 'v15')
 TRIALS = {'cases': 36, 'repeats': 5, 'configs': 1}
 V5 = '06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c'
 SPLIT = '963cb7cfaab01cb8b178cf0ce1d5207e464ad0a81b5868370186aa161d0be3d9'
@@ -65,6 +76,11 @@ def validate_window(version, window, now):
                 'started_at': '2026-10-14T14:14:17+09:00',
                 'candidate_start_before': '2026-10-14T15:44:17+09:00',
                 'soft_finish_by': '2026-10-14T16:14:17+09:00'}
+    if ROUTING:
+        expected.update(max_new_candidates=1,
+                        started_at='2026-10-14T16:04:15+09:00',
+                        candidate_start_before='2026-10-14T17:34:15+09:00',
+                        soft_finish_by='2026-10-14T18:04:15+09:00')
     require(json.dumps({k: window.get(k) for k in expected}, sort_keys=True)
             == json.dumps(expected, sort_keys=True), 'INVALID_TRAIN_WINDOW_SCOPE')
     start, cutoff, finish = (datetime.fromisoformat(window[k]) for k in
@@ -90,6 +106,13 @@ def validate_metadata(version, meta, candidate):
     # JSON comparison rejects bools masquerading as integer trial counts.
     require(json.dumps({k: meta.get(k) for k in expected}, sort_keys=True)
             == json.dumps(expected, sort_keys=True), 'FRESH_EXACT_TRAIN_APPROVAL_REQUIRED')
+    if ROUTING:
+        route.bundle(candidate, ROOT, old.digest)
+        require(meta.get('SYSTEM_by_task_sha256') == route.SYSTEM_HASHES
+                and meta.get('source_artifacts') == route.SOURCE_ARTIFACTS
+                and not any(k.startswith(('original_', 'retry_', 'inherited_')) for k in meta),
+                'FRESH_ROUTE_METADATA_REQUIRED')
+        return
     previous = [old.digest((PROMPTS / 'v0-system.txt').read_bytes())]
     previous += [old.prior_prompt_hash(f'v{i}') for i in range(1, 14)]
     require(meta['candidate_prompt_sha256'] not in previous, 'DUPLICATE_CANDIDATE')
@@ -135,7 +158,11 @@ def baseline_paths():
 def protocol_paths():
     paths = [ROOT / p for p in ('.auto/train_run.py', '.auto/train_results.py',
              '.auto/train_measure.sh', '.auto/checks.sh', '.auto/run_candidate.py', '.auto/usage.py',
-             'evals/c-system-prompt/grader.py', '.auto/train-window.json')]
+             'evals/c-system-prompt/grader.py')]
+    paths += [WINDOW]
+    if ROUTING:
+        paths += [ROOT / p for p in ('.auto/train_route.py', '.auto/measure.sh')]
+        paths += [ROOT / p for p in route.SOURCE_ARTIFACTS.values()]
     paths += list((ROOT / 'track_2a/src').glob('*.py'))
     paths += [p for folder in ('track_2a/dev/cscs', 'track_2a/dev/format')
               for p in (ROOT / folder).iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')]
@@ -161,6 +188,8 @@ def runtime_fingerprint():
     roots = [sdk, child] + [sdk.parent / name for name in ('pi-ai', 'pi-agent-core', 'pi-tui')]
     paths = [Path(shutil.which('node')).resolve(), Path(old.PYTHON).resolve(),
              Path('/tmp/ost-official-evaluator-3U4yO9/env/bin/python').resolve()]
+    if ROUTING:
+        paths.append(Path('/tmp/ost-official-evaluator-3U4yO9/repo/evaluate.py'))
     for root in roots:
         paths.append(root / 'package.json')
         paths += sorted((root / 'dist').rglob('*.js'))
@@ -168,6 +197,14 @@ def runtime_fingerprint():
     require(load(sdk / 'package.json')['version'] == '1.1.0'
             and load(child / 'package.json')['version'] == '0.19.0', 'RUNTIME_VERSION_CHANGED')
     return {str(p): old.digest(p.read_bytes()) for p in sorted(set(paths))}
+
+
+def route_fingerprint():
+    candidate = candidate_payload('v16')['v16-system.txt'].decode('utf-8')
+    source = route.candidate_source((ROOT / 'track_2a/src/predict.py').read_text(), candidate, old)
+    return {'wrapper_sha256': old.digest(route.WRAPPER.encode('utf-8')),
+            'candidate_source_sha256': old.digest(source.encode('utf-8')),
+            'SYSTEM_by_task_sha256': route.SYSTEM_HASHES}
 
 
 def freeze_protocol():
@@ -178,24 +215,27 @@ def freeze_protocol():
         require(not list(OUT.glob(f'prompt-C-{version}-a*')), 'FREEZE_AFTER_TRIAL_REFUSED')
         old.preserve_candidate(version)
     ids, _ = train_split()
-    exclusive(CONTROL, {'version': 'train36x5-1', 'case_ids': ids,
+    exclusive(CONTROL, {'version': 'train-route36x5-1' if ROUTING else 'train36x5-1', 'case_ids': ids,
                         'runner_sha256': old.digest((ROOT / RUNNER).read_bytes()),
-                        'files': hashes(protocol_paths()), 'runtime': runtime_fingerprint()})
+                        'files': hashes(protocol_paths()), 'runtime': runtime_fingerprint(),
+                        **({'routing': route_fingerprint()} if ROUTING else {})})
 
 
 def verify_protocol(checkpoint=False):
     control = load(CONTROL)
-    require(control['version'] == 'train36x5-1' and control['case_ids'] == train_split()[0], 'CONTROL_SCOPE_CHANGED')
+    require(control['version'] == ('train-route36x5-1' if ROUTING else 'train36x5-1') and control['case_ids'] == train_split()[0], 'CONTROL_SCOPE_CHANGED')
     require(control['files'] == hashes(protocol_paths()), 'FROZEN_PROTOCOL_CHANGED')
     require(control['runner_sha256'] == old.digest((ROOT / RUNNER).read_bytes()), 'RUNNER_CHANGED')
     require(control['runtime'] == runtime_fingerprint(), 'FROZEN_RUNTIME_CHANGED')
+    if ROUTING:
+        require(control.get('routing') == route_fingerprint(), 'FROZEN_ROUTING_CHANGED')
     for version in VERSIONS:
         old.verify_candidate_artifacts(version, candidate_payload(version))
     require(old.digest((PROMPTS / 'v5-system.txt').read_bytes()) == V5
             and old.digest(old.system((ROOT / 'track_2a/src/predict.py').read_text()).encode()) == V5, 'ADOPTED_V5_CHANGED')
     if checkpoint:
         for relative, sha in control['files'].items():
-            if relative.startswith(('track_2a/', '.auto/')) and relative != '.auto/train-window.json':
+            if relative.startswith(('track_2a/', '.auto/')) and relative != ('.auto/route-window.json' if ROUTING else '.auto/train-window.json'):
                 require(old.digest(subprocess.check_output(['git', 'show', f'HEAD:{relative}'], cwd=ROOT)) == sha,
                         'HEAD_CHECKPOINT_REQUIRED: ' + relative)
     return control
@@ -258,6 +298,9 @@ def audit(manifest, baseline, mapping, runner_hash, candidate):
     require(bs.keys() == cs.keys(), 'SOURCE_SET_CHANGED')
     require(cs[RUNNER] == runner_hash, 'FROZEN_SELECTION_RUNNER_CHANGED')
     require(all(cs[k] == bs[k] for k in bs if k not in (RUNNER, 'track_2a/src/predict.py')), 'NON_PROMPT_SOURCE_CHANGED')
+    if ROUTING:
+        expected_source = route.candidate_source((ROOT / 'track_2a/src/predict.py').read_text(), candidate, old)
+        require(cs['track_2a/src/predict.py'] == old.digest(expected_source.encode('utf-8')), 'ROUTE_SOURCE_CHANGED')
     for actual, saved in zip(manifest['frozen'], selected):
         case = dict(saved['case'])
         if 'booklet' in case:
@@ -265,7 +308,14 @@ def audit(manifest, baseline, mapping, runner_hash, candidate):
         require(actual['case'] == case and actual['messages'][1:] == saved['messages'][1:], 'MODEL_INPUT_CHANGED')
         for key in ('pages', 'candidate_ids', 'schema_sha256'):
             require(actual[key] == saved[key], 'FROZEN_INPUT_CHANGED: ' + key)
-        require(actual['messages'][0]['content'] == candidate + '\n\n' + baseline['protocol_reminder'], 'SYSTEM_CHANGED')
+        chosen = route.chosen_system(candidate, case, actual['messages']) if ROUTING else candidate
+        expected_system = chosen + '\n\n' + baseline['protocol_reminder']
+        require(actual['messages'][0]['content'] == expected_system, 'SYSTEM_CHANGED')
+        if ROUTING:
+            task = 'A' if 'booklet' in case else 'B'
+            require(old.digest(chosen.encode('utf-8')) == route.SYSTEM_HASHES[task]
+                    and actual['messages'][0] == {**saved['messages'][0], 'content': expected_system},
+                    'ROUTE_SYSTEM_CHANGED')
         require(old.digest(json.dumps(actual['messages'], ensure_ascii=False, sort_keys=True, allow_nan=False).encode())
                 == actual['messages_sha256'], 'MESSAGE_DIGEST_CHANGED')
 
@@ -300,7 +350,8 @@ def prepare(version, execute=False):
             mapping[saved_path] = str(target)
         target = workspace / 'track_2a/src/predict.py'
         require(old.digest(old.system(target.read_text()).encode()) == V5, 'ARCHIVE_NOT_V5')
-        target.write_text(old.candidate_source(target.read_text(), candidate))
+        target.write_text(route.candidate_source(target.read_text(), candidate, old) if ROUTING
+                          else old.candidate_source(target.read_text(), candidate))
         exclusive(workspace / 'train-ids.json', control['case_ids'])
         env = old.workspace_env(workspace, execute)
         offline_env = {k: v for k, v in env.items() if not any(x in k.upper() for x in ('KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'AUTH', 'BASE_URL'))}
@@ -397,7 +448,7 @@ def execute(version, attempt):
     record_path.write_text(json.dumps(record, indent=2) + '\n')
     # Grading occurs outside every isolated model workspace, only after all five complete.
     try:
-        subprocess.run(['/tmp/ost-official-evaluator-3U4yO9/env/bin/python', '-B', '.auto/train_results.py', '--candidate', version, '--attempt', str(attempt), '--score'], cwd=ROOT, check=True)
+        subprocess.run(['/tmp/ost-official-evaluator-3U4yO9/env/bin/python', '-B', '.auto/train_results.py', '--candidate', version, '--attempt', str(attempt), '--score'], cwd=ROOT, check=True, env={**os.environ, 'TRAIN_ROUND': ROUND})
     except BaseException:
         record.update(status='OTHER_STOP', stage='grading_or_reporting', ended_at=time.time())
         record_path.write_text(json.dumps(record, indent=2) + '\n')

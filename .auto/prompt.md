@@ -1,109 +1,93 @@
-# TRAIN-only prompt comparison: v14 and v15 from adopted v5
+# Approved one-candidate Task A/B SYSTEM-order round: v16
 
-## Approved scope and frozen protocol
+User explicitly approved Task A/B-specific instruction order, one candidate,
+TRAIN36 cases x5 repeats x1 config, fixed scoring, stop before final validation.
 
-User activated autoresearch and approved `.auto/next-round-plan.md`, including
-HTTP504-only retries: wait60 seconds, fresh entire-batch attempt ID, at most two
-additional attempts per candidate. Two independent candidates v14/v15, each
-36 frozen TRAIN cases x5 repeats x1 configuration. No TEST scoring/individual
-output inspection, competition holdout, final validation, adoption, push or
-sibling changes. Stop before final validation even if a candidate improves.
+## Frozen hypothesis and implementation
 
-Start2026-10-14T14:14:17+09:00, candidate/attempt cutoff15:44:17 (+90min),
-soft finish16:14:17 (+120min), Asia/Tokyo. `.auto/train-window.json` and the
-first actual POST enforce the cutoff. Finish already-started five-repeat batches.
-Seven segment records maximum: one read-only reference import plus at most six
-candidate execution attempts. Never extend time/counts autonomously.
+Task A uses unchanged v15 SYSTEM SHA b2027887d2c9de4507d2ee8b2cb231cae3d4b63a6b55e353bfe3fcef80d9f6c3.
+Task B uses unchanged v5 SYSTEM SHA 06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c.
+Only existing structured input type booklet/reference and its derived taskA/B
+select the order. No case IDs, claims, source dates, labels, gold, examples or
+TEST feedback select prompts. This TRAIN-adaptive hypothesis uses observed v15
+A improvement/B regression and independently meaningful document/reference
+input differences; it is not unseen-performance evidence or an independent
+post-selection confirmation.
 
-Frozen control `output/cscs/train-protocol.json` SHA256:
-3f3f98aa898f21d01b5db0ca56508632d6e1c6fad017e4c5133b1bb27102b9af.
-Both candidate texts/artifacts, runner/control/source/runtime/split/reference
-and PDF hashes are immutable before trials. Freeze was performed after offline
-review and pending-check-selector repair, before any new model request.
+v16-system.txt is a canonical JSON artifact containing the two SYSTEM strings,
+SHA d61868e705aacb3fc69e09485ce9b0f215d3f90a672605638380fecf8aa25ec0.
+Models never receive that JSON bundle. A small wrapper in isolated copied
+predict.py replaces messages[0].content with the exact selected string; all
+messages[1:], pages, IDs, schema/reminder/rolemodel/caps/temp stay unchanged.
+Adopted application predict.py remains v5. No parent/child/tool restructuring.
 
-## Measurement and commands
+Freeze control output/cscs/train-route-protocol.json SHA
+e9c38425ff68adeb45e124da921306cc95f3e5fe8ea1546593acf37897396bbb
+pins bundle/source artifacts, wrapper and generated source, controls, runtime,
+evaluator, split, reference records and PDFs before all trials. Historical
+v14/v15 controls are preserved unchanged; replay those from their own code
+checkpoint, not this revised control code. Never overwrite/de-fence old jobs.
 
-NEW workload/target train_Q_gain_v5, higher better: candidate five-repeat TRAIN
-mean Q minus SAVED v5 TRAIN Q0.8275862068965517. Initialize once for this changed
-TRAIN-only workload; preserve historical log/config headers. Do not initialize
-again in this segment. Baseline verification imports saved results only, no
-model rerun or new baseline grading. Reference import keep establishes the
-approved source/control checkpoint required before candidate execution.
+## Target and setup
 
-Use run_experiment direct commands:
-- `bash .auto/measure.sh --train-baseline`, timeout180/checks180; log0 keep as
-  saved-reference import, not new inference.
-- `bash .auto/measure.sh --train-execute-approved v14 --attempt 1`, timeout7200,
-  checks_timeout180, then v15 attempt1 if v14 completes, regardless of quality
-  rejection. Offline preparation of both candidates has passed.
-- After HTTP504 only and incomplete batch, log crash, then use attempt2/3 for
-  the SAME candidate, with unchanged artifacts. Startup/firstPOST enforce60sec
-  since prior failure. Never reuse jobs/prefixes or selectively retain repeats.
+Same train_Q_gain_v5 target/workload as preceding TRAIN round, higher better;
+do NOT initialize again. Saved reference trainQ.8275862068965517, F1A.666667,
+B1, HitA.50. Read-only reference checkpoint may use historical known TRAIN
+usage metrics, but TRAIN-only command duration was never measured for saved54
+jobs: mark it unavailable, not a measured zero. No baseline inference/grading.
 
-Gain>=.02 AND >conservative TRAIN noise.017051043674621427, each repeat
-F1A>=.60/F1B>=.75, canonical validity36/36/fallback0, and TRAIN HitA>=.50 are
-mandatory. Strict gain>=noise+.02 is supplementary, not a replacement gate.
-Preserve original official scorer, source groups, 20k bootstrap/seed20261016,
-labels, references, extraction/restoration/tools/model roles70Bparent/actual8B
-child/thinkingoff and per-case request/communication limits. Only research
-case selection/count handling changed; default54 behavior is preserved and
-candidate per-case inputs/pages/IDs match saved v5 TRAIN except SYSTEM.
+Canonical run_experiment commands:
+- bash .auto/measure.sh --route-baseline, timeout180/checks180; log0 keep as
+  read-only source/control checkpoint, not a new prompt inference.
+- bash .auto/measure.sh --route-execute-approved v16 --attempt 1,
+  timeout7200/checks_timeout180; always log the completed experiment cycle.
 
-## Candidate hypotheses and provenance
+New approved window start2026-10-14T16:04:15+09:00, candidate/attempt cutoff
+17:34:15 (+90min), softfinish18:04:15 (+120min), Asia/Tokyo. No autonomous
+extension. Finish already-started five-repeat batches. Startup and first POST
+gate the actual clock. Current maxIterations7 covers prior3 records plus this
+reference checkpoint and at most3 v16 attempts; unused slots do not authorize
+other candidates.
 
-v14 SHA6d902f5e75e06484c5082fa6d46086cda835364aaab8bb707bc36872010be194:
-Add explicit classification-before-citation selection order. Missing decisive
-anchors in verified TRAIN calls motivate an order experiment; they do not prove
-hidden reasoning or permit gold/case-specific instructions. Distinct from v9's
-selected-evidence context caution and v1's final verification append.
+## Same acceptance and transport rules
 
-v15 SHAb2027887d2c9de4507d2ee8b2cb231cae3d4b63a6b55e353bfe3fcef80d9f6c3:
-Move existing semantic safeguards before unchanged submit/citation instructions.
-Every original instruction line and whole guard retained verbatim; no shortening
-or added text. Offline Counter/block-preservation assertions passed. Independent
-v5 base, no v14 policy. Both candidates have no examples and overlap checks.
+Primary gain>=.02 AND >conservative TRAIN noise.017051043674621427; eachrepeat
+F1A>=.60/B>=.75; canonical36/36/fallback0; meanHitA>=.50. Strict gain>=noise+.02
+is supplementary. Same original official evaluator, references, sourcegroups,
+20k bootstrap/seed20261016. No TEST grading/individual outputs/protectedholdout.
+Evidence surrogate is at frozen attainable TRAIN ceiling6/12, so preservation
+is not an evidence improvement. Report all secondary regressions/usage/latency.
 
-Adopted v5 SYSTEM hash remains06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c.
-`.auto/v5-training-diagnosis.md` records six stable TRAIN Task A label failures,
-no B failures, and evidence-surrogate ceiling6/12 independently verified using
-actual restoration and official matching. No classification/evidence-gain claim
-may be inferred merely from fewer formatting repairs or stable source validity.
+Previously approved operational504 policy remains: only incomplete HTTP504,
+wait60sec then fresh entire36x5batch attempt2/3 (maximum2 additional), exactsame
+artifacts/conditions, no prefix reuse or fence deletion. Log each crash and
+unknown failed-request usage, link retries using ASI.revisits_run. Other errors,
+orphanstates, exhausted retries or cutoff stop. No completed quality retry or
+favorable repeat selection. Failed attempts are excluded from successful-batch
+usage; those metrics are not total session cost. Repair-window usage is subset,
+not additive role or proof of decoded schema-repair reason.
 
-## Logging, retries and stopping
+## Logging and completion
 
-Always log every run_experiment and EVERY tracked secondary metric. Record ASI
-hypothesis/version/hash/attempt/control digest, observations limited to TRAIN,
-and rollback_reason/next_action_hint on rejection/crash. Completed quality-gate
-failure =>checks_failed, never transport retry. With checks passing, keep only
-primary improvement over retained TRAIN best; unchanged/worse=>discard. Keep is
-research retention, not production adoption or evidence of unseen performance.
+Record parsed primary and all tracked secondaries. Historical reference import
+must label historical candidate-named values as reference observations, not new
+candidate measurements; unknown command duration uses an explicit unavailable
+sentinel if the numeric logger requires it. On incomplete crashes, numeric
+sentinels are unavailable values, never zero measured usage/quality.
 
-HTTP504-only incomplete execution=>crash with preserved attempt record/STOP/
-inflight and documented unavailable numeric crash sentinels if required by
-logger. At most attempts1,2,3, each starts full36x5; wait60sec after failedend.
-Include ASI.revisits_run linking a transport retry to its earlier crashed tool
-record and state only authorization/new execution attempt changed, not prompt.
-Any other API/transport/unknown-usage/error, orphan state, scoring error, exhausted
-504 attempts or cutoff stops the round. No gate/validator weakening or fence
-removal. Failed-request usage remains unknown; complete-batch metrics exclude
-previous failed attempts and are not total session cost. Repair-window usage is
-a positional subset of parent/child, not an additive third role or decoded
-payload diagnosis.
+Completed gain/validity/F1/evidence gate failure =>checks_failed. Checks passing
+and primary improves retained TRAIN best =>keep for research only; otherwise
+discard. Keep NEVER edits adopted app or means final validation/adoption.
 
-Stop after both candidates complete. Select from TRAIN only; final verification
-requires separately frozen genuinely unused independently labeled data and
-owner input/authorization. Existing internal TEST is exposed, not unseen.
+Stop after the one candidate completes, even if it improves. No final validation,
+new hypothesis, sibling modification, push or deployment. A genuinely unused,
+independently labeled validation set needs owner-provided provenance/separate
+preparation approval before any later confirmation. `.auto/ideas.md` stores
+only deferred directions, not permissions.
 
-## Offline validation
-
-Initial combined relevant suite245 passed/3 skipped; subsequent TRAIN suite31
-passed including pending selector rejection. ShellCheck/syntax/diff checks pass.
-Reviewer found no critical/high/medium defects; inherited stale selector risk
-was repaired before freeze. Five isolated source-only preflight workspaces per
-candidate pass TRAIN inputs/pages/IDs/schema/source parity with zero requests.
-The experiment tool requires `.auto/measure.sh`; its TRAIN dispatch was added
-before reference import after a no-execution tool refusal. It delegates to the
-already-frozen train_measure.sh without changing its controls or model inputs.
-See `.auto/train-protocol.md` for commands/control metadata and independent
-`.auto/next-round-plan.md` for final-validation boundary. Deferred ideas go to
-`.auto/ideas.md`; do not replay exhausted v1..v13/retry policies.
+Offline route/controls suite64 passed under pinned runtime; relevant combined
+suite168passed/2skipped, syntax/ShellCheck/diffcheck pass. Reviewer found no
+routing defects. Its unpinned SDK tests failed; rerunning with required Pi1.1.0
+and child0.19.0 roots passed both realSDK mocks. Offline five-workspace36case
+preparation passed exact per-task SYSTEM/input/pages/IDs/schema/source audits
+with zero model calls, credentials or jobs. No new inference yet.

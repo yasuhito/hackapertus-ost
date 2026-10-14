@@ -1,0 +1,1 @@
+{"method": "NFKC/casefold Unicode word 8-gram overlap", "checked_cases": 54, "overlapping_cases": 0, "pass": true, "limitation": "Lexical overlap cannot establish absence of semantic paraphrase."}

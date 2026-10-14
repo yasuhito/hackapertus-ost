@@ -1,14 +1,11 @@
-# Next bounded round
+# Deferred ideas after completed TRAIN-only v14/v15 comparison
 
-See `.auto/next-round-plan.md` for the next execution design and `.auto/v5-training-diagnosis.md` for TRAIN-only evidence.
+Current authorized scope is complete. Stop before final validation; v5 remains adopted. See `.auto/train-round-summary.md` and tool records16/17 for aggregate results. No new inference is authorized by unused retry slots.
 
-- Compare classification-before-citation selection against v5 as one SYSTEM hypothesis; distinguish an operational comparison order from adding another final/context caution.
-- Independently test semantic-safeguard presentation before tool/citation instructions, preserving every original instruction verbatim. No broad introduction shortening or accumulated rejected policies.
-- TRAIN evidence-surrogate Hit@5 is already at the frozen reachable ceiling6/12, independently verified through real restoration and official matching. Keep reference/scorer/extraction unchanged; focus prompt research on classification and evidence non-regression.
-- Prepare train-only case selection in the research runner, preserving original54-case behavior and frozen per-case role/tool/model semantics. Freeze protocol and hash audits before experiments.
-- Define bounded HTTP504 waiting/reexecution with preserved partial logs/fences and explicit unknown-usage reporting before activation; never retry completed quality failures or choose favorable repeats.
+- Next research direction, requiring separate approval: isolate the product's parent/child responsibilities instead of adding more generic cautions. Diagnose how a source-based child judgment is accepted/overridden; independent semantic verification has a different purpose from citation lookup. Blind child adoption already failed in v4, so do not repeat it. Explain extra-call/context-transfer/arbitration tradeoffs before changing the evaluated architecture.
+- A task-conditioned design may be independently justified by actual input structure: Task A compares a claim against multiple document spans, Task B against an explicit reference. v15's TRAIN A improvement/B regression suggests investigating interference, not proof that task-specific prompts would improve. Do not construct task exceptions from TEST aggregate failures or reuse v15 solely to chase its A score.
+- TRAIN evidence-surrogate Hit@5 is at the frozen reachable ceiling6/12. Any future data/extraction/reference-quality investigation is a separate approved protocol task; never repair grader/references to turn current prompt losses into wins.
 - Final confirmation needs genuinely unused independently labeled validation data, not the repeatedly exposed internal TEST. Obtain owner-provided provenance or separate public-data preparation approval; protected competition holdout stays off limits.
+- Bounded504 handling is now implemented and offline tested:60sec wait, fresh entire-batch attempts, max2additional per candidate, preservedSTOP/inflight, no completed-quality retries. No504 occurred in this TRAIN round. Successful-batch metrics exclude prior failedattempts in general; numeric crashsentinels are unavailable values, not zero usage/improvement.
 
-Completed v12-retry1 and v13-retry1 both finished54x5 without transport failures and failed quality gates. They are no longer unresolved ideas. Prior v1..v13 instructions and both retry batches are exhausted; no replay without materially new assumptions and authorization. Numeric crash sentinels are unavailable values, not measured zero usage or gains.
-
-No new model calls yet. Adoption, sibling changes, push and deployment remain outside scope.
+v14 classification-before-citation regressed Q. v15 verbatim order change gained only.000723 overall, below.02/noise, with B regression. Both hypotheses are exhausted under current assumptions. v12/v13 reevaluations also completed and failed quality gates. No replay without materially changed assumptions and new authorization. No final validation/adoption/push/deployment performed.

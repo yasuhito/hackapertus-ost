@@ -14,6 +14,10 @@ mode, candidate = context['mode'], context['candidate']
 if mode in ('train_baseline', 'train_candidate'):
     import sys
     sys.path.insert(0, '.auto')
+    selected_round = context.get('round', '')
+    assert selected_round in ('', 'v16'), 'TRAIN_ROUND_CONTEXT_INVALID'
+    assert os.environ.get('TRAIN_ROUND', selected_round) == selected_round, 'TRAIN_ROUND_SELECTOR_CONFLICT'
+    os.environ['TRAIN_ROUND'] = selected_round
     import train_run as train
     assert context.get('protocol_sha256') == train.old.digest(train.CONTROL.read_bytes()), 'TRAIN_CONTEXT_CHANGED'
     train.verify_protocol()
