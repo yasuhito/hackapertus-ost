@@ -11,12 +11,17 @@ import subprocess
 import sys
 context = json.loads(Path('.auto/check-context.json').read_text())
 mode, candidate = context['mode'], context['candidate']
-if mode == 'provider_schema_edge':
+if mode in ('fullbranch_reference', 'fullbranch_candidate'):
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/fullbranch_public60.py', '--check'], check=True)
+elif mode == 'provider_schema_edge':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_edge_probe.py', '--check'], check=True)
 elif mode == 'provider_schema_empty':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_empty_source.py', '--check'], check=True)
 elif mode == 'provider_schema_empty_retry':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_empty_retry.py', '--check'], check=True)
+elif mode == 'provider_schema_unique_ids':
+    assert context['report_phase'] in ('baseline', 'candidate'), 'REPORT_PHASE_INVALID'
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_unique_ids.py', '--check', '--report-phase', context['report_phase']], check=True)
 elif mode == 'provider_schema_branch_closure':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_branch_closure.py', '--check'], check=True)
 elif mode == 'provider_schema_probe':

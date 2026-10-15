@@ -3,6 +3,14 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+  --fullbranch-prepare|--fullbranch-reference|--fullbranch-execute)
+    [[ $# == 1 ]] || exit 2
+    case "$1" in
+      --fullbranch-prepare) phase=--prepare-only ;;
+      --fullbranch-reference) phase=--reference ;;
+      --fullbranch-execute) phase=--candidate ;;
+    esac
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B -Werror::ResourceWarning "$(dirname -- "${BASH_SOURCE[0]}")/fullbranch_public60.py" "$phase" --approved-at "$(date +%s)" ;;
   --provider-schema-edge-prepare)
     [[ $# == 1 ]] || exit 2
     exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_edge_probe.py" --prepare ;;
@@ -21,6 +29,15 @@ case "${1:-}" in
   --provider-schema-empty-retry)
     [[ $# == 1 ]] || exit 2
     exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_empty_retry.py" --execute ;;
+  --provider-schema-unique-prepare)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_unique_ids.py" --prepare ;;
+  --provider-schema-unique-baseline)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_unique_ids.py" --baseline ;;
+  --provider-schema-unique-candidate)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_unique_ids.py" --candidate ;;
   --provider-schema-branch-closure-prepare)
     [[ $# == 1 ]] || exit 2
     exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_branch_closure.py" --prepare ;;
