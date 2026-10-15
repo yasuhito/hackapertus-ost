@@ -1,12 +1,22 @@
 # Autoresearch: generic submit-repair feedback
 
+## Completed experiment boundary
+
+H1 and H2 each completed five live repeats and FAILED. H1 had10 vs7 original fallbacks and meanQ below its fixed safeguard. H2 had300 fallbacks/zero accepted, F1A/F1B .16666666666666666 and HitA0. H2 was reverted; the independently correct H1 diagnostic fix remains without a measured reliability claim. See `.auto/feedback-research-results.md`.
+
+H2's actual parent responses contained440 label-only objects,60 IDs-only objects and55 unparseable/truncated submits; all305 child submits contained both keys. There were no HTTP error frames. Standards-level and mocked schema checks did not establish real provider behavior. Do not retry either completed hypothesis, change wording/schema spelling/caps, substitute child recommendations, or alter guards. No authorized distinct source-contract hypothesis remains. STOP rather than manufacture an iteration. New provider-level work on fictional inputs requires separate approval and a fresh protocol. The sections below preserve the prospective H2 specification, not permission to rerun it.
+
 ## Objective and approved scope
 
 Owner approved the generic missing-support feedback fix and now requested autoresearch to test it. Reduce answer-format fallbacks of unchanged v5 using the precise, source-contract feedback already tested. This is NOT a retry of rejected v16. Keep v5 SYSTEM, models, source extraction, labels, IDs, assembly acceptance, role structure, completion/request caps, cases, expected labels, and original official scorer unchanged.
 
 PUBLIC60 has already been evaluated and its failure logs inspected. Treat it as an exposed DEVELOPMENT benchmark, never unseen validation or evidence of competition holdout performance. Do not inspect gold to choose changes, add case-specific rules, alter references/thresholds after results, omit failures, or rerun a completed candidate to seek favorable noise.
 
-Initial hypothesis H1: correct model-visible SUPPORTING_SPAN_REQUIRED feedback reduces final format failures without worsening classification or evidence. Freeze the existing tested fix before inference. Additional hypotheses require a demonstrable generic source-contract defect reproduced with fictional tests; do not vary wording speculatively or tune on validation answers. Stop rather than fabricate another iteration if no authorized useful hypothesis remains; zero fallbacks is the primary floor.
+H1 completed once and FAILED: precise feedback produced10 vs7 fallbacks and Q .7974809973486178, below .8029455012419827. Do not retry H1 or vary its wording. Keep its independently correct diagnostic behavior; do not claim measured reliability benefit.
+
+H2 is a different source-contract hypothesis, not a repeat: the current native tool schema permits label0/2 with zero candidate IDs even though the unchanged assembler rejects that combination. Expose the existing non-neutral-support relationship in native parameters via a formal conditional, without changing the v5 SYSTEM or prose, label meanings, tool names/argument keys, caps or acceptance rules. Neutral may still have empty OR nonempty IDs as the original assembler allows. Do not introduce a neutral-empty-only restriction. Prove on fictional inputs that no previously accepted assembler input is excluded. Prospective payloads must match Python and SDK projections exactly. Provider support is unconfirmed; any transport rejection stops without retry or bypass. Freeze a separate H2 protocol and five fresh jobs before inference. Retain the same historical original-v5 reference and quality safeguards; all H1 artifacts remain immutable.
+
+Additional hypotheses require a demonstrable generic source-contract defect reproduced with fictional tests; do not vary wording speculatively or tune on validation answers. Stop rather than fabricate another iteration if no authorized useful hypothesis remains; zero fallbacks is the primary floor.
 
 ## Workload and metrics
 
@@ -32,9 +42,9 @@ Use run_experiment via mandatory .auto/measure.sh and immediately log_experiment
 
 ## Files in scope
 
-Current generic implementation track_2a/dev/format/run_comparison.py and fictional regression tests. H1 uses its current approved patch without further wording changes. New .auto feedback-research controller/tests/report/dispatcher branches and this playbook. Historical prompt/playbook copies are in .auto/protocol-archive.
+Current generic implementation track_2a/dev/format/run_comparison.py and fictional regression tests. H1's accurate feedback stays unchanged. H2 may additionally align its native schemas() and SDK sdk.ts nativeTools() parameter projections with the existing supporting-ID acceptance condition, and add matching fictional/schema tests. No other SDK API or role behavior changes. New .auto feedback-research controller/tests/report/dispatcher branches and this playbook. Historical prompt/playbook copies are in .auto/protocol-archive.
 
-No changes to production v5 SYSTEM, source_spans.py, submission.py, predict.py, official grader or evaluator, SDK package files, existing role definitions, candidate tools or source schemas, data fixtures, old protocols and outputs. No gold-based repairs. No private competition set access, push, merge or deployment.
+No changes to production v5 SYSTEM, source_spans.py, submission.py, predict.py, official grader or evaluator, SDK package files, existing role definitions, tool names/argument keys/local acceptance, source span schemas, data fixtures, old protocols and outputs. Only the explicitly preregistered H2 native parameter conditional may differ from H1's tool projection. No gold-based repairs. No private competition set access, push, merge or deployment.
 
 ## Existing evidence
 

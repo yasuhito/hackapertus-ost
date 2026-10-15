@@ -3,6 +3,31 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+  --provider-schema-probe-report)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_probe_recovery.py" --execute-report ;;
+  --provider-schema-probe-prepare)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_probe.py" --prepare ;;
+  --provider-schema-probe)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_probe.py" --execute ;;
+  --feedback-h2-g2-prepare)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/feedback_research_h2_g2.py" --prepare-only ;;
+  --feedback-execute)
+    if [[ $# == 2 && $2 == h2-g2 ]]; then
+      exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/feedback_research_h2_g2.py" --candidate --approved-at "$(date +%s)"
+    fi
+    ;;&
+  --feedback-h2-prepare)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/feedback_research_h2.py" --prepare-only ;;
+  --feedback-execute)
+    if [[ $# == 2 && $2 == h2 ]]; then
+      exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/feedback_research_h2.py" --candidate --approved-at "$(date +%s)"
+    fi
+    ;;&
   --feedback-prepare|--feedback-reference|--feedback-execute)
     mode=$1
     if [[ $mode == --feedback-execute ]]; then

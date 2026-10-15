@@ -1,0 +1,21 @@
+# Prospective fictional provider schema diagnostic v1
+
+Files: new provider_schema_probe.py, test_provider_schema_probe.py and provider_schema_validator.mjs; additive dispatch branches in measure.sh and checks.sh. Application Root and historical controls are unchanged.
+
+Behavior: freeze exactly 12 requests, model order Root MODELS (8B then 70B), for each model labels 0,1,2, each simple then conditional. Requested tuples are (0,[toy-a]), (1,[]), (2,[toy-b]). Identical messages within each pair, fictional source strings only, no NLI task, public facts, gold, scorer, or production system prompt. Conditional parameters copy H2 root common fields plus its exact anyOf, not another encoding. Both models and native simple schema remain Root defaults.
+
+Hypothesis: H2 partial arguments may arise from conditional interpretation/generation rather than public facts. This bounded probe cannot prove a provider mechanism or NLI validity. No schema search, repeats, retries, adoption, or production metric optimization.
+
+New primary target schema_contract_violations is a count 0..12, lower is better. This first run establishes its own diagnostic baseline, not improvement over historical fallback counts or answer performance. Every response is independently checked against its actual full declared schema using installed Pi 1.1.0 TypeBox Compile. Exactly one submit call with strict JSON object arguments is required. Schema violations are measured outcomes, not check failures. Separately report per-model/arm counts, missing fields, truncation, schema-valid exact-copy mismatches, known provider input/output usage and wall time.
+
+Limits: 12 POSTs, 32768 token total, per-request reserve 1256 (conservative input estimate <=1000 and output <=256), phase 900 seconds, call 60 seconds, socket 45 seconds, response 2MB. Stop on unknown/inconsistent usage, non-200, timeout, storage uncertainty or budget failure. Permanent inflight/STOP fences and exclusive job creation prohibit resume. Zero redirects/discovery/retries/prefix reuse. Default origin and read-only default credentials only at execute time, no environment override or header logging.
+
+Falsification/checks: fictional fake HTTP tests, independent TypeBox tests, identical paired messages and exact schema common fields, strict parser, permanent fences, recomputed capture digests and secondary counters, source mutation refusal; Root format regressions in contract venv with ResourceWarning errors and pinned Pi/subagents. No API call in preparation/checks. Prepare only after tests pass; protocol pins Root runner/transport/model source, helper/tests/validator, entrypoints and installed validator code. Protocol SHA is reported separately after freezing. Readiness is not a measurement. Checks require all 12 immutable captures and known usage but do not require zero violations.
+
+## Offline verification
+
+The probe's53 fictional tests pass using contract-venv Python with ResourceWarning errors. Response model identity and absence of API errors are checked before scoring, with fictional regression tests. Both shell entrypoints pass bash -n and git diff --check passes. Application Root has no changes. Its restored161-test suite already passed at the end of the preceding iteration.
+
+A supplementary guarded Root run reached127 passes and2 specified historical exclusions before its fixture-dependent test_c_freeze_same_source_and_only_parent_model was blocked by the fiction-only read guard. This is an isolation refusal, not an observed application assertion defect. The parent declined to relax the read boundary or alter that existing test. That unrelated historical-data test is not part of this new diagnostic's backpressure. All new probe tests must pass before preparation; measurement checks independently replay every capture without network.
+
+Boundary incident: an early overly broad rg command under track_2a accidentally emitted existing train_gold.jsonl excerpts before the search was narrowed to explicit source files. They were not used in fixtures, requests, scoring, or implementation. No further gold/public/old-response reading was intentional. This incident must be disclosed to the parent, not hidden by a readiness claim.

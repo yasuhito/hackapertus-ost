@@ -1,6 +1,8 @@
-# Current: approved fixed-feedback research H1
+# Current: feedback research completed without improvement
 
-Owner-authorized new scope: test the existing generic model-visible SUPPORTING_SPAN_REQUIRED fix with unchanged v5 against the five saved ORIGINAL v5 PUBLIC60 repeats. PUBLIC60 is exposed DEVELOPMENT, not independent validation. Primary `format_fallbacks` across300 answers; keep only below7 with preregistered Q/F1/evidence/usage/source safeguards. No wording tuning, new candidate source changes or v16 retry. Offline preparation complete; no new model Q yet. See `.auto/feedback-research-setup.md` for frozen controls, tests and parent-only reference/candidate commands. Historical comparisons below remain unchanged.
+H1 precise feedback produced10 vs7 historical v5 fallbacks and failed the Q safeguard. H2 formal native conditional produced300 fallbacks and failed all safeguards; its source changes were reverted. Both five-repeat batches completed with known usage and unchanged official grading. PUBLIC60 remains exposed DEVELOPMENT. See `.auto/feedback-research-results.md` for full metrics and aggregate structural diagnosis. The independently correct H1 error-classification fix remains; no measured reliability benefit is established. Do not retry either hypothesis, vary wording/schema spelling, change caps, substitute child recommendations, or relax safeguards. No authorized distinct useful hypothesis remains. Historical entries below describe their original measurement dates, not the current status.
+
+- Deferred, requiring separate authorization: investigate provider schema compatibility with fictional inputs before any new benchmark. H2 parent submits had440 label-only and60 IDs-only objects, plus55 truncated JSON responses; child305 submits contained both keys. Zero HTTP errors did not imply contract compliance. A real provider-level test must check returned arguments against the declared complete schema, not merely assert request projection or HTTP200. Do not tune another encoding on exposed PUBLIC60 answers.
 
 # After v16 research retention: final-validation boundary
 

@@ -11,7 +11,11 @@ import subprocess
 import sys
 context = json.loads(Path('.auto/check-context.json').read_text())
 mode, candidate = context['mode'], context['candidate']
-if mode in ('train_baseline', 'train_candidate'):
+if mode == 'provider_schema_probe':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_probe.py', '--check'], check=True)
+elif mode == 'provider_schema_probe_recovered':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_probe_recovery.py', '--check'], check=True)
+elif mode in ('train_baseline', 'train_candidate'):
     import sys
     sys.path.insert(0, '.auto')
     selected_round = context.get('round', '')
@@ -28,6 +32,10 @@ if mode in ('train_baseline', 'train_candidate'):
         assert candidate in train.VERSIONS and type(context.get('attempt')) is int and context['attempt'] in (1, 2, 3), 'TRAIN_SELECTOR_MISSING'
         command = ['/tmp/ost-official-evaluator-3U4yO9/env/bin/python', '-B', '.auto/train_results.py', '--candidate', candidate, '--attempt', str(context['attempt']), '--check']
     subprocess.run(command, check=True)
+elif mode == 'feedback_h2_g2_candidate':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/feedback_research_h2_g2.py', '--check'], check=True)
+elif mode == 'feedback_h2_candidate':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/feedback_research_h2.py', '--check'], check=True)
 elif mode in ('feedback_reference', 'feedback_candidate'):
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/feedback_research.py', '--check'], check=True)
 elif mode in ('public_continue_baseline', 'public_continue_candidate'):
