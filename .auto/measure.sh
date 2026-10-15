@@ -3,6 +3,14 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+  --role-review-prepare|--role-review-baseline|--role-review-candidate)
+    [[ $# == 1 ]] || exit 2
+    case "$1" in
+      --role-review-prepare) phase=--prepare-only ;;
+      --role-review-baseline) phase=--baseline ;;
+      --role-review-candidate) phase=--candidate ;;
+    esac
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B -Werror::ResourceWarning "$(dirname -- "${BASH_SOURCE[0]}")/role_review_research.py" "$phase" ;;
   --fullbranch-prepare|--fullbranch-reference|--fullbranch-execute)
     [[ $# == 1 ]] || exit 2
     case "$1" in

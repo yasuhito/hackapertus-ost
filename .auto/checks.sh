@@ -11,7 +11,9 @@ import subprocess
 import sys
 context = json.loads(Path('.auto/check-context.json').read_text())
 mode, candidate = context['mode'], context['candidate']
-if mode in ('fullbranch_reference', 'fullbranch_candidate'):
+if mode == 'role_review':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/role_review_research.py', '--check-context'], check=True)
+elif mode in ('fullbranch_reference', 'fullbranch_candidate'):
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/fullbranch_public60.py', '--check'], check=True)
 elif mode == 'provider_schema_edge':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_edge_probe.py', '--check'], check=True)
