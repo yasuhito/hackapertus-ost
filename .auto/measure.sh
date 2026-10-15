@@ -3,6 +3,12 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+  --provider-schema-edge-prepare)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_edge_probe.py" --prepare ;;
+  --provider-schema-edge)
+    [[ $# == 1 ]] || exit 2
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_edge_probe.py" --execute ;;
   --provider-schema-branch-closure-prepare)
     [[ $# == 1 ]] || exit 2
     exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/provider_schema_branch_closure.py" --prepare ;;

@@ -11,7 +11,9 @@ import subprocess
 import sys
 context = json.loads(Path('.auto/check-context.json').read_text())
 mode, candidate = context['mode'], context['candidate']
-if mode == 'provider_schema_branch_closure':
+if mode == 'provider_schema_edge':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_edge_probe.py', '--check'], check=True)
+elif mode == 'provider_schema_branch_closure':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_branch_closure.py', '--check'], check=True)
 elif mode == 'provider_schema_probe':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '.auto/provider_schema_probe.py', '--check'], check=True)
