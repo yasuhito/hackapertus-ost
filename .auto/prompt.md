@@ -1,5 +1,11 @@
 # Autoresearch: generic submit-repair feedback
 
+## Current user-approved HTTP500 policy
+
+The user approved bounded HTTP500 retries for future runs. Use the separate retry-aware provider driver and its fresh protocol, documented in `.auto/provider-schema-empty-retry-plan.md`. The user subsequently set maximum5 total attempts per logical request (initial attempt plus4 retries), with2s/4s/8s/16s waits; only HTTP500 is retryable. Preserve each attempt and enforce the60s total logical deadline, phase and charged-budget limits. Failed-attempt usage stays unknown, with conservative reservations kept separate from measured token subtotals. This does not relax successful-response validation or retry other HTTP/transport/usage errors.
+
+The retry driver has offline regression coverage, including fifth-attempt success and exhaustion without a sixth attempt; no live retry run has been executed or prepared. Future entrypoints are `bash .auto/measure.sh --provider-schema-empty-retry-prepare` and `bash .auto/measure.sh --provider-schema-empty-retry`. Freeze the new protocol before execution. Existing stopped jobs, prefixes, controls and no-retry entrypoints remain unchanged. Historical no-retry clauses below continue to describe their original frozen protocols; they are not the policy for this new retry-aware driver. No production or PUBLIC60 changes are authorized by the retry policy alone.
+
 ## Completed experiment boundary
 
 H1 and H2 each completed five live repeats and FAILED. H1 had10 vs7 original fallbacks and meanQ below its fixed safeguard. H2 had300 fallbacks/zero accepted, F1A/F1B .16666666666666666 and HitA0. H2 was reverted; the independently correct H1 diagnostic fix remains without a measured reliability claim. See `.auto/feedback-research-results.md`.
