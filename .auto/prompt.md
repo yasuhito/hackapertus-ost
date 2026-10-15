@@ -1,93 +1,41 @@
-# Approved one-candidate Task A/B SYSTEM-order round: v16
+# Autoresearch: generic submit-repair feedback
 
-User explicitly approved Task A/B-specific instruction order, one candidate,
-TRAIN36 cases x5 repeats x1 config, fixed scoring, stop before final validation.
+## Objective and approved scope
 
-## Frozen hypothesis and implementation
+Owner approved the generic missing-support feedback fix and now requested autoresearch to test it. Reduce answer-format fallbacks of unchanged v5 using the precise, source-contract feedback already tested. This is NOT a retry of rejected v16. Keep v5 SYSTEM, models, source extraction, labels, IDs, assembly acceptance, role structure, completion/request caps, cases, expected labels, and original official scorer unchanged.
 
-Task A uses unchanged v15 SYSTEM SHA b2027887d2c9de4507d2ee8b2cb231cae3d4b63a6b55e353bfe3fcef80d9f6c3.
-Task B uses unchanged v5 SYSTEM SHA 06c89db1756d54d04cc5f1650b855acda2e2986d4c0c84943d2e54866383313c.
-Only existing structured input type booklet/reference and its derived taskA/B
-select the order. No case IDs, claims, source dates, labels, gold, examples or
-TEST feedback select prompts. This TRAIN-adaptive hypothesis uses observed v15
-A improvement/B regression and independently meaningful document/reference
-input differences; it is not unseen-performance evidence or an independent
-post-selection confirmation.
+PUBLIC60 has already been evaluated and its failure logs inspected. Treat it as an exposed DEVELOPMENT benchmark, never unseen validation or evidence of competition holdout performance. Do not inspect gold to choose changes, add case-specific rules, alter references/thresholds after results, omit failures, or rerun a completed candidate to seek favorable noise.
 
-v16-system.txt is a canonical JSON artifact containing the two SYSTEM strings,
-SHA d61868e705aacb3fc69e09485ce9b0f215d3f90a672605638380fecf8aa25ec0.
-Models never receive that JSON bundle. A small wrapper in isolated copied
-predict.py replaces messages[0].content with the exact selected string; all
-messages[1:], pages, IDs, schema/reminder/rolemodel/caps/temp stay unchanged.
-Adopted application predict.py remains v5. No parent/child/tool restructuring.
+Initial hypothesis H1: correct model-visible SUPPORTING_SPAN_REQUIRED feedback reduces final format failures without worsening classification or evidence. Freeze the existing tested fix before inference. Additional hypotheses require a demonstrable generic source-contract defect reproduced with fictional tests; do not vary wording speculatively or tune on validation answers. Stop rather than fabricate another iteration if no authorized useful hypothesis remains; zero fallbacks is the primary floor.
 
-Freeze control output/cscs/train-route-protocol.json SHA
-e9c38425ff68adeb45e124da921306cc95f3e5fe8ea1546593acf37897396bbb
-pins bundle/source artifacts, wrapper and generated source, controls, runtime,
-evaluator, split, reference records and PDFs before all trials. Historical
-v14/v15 controls are preserved unchanged; replay those from their own code
-checkpoint, not this revised control code. Never overwrite/de-fence old jobs.
+## Workload and metrics
 
-## Target and setup
+Same immutable 30 source rows, paired A/B PUBLIC60 inputs, five complete repeats. Completion bundle output/validation/v16-public-v2-completion and existing case/gold/PDF/source hashes must remain unchanged. All 60 actual canonical outputs, including legal neutral fallbacks, are officially graded without omission, relabeling or synthetic penalties.
 
-Same train_Q_gain_v5 target/workload as preceding TRAIN round, higher better;
-do NOT initialize again. Saved reference trainQ.8275862068965517, F1A.666667,
-B1, HitA.50. Read-only reference checkpoint may use historical known TRAIN
-usage metrics, but TRAIN-only command duration was never measured for saved54
-jobs: mark it unavailable, not a measured zero. No baseline inference/grading.
+Primary: format_fallbacks, lower is better, total final decoder fallbacks across all 300 answers.
 
-Canonical run_experiment commands:
-- bash .auto/measure.sh --route-baseline, timeout180/checks180; log0 keep as
-  read-only source/control checkpoint, not a new prompt inference.
-- bash .auto/measure.sh --route-execute-approved v16 --attempt 1,
-  timeout7200/checks_timeout180; always log the completed experiment cycle.
+Reference: the five actually completed ORIGINAL v5 repeats from approved PUBLIC60 continuation, including original r1 exactly once. Known total fallbacks 7, accepted293/300, Q .8051187036988255, noise .0021732024568427814, mean HitA .30. A read-only verified reference checkpoint may import these measured observations; mark command duration as import time, not inference time. Reference API usage941 calls/8950166 tokens is historical observation, not new candidate cost. Do not generate the reference again merely to chase a cleaner baseline.
 
-New approved window start2026-10-14T16:04:15+09:00, candidate/attempt cutoff
-17:34:15 (+90min), softfinish18:04:15 (+120min), Asia/Tokyo. No autonomous
-extension. Finish already-started five-repeat batches. Startup and first POST
-gate the actual clock. Current maxIterations7 covers prior3 records plus this
-reference checkpoint and at most3 v16 attempts; unused slots do not authorize
-other candidates.
+Candidate: five NEW exclusive jobs using fixed v5 feedback. No automatic model retries or prefix reuse. Finish collection after decoder failures; abort/fence transport errors, unknown usage, budget/deadline failure or storage uncertainty. Preserve failed identities permanently.
 
-## Same acceptance and transport rules
+Backpressure preregistered BEFORE new candidate inference: full 60 canonical answers per repeat, correct IDs and original assembly schema; all usage known and source/runtime/protocol unchanged; each repeat F1A>=.60 and F1B>=.75; mean Q >= original reference Q minus its measured conservative noise; mean HitA >= .30. These are safeguards for a FORMAT-reliability objective, not the old instruction-order gain>=.02 gate. Do not reinterpret the earlier v16 failure as passing. Allow nonzero candidate fallbacks to be measured honestly; keep/discard depends on primary improvement only after safeguards pass. Report all classification, evidence, validity, per-repeat fallbacks, API calls, token usage and latency regressions.
 
-Primary gain>=.02 AND >conservative TRAIN noise.017051043674621427; eachrepeat
-F1A>=.60/B>=.75; canonical36/36/fallback0; meanHitA>=.50. Strict gain>=noise+.02
-is supplementary. Same original official evaluator, references, sourcegroups,
-20k bootstrap/seed20261016. No TEST grading/individual outputs/protectedholdout.
-Evidence surrogate is at frozen attainable TRAIN ceiling6/12, so preservation
-is not an evidence improvement. Report all secondary regressions/usage/latency.
+No significance claim from a small count change. No favorable-repeat selection. Keep means research retention, not independent confirmation or deployment.
 
-Previously approved operational504 policy remains: only incomplete HTTP504,
-wait60sec then fresh entire36x5batch attempt2/3 (maximum2 additional), exactsame
-artifacts/conditions, no prefix reuse or fence deletion. Log each crash and
-unknown failed-request usage, link retries using ASI.revisits_run. Other errors,
-orphanstates, exhausted retries or cutoff stop. No completed quality retry or
-favorable repeat selection. Failed attempts are excluded from successful-batch
-usage; those metrics are not total session cost. Repair-window usage is subset,
-not additive role or proof of decoded schema-repair reason.
+## Execution
 
-## Logging and completion
+Use separate feedback-research controller/protocol, measure.sh entry points, and check-context modes. Reuse original Strategy-C SDK/ledger/assembler and official grader. Freeze both the historical-reference binding and new source/runtime/input/feedback before candidate inference. Do not rewrite old controllers, archived workspaces, jobs, phases, STOP/inflight records or controls.
 
-Record parsed primary and all tracked secondaries. Historical reference import
-must label historical candidate-named values as reference observations, not new
-candidate measurements; unknown command duration uses an explicit unavailable
-sentinel if the numeric logger requires it. On incomplete crashes, numeric
-sentinels are unavailable values, never zero measured usage/quality.
+Required runtimes: /tmp/hackapertus-ost-contract/.venv/bin/python; Pi1.1.0 SDK and child0.19.0 as in existing controllers; official evaluator commit5e6957729b77a126006049305ad1ef241211a5b4 under /tmp/ost-official-evaluator-3U4yO9. Parent70B/child8B, temperature0, output256, parent<=3/child<=2, repair1, request60sec/socket45sec/case300sec, 300 POST/job and declared reservation budget78720000, input byte guard240000 with native token usage checks unchanged. Each five-job phase has actual90minute budget with existing bounded in-progress case allowance.
 
-Completed gain/validity/F1/evidence gate failure =>checks_failed. Checks passing
-and primary improves retained TRAIN best =>keep for research only; otherwise
-discard. Keep NEVER edits adopted app or means final validation/adoption.
+Use run_experiment via mandatory .auto/measure.sh and immediately log_experiment with parsed exact primary/secondary metrics and ASI. Initialize format_fallbacks once because objective changed from classification gain; never import unavailable crash-zero observations as references. Failed/unknown metrics use explicit unavailable sentinels and explanations, never fabricated success. Protect the already owner-approved engineering fix and unrelated changes via the measured-reference checkpoint before candidate runs, because failed log operations revert non-.auto changes.
 
-Stop after the one candidate completes, even if it improves. No final validation,
-new hypothesis, sibling modification, push or deployment. A genuinely unused,
-independently labeled validation set needs owner-provided provenance/separate
-preparation approval before any later confirmation. `.auto/ideas.md` stores
-only deferred directions, not permissions.
+## Files in scope
 
-Offline route/controls suite64 passed under pinned runtime; relevant combined
-suite168passed/2skipped, syntax/ShellCheck/diffcheck pass. Reviewer found no
-routing defects. Its unpinned SDK tests failed; rerunning with required Pi1.1.0
-and child0.19.0 roots passed both realSDK mocks. Offline five-workspace36case
-preparation passed exact per-task SYSTEM/input/pages/IDs/schema/source audits
-with zero model calls, credentials or jobs. No new inference yet.
+Current generic implementation track_2a/dev/format/run_comparison.py and fictional regression tests. H1 uses its current approved patch without further wording changes. New .auto feedback-research controller/tests/report/dispatcher branches and this playbook. Historical prompt/playbook copies are in .auto/protocol-archive.
+
+No changes to production v5 SYSTEM, source_spans.py, submission.py, predict.py, official grader or evaluator, SDK package files, existing role definitions, candidate tools or source schemas, data fixtures, old protocols and outputs. No gold-based repairs. No private competition set access, push, merge or deployment.
+
+## Existing evidence
+
+Diagnosis across1884 model responses: no malformed JSON, no truncated completions. Final19 failures ended with missing supporting IDs; four duplicate-ID violations occurred earlier. Generic INVALID_TOOL_JSON feedback hid the actual validation reason. Current patch forwards only strict label0/2 with empty IDs to the existing submit handler, which still rejects and returns precise fixed feedback. All other strict rejection gates remain. 162 tests passed/2skipped; 19 cached failures remain failures with the same response bodies. Real model benefit has not yet been measured. Do not claim fictional provider repair success as real model evidence.

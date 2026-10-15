@@ -3,6 +3,16 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+  --feedback-prepare|--feedback-reference|--feedback-execute)
+    mode=$1
+    if [[ $mode == --feedback-execute ]]; then
+      [[ $# == 2 && $2 == h1 ]] || exit 2
+      phase=--candidate
+    else
+      [[ $# == 1 ]] || exit 2
+      if [[ $mode == --feedback-prepare ]]; then phase=--prepare-only; else phase=--reference; fi
+    fi
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B "$(dirname -- "${BASH_SOURCE[0]}")/feedback_research.py" "$phase" --approved-at "$(date +%s)" ;;
   --public-continue-baseline|--public-continue-candidate)
     mode=$1
     if [[ $mode == --public-continue-baseline ]]; then

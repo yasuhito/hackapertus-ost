@@ -295,6 +295,34 @@ def run_a(item, model, post):
     return None, [code]
 
 
+# Only fixed protocol codes may cross the SDK bridge, never exception bodies.
+SAFE_TOOL_ERRORS = frozenset({
+    'DUPLICATE_JSON_KEY', 'NONFINITE_JSON', 'JSON_TEXT_REQUIRED',
+    'TOOL_SCHEMA', 'LABEL_SCHEMA', 'IDS_SCHEMA', 'DUPLICATE_ID', 'UNKNOWN_ID',
+    'CANONICAL_KEYS', 'CANONICAL_ID', 'METRICS_KEYS', 'METRICS_VALUE',
+    'SUBMIT_LIMIT', 'SUBAGENT_ARGUMENTS', 'DUPLICATE_SUBMIT',
+})
+SUPPORTING_SPAN_MESSAGE = (
+    'Labels 0 and 2 require supplied supporting candidate IDs. '
+    'Recheck the source judgment and cite supporting supplied IDs; '
+    'do not invent IDs or change the label only to satisfy formatting.'
+)
+
+
+def tool_error_code(exc):
+    if type(exc) is ValueError and str(exc) == 'supporting span required':
+        return 'SUPPORTING_SPAN_REQUIRED'
+    code = str(exc)
+    return code if code in SAFE_TOOL_ERRORS else 'SOURCE_OR_SCHEMA_INVALID'
+
+
+def missing_support_args(args):
+    # Forward only this strict schema-compatible failure, never coercible values.
+    return (type(args) is dict and set(args) == {'label', 'candidate_ids'}
+            and type(args['label']) is int and args['label'] in (0, 2)
+            and type(args['candidate_ids']) is list and args['candidate_ids'] == [])
+
+
 def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strategy='B'):
     """Python owns the assembler and all requests. Node receives no credentials."""
     fixed_role_model(strategy, model, 'parent')
@@ -361,18 +389,33 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strate
                             raise Stop('MALFORMED_TOOL_CALL_ALL_STOP')
                         if call['function'].get('name') == 'submit':
                             submit_calls[role] += 1
+                            if submit_calls[role] > 2:
+                                call['parsed_arguments'] = {'invalid_schema': 'SUBMIT_LIMIT'}
+                                diagnostics.append('SUBMIT_LIMIT')
+                                continue
                         try:
-                            if submit_calls[role] > 2 and call['function'].get('name') == 'submit':
-                                raise ValueError('SUBMIT_LIMIT')
                             call['parsed_arguments'] = submission.strict_json(call['function']['arguments'])
-                            # Pi's generic TypeBox validator may coerce strings. Never
-                            # let that change the strict integer tool protocol.
+                        except (ValueError, TypeError, KeyError) as exc:
+                            code = 'INVALID_TOOL_JSON' if isinstance(exc, json.JSONDecodeError) else tool_error_code(exc)
+                            call['parsed_arguments'] = {'invalid_schema': code}
+                            diagnostics.append(code)
+                            continue
+                        try:
+                            # Pi's TypeBox validator may coerce strings. Keep all
+                            # strict gates before forwarding to tool execution.
                             if call['function'].get('name') == 'submit':
                                 submission.assemble_tool(call['parsed_arguments'], item['case'], item['pages'], {'input_tokens': 0, 'output_tokens': 0, 'inference_time_ms': 0})
                             elif call['function'].get('name') == 'subagent' and call['parsed_arguments'] != {'mode': 'source_only'}:
                                 raise ValueError('SUBAGENT_ARGUMENTS')
                         except (ValueError, TypeError, KeyError) as exc:
-                            code = str(exc) if str(exc).isupper() else 'INVALID_TOOL_JSON'
+                            code = tool_error_code(exc)
+                            if (call['function'].get('name') == 'submit'
+                                    and code == 'SUPPORTING_SPAN_REQUIRED'
+                                    and missing_support_args(call['parsed_arguments'])):
+                                # Execute submit with the exact parsed args. The
+                                # assembler must reject again and deliver feedback;
+                                # count the rejection only there, not twice here.
+                                continue
                             call['parsed_arguments'] = {'invalid_schema': code}
                             diagnostics.append(code)
                     if choice['finish_reason'] == 'length':
@@ -387,9 +430,11 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strate
                             accepted = data['args']
                         result = {'ok': True, 'recommendation': data['args']}
                     except (ValueError, TypeError) as exc:
-                        code = str(exc) if str(exc).isupper() else 'SOURCE_OR_SCHEMA_INVALID'
+                        code = tool_error_code(exc)
                         diagnostics.append(code)
                         result = {'ok': False, 'error': code}
+                        if code == 'SUPPORTING_SPAN_REQUIRED':
+                            result['message'] = SUPPORTING_SPAN_MESSAGE
                 else:
                     raise Stop('BRIDGE_KIND_REFUSED')
                 send({'sequence': message['sequence'], 'result': result})
