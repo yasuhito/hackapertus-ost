@@ -290,46 +290,135 @@ def claim_kind(claim):
     return 'other'
 
 
-SECTION_MARKERS = (
-    ('votetext', r'(?:abstimmungstext|texte soumis au vote|testo in votazione)\b'),
-    ('committee', r'\b(?:argumente|arguments|argomenti)\b[^.]{0,40}?\b(?:komitee|komitees|comite|comitato)\b'),
-    ('council', r'\b(?:argumente|arguments|argomenti)\b[^.]{0,40}?\b(?:bundesrat und parlament|conseil federal et parlement|consiglio federale e parlamento)\b'),
-    ('detail', r'(?:im detail|en detail|in dettaglio)\b'),
+SECTION_HEADINGS = (
+    # Order matters only for ties; the earliest heading in the page body wins.
+    ('votetext', r'(?:abstimmungstext|texte soumis au vote|testo in votazione|il testo in votazione)'),
+    ('committee', r'(?:argumente|arguments|argomenti)[^\n]{0,60}?(?:komitee|comite|comitato)'),
+    ('council', r'(?:argumente|arguments|argomenti)[^\n]{0,60}?(?:bundesrat und parlament|conseil federal et (?:du )?parlement|consiglio federale e (?:del )?parlamento)'),
+    ('detail', r'(?:im detail|en detail|in dettaglio|vorlage im detail|l.objet en detail|l.oggetto in dettaglio)'),
 )
 SPEAKER_LINES = (
-    ('committee', r'(?:das |le |il )?(?:(?:initiativ|referendums)?komitee|comite(?: referendaire| d.initiative)?|comitato(?: referendario| d.iniziativa)?)'),
+    ('committee', r'(?:das |le |il |gli )?(?:(?:initiativ|referendums)?komitee|comite(?: referendaire| d.initiative)?|comitato(?: referendario| d.iniziativa)?)'),
     ('council', r'(?:bundesrat und parlament|conseil federal et parlement|consiglio federale e parlamento)'),
 )
+TOC_LINE = re.compile(r'^\s*\S[^\n]{0,80}?\s\d{1,2}(?:\s\d)?\s*$')
 LAW_SIGN = re.compile(r'^\s*\d*\s*§')
+
+
+def heading_lines(text, limit=12):
+    """Normalized first lines of a page without its running header and mini contents.
+
+    Every even page repeats the vote title; many section openings also carry a
+    small table of contents whose lines end in page numbers. Both are dropped so
+    the first real heading decides the section.
+    """
+    lines = [normalize(line) for line in text.splitlines()[:limit]]
+    body = []
+    for i, line in enumerate(lines):
+        if not line:
+            continue
+        if i == 0 and re.match(r'^\d{1,3}\b', line):
+            continue
+        if TOC_LINE.match(line):
+            continue
+        body.append(line)
+    return body
+
+
+TOC_ENTRY = re.compile(r'^(?P<label>.*?\S)\s+(?P<num>\d{1,3}(?:\s\d)?)\s*$')
+TOC_LABELS = (
+    ('committee', r'(?:argumente|arguments|argomenti).*(?:komitee|comite|comitato)'),
+    ('council', r'(?:argumente|arguments|argomenti).*(?:bundesrat und parlament|conseil federal et du parlement|consiglio federale e del parlamento)'),
+    ('council', r'^(?:et du parlement|e del parlamento)$'),
+    ('votetext', r'^(?:abstimmungstext|texte soumis au vote|(?:il )?testo in votazione)$'),
+)
+
+
+def printed_number(text):
+    """Printed page number at the top of a page, or None."""
+    m = re.match(r'\s*(\d{1,3})(?:\s|$)', text)
+    return int(m.group(1)) if m else None
+
+
+def toc_sections(pages, selected):
+    """Section starts read from the mini table of contents that opens a vote's detail part.
+
+    Returns {label: physical page index} for committee / council / vote text.
+    Printed numbers are mapped to physical pages through the numbers printed on
+    the pages themselves, so booklets whose headings are not extractable still
+    get their argument pages labelled.
+    """
+    printed = {}
+    for i in selected:
+        n = printed_number(pages[i])
+        if n is not None and n not in printed:
+            printed[n] = i
+    if not printed:
+        return {}
+    for position, i in enumerate(sorted(set(selected))):
+        if position < 2:
+            continue
+        lines = [normalize(line) for line in pages[i].splitlines()[:16] if line.strip()]
+        starts = {}
+        pending = None
+        for line in lines:
+            m = TOC_ENTRY.match(line)
+            if not m:
+                pending = line
+                continue
+            label_text = m.group('label')
+            number = int(m.group('num').replace(' ', ''))
+            found = None
+            for label, pattern in TOC_LABELS:
+                if re.search(pattern, label_text):
+                    found = label
+                    break
+            if found is None and pending and re.search(r'(?:argumente|arguments|argomenti)', pending):
+                found = 'council' if re.search(r'(?:bundesrat|conseil|consiglio)', pending + ' ' + label_text) else None
+            if found is None and re.fullmatch(r'\d{1,3}(?:\s\d)?', line):
+                found = None
+            if found and found not in starts and number in printed:
+                starts[found] = printed[number]
+            pending = label_text
+        if starts:
+            return starts
+    return {}
 
 
 def page_sections(pages, selected):
     """Section label per selected page (0-based index -> label).
 
     The first two selected pages are the vote's opening spread ('overview').
-    Later pages take the section of the last marker in their first lines (a
-    page's mini table of contents precedes its own heading), a standalone
-    speaker line marks argument pages, and pages without any marker inherit
-    the previous page's section. Law text is recognised by its paragraph sign.
+    A later page takes the section of the first heading in its body (running
+    header and page-local contents lines removed), a standalone speaker line
+    marks argument pages, law text is recognised by its paragraph sign, and a
+    page without any marker inherits the previous page's section.
     """
     labels = {}
     current = 'detail'
+    starts = toc_sections(pages, selected)
+    by_start = {i: label for label, i in starts.items()}
     for position, page in enumerate(sorted(set(selected))):
         text = pages[page]
         if position < 2:
             labels[page] = 'overview'
             continue
-        head = normalize(text[:400])
-        found, best = None, -1
-        for label, pattern in SECTION_MARKERS:
-            for m in re.finditer(pattern, head):
-                if m.start() >= best:
-                    best, found = m.start(), label
-        for line in text[:400].splitlines():
-            normal = normalize(line)
+        found = by_start.get(page)
+        for line in heading_lines(text) if found is None else []:
             for label, pattern in SPEAKER_LINES:
-                if re.fullmatch(pattern, normal):
+                if re.fullmatch(pattern, line):
                     found = label
+                    break
+            if found:
+                break
+            hit = None
+            for label, pattern in SECTION_HEADINGS:
+                m = re.search(pattern, line)
+                if m and (hit is None or m.start() < hit[0]):
+                    hit = (m.start(), label)
+            if hit:
+                found = hit[1]
+                break
         if found is None and LAW_SIGN.match(text):
             found = 'votetext'
         if found:

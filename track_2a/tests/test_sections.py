@@ -63,3 +63,23 @@ def test_paragraph_context_without_prior_is_unchanged_api():
     reduced, meta = ds.paragraph_context(pages, list(range(2, 12)), "Laut dem Abstimmungstext beträgt die Abgabe 2 Prozent.", 2, section_prior=True)
     assert 12 in meta["kept_pages"] or 11 in meta["kept_pages"]
     assert all(text == "" or any(part in pages[i] for part in text.split("\n\n\n")) for i, text in enumerate(reduced))
+
+
+def test_toc_sections_map_printed_numbers_to_physical_pages():
+    pages = ("Umschlag", "3 Inhalt",
+             "8 Dritte Vorlage: Alpha In Kürze.", "9 Frage.",
+             "32 Dritte Vorlage: Alpha Im Detail\nArgumente Initiativkomitee 3 6\nArgumente Bundesrat und Parlament 3 8\nAbstimmungstext 4 0\nAusgangslage.",
+             "33 Fortsetzung.", "34 Dritte Vorlage: Alpha Weiter.", "35",
+             "36 Dritte Vorlage: Alpha\nText ohne Kopfzeile des Komitees.", "37 Fortsetzung.",
+             "38 Dritte Vorlage: Alpha\nText ohne Kopfzeile von Bundesrat und Parlament.", "39 Fortsetzung.",
+             "40 Dritte Vorlage: Alpha Abstimmungstext Bundesbeschluss", "41 Art. 2")
+    selected = [2, 3] + list(range(4, 14))
+    assert {k: v + 1 for k, v in ds.toc_sections(pages, selected).items()} == {"committee": 9, "council": 11, "votetext": 13}
+    labels = ds.page_sections(pages, selected)
+    assert [labels[i] for i in selected] == ["overview", "overview", "detail", "detail", "detail", "detail",
+                                            "committee", "committee", "council", "council", "votetext", "votetext"]
+
+
+def test_heading_lines_drop_running_header_and_contents():
+    text = "36 Dritte Vorlage: Alpha\nArgumente Initiativkomitee 1 4\nAbstimmungstext 1 8\nArgumente Initiativkomitee\nJa, folgende Frage."
+    assert ds.heading_lines(text)[0] == "argumente initiativkomitee"
