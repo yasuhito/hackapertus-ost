@@ -1,75 +1,80 @@
-# Hack Apertus Track 2A — OST
+# Hack Apertus Track 2A, OST: multilingual NLI over Swiss voting booklets
 
-Multilingual NLI over Swiss voting booklets. Deadline: **2026-10-16**.
-Original track requirements remain in `track_2a/README.md`; report in
-`track_2a/technical_report.md`. Private repository: `yasuhito/hackapertus-ost`. No submission has been made.
+Team yasuhito (Yasuhito Takamiya). Repository: https://github.com/yasuhito/hackapertus-ost.
+Technical report: `report/main-en.pdf` (English, 6 pages plus references) and
+`report/main.pdf` (Japanese); Markdown summary in `track_2a/technical_report.md`.
+Development log and measurements: `STATUS.md`, `docs/single-call-results-2026-10-16.md`.
+
+## What the submitted pipeline does
+
+One native tool call per case through Apertus v1.5 only (`BASE_URL` and `API_KEY`
+injected at runtime). Booklet cases (Task A) go to `swiss-ai/Apertus-v1.5-70B`,
+reference cases (Task B) to `swiss-ai/Apertus-v1.5-8B`.
+
+1. pypdf extracts pages; the vote's pages are found by the printed running headers
+   (`Erste Vorlage`, `Premier objet`, `Primo oggetto`).
+2. Those pages are split into paragraphs of 200 to 700 characters. A cross-language
+   claim is first translated into the booklet language by Apertus 8B (one short call,
+   counted in the case's tokens). Paragraphs are ranked by rank fusion of BM25 over
+   the translation, character 4-gram BM25, a local static multilingual embedding
+   (model2vec potion-multilingual-128M, int8, baked into the image at build time)
+   and a section prior derived from the claim's attributive opening (summary,
+   committee, Federal Council and Parliament, vote text).
+3. The top 8 paragraphs plus their neighbours are sent as verbatim regions. The model
+   answers with the `submit` tool: label plus IDs of supplied source spans.
+4. A non-neutral answer without a cited span is repaired once; if still unsupported,
+   the case is re-run once on all vote pages. Evidence is restored verbatim from the
+   PDF text and padded with the regions most related to the claim (at most five).
+
+Measured on three exposed 60-case public sets through this exact runtime: Task A
+macro-F1 0.910, Task B macro-F1 0.922, Task A Hit@5 0.808, about 7,100 tokens and
+4.0 s per case. The official held-out score is unknown. Details in the report.
 
 ## Run from a clean checkout
 
-Docker is the only host dependency. The default is an explicit **mock smoke run**
-with bundled example cases: no credentials, GPU, weights or API calls needed.
+Docker is the only host dependency. The image is CPU-only linux/amd64 and downloads
+nothing at runtime (Pi 1.1.0 and the embedding weights are installed at build time).
 
 ```sh
-make run
-# output/predictions.jsonl
-```
-
-For judge-supplied cases/PDFs:
-
-```sh
-make run INPUT_DIR=/data OUTPUT_DIR=/output BOOKLET_DIR=/path/to/booklets \
-  LLM_BACKEND=openai
+make run INPUT_DIR=/path/to/input OUTPUT_DIR=/path/to/output BOOKLET_DIR=/path/to/booklets \
+  BASE_URL=... API_KEY=...
+# writes OUTPUT_DIR/predictions.jsonl plus .diagnostics.jsonl and .evaluation.jsonl
 ```
 
 The container mounts input at `/data`, output at `/output`, PDFs at `/booklets`.
 Use booklet paths `/booklets/name.pdf`, or paths relative to the input JSONL's
-parent (e.g. `booklets/name.pdf` if PDFs are inside the input mount).
-`INPUT` and `OUTPUT` override the container filenames. Root and track Makefiles work.
+parent. `INPUT` and `OUTPUT` override the container filenames.
 
-## Entrypoint and local path
+Defaults (Makefile and `Dockerfile.agent`): `PIPELINE=R`, `CONTEXT_SELECTION=claim_paragraphs`,
+`CLAIM_SPANS=8`, escalation on. `CONTEXT_SELECTION=vote_pages` sends the vote's whole
+pages instead; `PIPELINE=C` is the earlier 70B parent plus 8B child configuration;
+`ESCALATE_ON_FALLBACK=0` disables the full-page re-run. Budgets scale with the input
+size; a case whose requests fail yields a neutral fallback with its error recorded in
+the diagnostics sidecar, never an aborted run.
+
+## Input and output contract
+
+Task B input: `{id, vote, reference:{text,language}, claim:{text,language}}`.
+Task A input: `{id, booklet:{path,language}, vote, claim:{text,language}}`.
+Every input line produces one JSON output with ID, label, label_name, evidence
+and metrics. Mapping: **0 entailment, 1 neutral, 2 contradiction**.
+Task A evidence for labels 0 and 2 is a nonempty exact original-language substring of
+the claimed physical 1-based PDF page, at most 5000 characters per item; at most five
+items are returned. Task B evidence uses `page: null`. Malformed input or model output,
+missing PDFs and API failures produce schema-valid neutral placeholders with an
+`error` diagnostic.
+
+## Local development
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install -r track_2a/requirements.txt
-.venv/bin/python track_2a/src/predict.py \
-  --input /data/cases.jsonl --output /output/predictions.jsonl --backend mock
+.venv/bin/pip install -r track_2a/requirements.txt model2vec==0.10.0
 make test PYTHON=.venv/bin/python
-make run-local PYTHON=.venv/bin/python
 ```
 
-Beginner: `{id, vote, reference:{text,language}, claim:{text,language}}`.
-Advanced: `{id, booklet:{path,language}, vote, claim:{text,language}}`.
-Every input line produces one JSON output with ID, label, label_name, evidence
-and metrics. Mapping: **0 entailment, 1 neutral, 2 contradiction**.
-Task A evidence for 0/2 must be a nonempty exact original-language substring of
-the claimed physical 1-based PDF page, at most 5000 characters per item. Only the
-first five items are returned. Task B evidence is optional and uses `page: null`.
-Malformed input/model output, missing PDFs, non-verbatim evidence and API failures
-produce schema-valid neutral placeholders with an `error` diagnostic. These are
-**always wrong in the local scorer**, even when the gold label is neutral.
-Blank/malformed JSON lines get `invalid-line-N` IDs when no ID can be recovered.
-No silent mock fallback, retrieval or document truncation is performed.
-
-## Apertus endpoint configuration
-
-Select `LLM_BACKEND=openai` for actual inference. The CLI defaults to openai;
-`make run` defaults to mock to keep a clean-checkout smoke test safe.
-
-| Variable | Default / purpose |
-|---|---|
-| `BASE_URL` | Official proxy/development URL; overrides `LLM_BASE_URL`; default `https://api.inference.cscs.ch/v1` |
-| `LLM_MODEL` or `LLM_NAME` | `swiss-ai/apertus-v1.5-8b` |
-| `API_KEY` | Overrides `LLM_API_KEY` / `PUBLICAI_API_KEY`; required for CSCS/Public AI, optional for local vLLM |
-| `LLM_USER_AGENT` | `HackApertus-OST/1.0 (Track-2A)` |
-| `LLM_TIMEOUT` | 180 seconds |
-| `LLM_MAX_OUTPUT_TOKENS` | 2048 |
-
-The 70B alternative is `swiss-ai/apertus-v1.5-70b`. For an already running local
-vLLM server set `BASE_URL=http://localhost:8000/v1` and `LLM_MODEL` to its
-served Apertus model name. Inside Docker, localhost is the container: use a
-reachable host/network address instead. Serving model weights is external to this
-CPU client image; GPU/VRAM needs depend on serving configuration.
-No live endpoint was called in development. Keys are never included in git.
+The development harness pins Pi 1.1.0 (`track_2a/dev/format/package-lock.json`); see
+`track_2a/dev/format/README.md`. Bundle evaluations used during development are run
+with `track_2a/dev/eval/run_bundle.py` against the official evaluator.
 
 ## Data and reproducible dev evaluation
 
