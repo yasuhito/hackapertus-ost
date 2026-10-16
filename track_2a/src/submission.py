@@ -2,7 +2,7 @@
 import json
 import math
 
-from document_selection import rank_pages, char_grams, bm25_scores
+from document_selection import rank_pages, char_grams, bm25_scores, paragraphs, page_sections, rank_paragraphs, claim_kind
 from predict import LABELS, validate_prediction
 from source_spans import candidates, restore, regions, REGION_BREAK
 
@@ -134,10 +134,32 @@ def consulted_pages(evidence, case, pages):
         return result[:MAX_EVIDENCE]
     provided = [n for n, text in enumerate(pages, 1) if text.strip() and len(text) <= MAX_EVIDENCE_CHARS]
     cited = [item['page'] for item in evidence]
-    ordered = neighbours(cited, provided) + provided[:2] + rank_pages(case['claim']['text'], pages, provided[2:])
+    # After an escalation to whole pages, pad with paragraph regions ranked the
+    # same way the reduced context was, so the gold passage the model did not
+    # cite still has a chance in the five slots; then fall back to whole pages.
+    selected = [n - 1 for n in provided]
+    paras = paragraphs(pages, selected)
+    sections = page_sections(pages, selected)
+    order = rank_paragraphs(case['claim']['text'], paras, None, None, sections, claim_kind(case['claim']['text']))
     seen = set(cited)
     extra = []
-    for n in ordered:
+    for n in neighbours(cited, provided):
+        if n not in seen:
+            seen.add(n)
+            extra.append({'page': n, 'text': pages[n - 1]})
+    for i in order:
+        if len(evidence) + len(extra) >= MAX_EVIDENCE:
+            break
+        para = paras[i]
+        if para['page'] in seen or len(para['text'].strip()) < MIN_PADDING_CHARS:
+            continue
+        lo = max(0, i - 1) if i > 0 and paras[i - 1]['page'] == para['page'] else i
+        hi = i + 1 if i + 1 < len(paras) and paras[i + 1]['page'] == para['page'] else i
+        text = pages[para['page'] - 1][paras[lo]['start']:paras[hi]['end']]
+        if len(text) <= MAX_EVIDENCE_CHARS:
+            seen.add(para['page'])
+            extra.append({'page': para['page'], 'text': text})
+    for n in provided[:2] + rank_pages(case['claim']['text'], pages, provided[2:]):
         if n not in seen:
             seen.add(n)
             extra.append({'page': n, 'text': pages[n - 1]})

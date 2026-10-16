@@ -24,8 +24,10 @@ def test_cited_page_first_then_opening_spread_then_relevance_order():
     span = next(s for s in cited if s["page"] == 7)
     result = submission.assemble_tool({"label": 0, "candidate_ids": [span["span_id"]]}, case, pages, metrics())
     assert result["label"] == 0
-    assert [item["page"] for item in result["evidence"]] == [7, 8, 6, 3, 4]
-    assert all(item["text"] == pages[item["page"] - 1] for item in result["evidence"])
+    # Cited page, its neighbours, then paragraph-ranked regions (the claim's
+    # own paragraph on page 6 scores higher than the opening spread), then pages.
+    assert [item["page"] for item in result["evidence"]] == [7, 8, 6, 3, 5]
+    assert all(item["text"] in pages[item["page"] - 1] for item in result["evidence"])
 
 
 def test_neutral_and_fallback_answers_carry_consulted_pages_without_changing_label():
