@@ -41,7 +41,8 @@ def pdf_pages(path):
 CLAIM_SPANS = int(os.getenv("CLAIM_SPANS", "8"))
 
 
-def context(case, base, selection_strategy="vote_pages"):
+def context(case, base, selection_strategy="vote_pages", translator=None):
+    """translator(claim_text, target_language) -> translation or None; used only by claim_pages."""
     if selection_strategy not in ("full", "vote_pages", "claim_spans", "claim_pages"):
         raise ValueError("invalid context strategy")
     if not isinstance(case, dict) or not isinstance(case.get("claim"), dict):
@@ -75,7 +76,11 @@ def context(case, base, selection_strategy="vote_pages"):
         if selection_strategy == "claim_spans":
             pages, _ = claim_span_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS)
         elif selection_strategy == "claim_pages":
-            pages, _ = claim_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS)
+            translation = None
+            source_language = case["booklet"].get("language")
+            if translator and source_language and case["claim"].get("language") != source_language:
+                translation = translator(case["claim"]["text"], source_language)
+            pages, _ = claim_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS, translation)
     return pages, messages_for_pages(case, pages)
 
 

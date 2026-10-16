@@ -44,12 +44,24 @@ def load_jsonl(path):
 
 def prepare(core, bundle, strategy='C', model=None, selection='vote_pages'):
     engine = core.legacy.engine()
+    translations = {}
+    cache = REPO / 'output/validation/claim-translations.json'
+    if selection == 'claim_pages' and cache.exists():
+        translations = json.loads(cache.read_text())
+    translation_tokens = [0]
+
+    def translator(text, target):
+        entry = translations.get(target + '\n' + text)
+        if not entry:
+            return None
+        translation_tokens[0] += (entry.get('prompt_tokens') or 0) + (entry.get('completion_tokens') or 0)
+        return entry['translation']
     cases = load_jsonl(bundle / 'cases.jsonl')
     frozen, oversize = [], []
     for case in cases:
         if 'booklet' in case:
             case = {**case, 'booklet': {**case['booklet'], 'path': str((bundle / 'booklets' / Path(case['booklet']['path']).name).resolve())}}
-        pages, messages = engine.context(case, bundle.resolve(), selection_strategy=selection)
+        pages, messages = engine.context(case, bundle.resolve(), selection_strategy=selection, translator=translator)
         messages[0]['content'] += '\n\n' + core.legacy.PROTOCOL_REMINDER
         size = len(core.legacy.encode(messages))
         if size > INPUT_BYTES:
@@ -65,7 +77,7 @@ def prepare(core, bundle, strategy='C', model=None, selection='vote_pages'):
             'output_limit': 256, 'temperature': 0, 'selection_strategy': selection, 'sources': sources, 'frozen': frozen}
     core.legacy.prepare = lambda: base
     manifest = core.prepare(strategy, [i['case']['id'] for i in frozen])
-    manifest.update(request_limit=REQUEST_LIMIT, token_budget=TOKEN_BUDGET)
+    manifest.update(request_limit=REQUEST_LIMIT, token_budget=TOKEN_BUDGET, translation_tokens=translation_tokens[0])
     if strategy == 'R':
         manifest['models'] = [core.MODELS[1]]
     elif strategy != 'C':
@@ -123,6 +135,7 @@ def metrics(job, summary, official, oversize, prefix='70b'):
         'physical_requests': len(physical), 'physical_non_200': sum(r.get('http_status') != 200 for r in physical),
         'known_tokens': tokens, 'all_usage_known': all(r.get('usage_known') for r in physical),
         'tokens_per_case': round(tokens / (len(cases) + oversize_count)) if cases else None,
+        'translation_tokens_cached': json.loads((job / 'manifest.json').read_text()).get('translation_tokens', 0),
         'mean_case_seconds': round(sum(c['case_wall_ms'] for c in cases) / len(cases) / 1000, 2) if cases else None,
         'wall_seconds': round(summary.get('wall_seconds', 0)),
         'diagnostics': summary['models'][next(iter(summary['models']))]['diagnostic_counts'],

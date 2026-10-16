@@ -126,8 +126,7 @@ def claim_span_pages(pages, selected, claim, spans, top_k):
     unselected pages empty. Verbatim text only; nothing is rewritten.
     """
     overview = {i + 1 for i in selected[:2]}
-    scores = bm25_scores(char_grams(claim), [char_grams(s['text']) for s in spans])
-    order = sorted(range(len(spans)), key=lambda i: (-scores[i], i))
+    order = rank_spans(claim, spans)
     keep = {}
     for i in order[:top_k]:
         keep.setdefault(spans[i]['page'], []).append(i)
@@ -142,22 +141,47 @@ def claim_span_pages(pages, selected, claim, spans, top_k):
     return tuple(result), {'kept_spans': top_k, 'kept_pages': sorted(overview | set(keep))}
 
 
-def claim_pages(pages, selected, claim, spans, top_k):
+def reciprocal_rank_fusion(*orders, k=60):
+    scores = {}
+    for order in orders:
+        for rank, i in enumerate(order):
+            scores[i] = scores.get(i, 0.0) + 1.0 / (k + rank + 1)
+    return sorted(scores, key=lambda i: (-scores[i], i))
+
+
+def rank_spans(claim, spans, translation=None):
+    """Span indices by relevance to the claim.
+
+    With a translation of the claim into the booklet language, word-level and
+    character-level BM25 on the translation are fused; this keeps the gold page
+    for 99% of public claims when whole pages with neighbours are kept. Without
+    one, character 4-grams of the original claim are used (about 95%).
+    """
+    grams = [char_grams(s['text']) for s in spans]
+
+    def order(scores):
+        return sorted(range(len(spans)), key=lambda i: (-scores[i], i))
+    if translation:
+        words_ = [tokens(s['text']) for s in spans]
+        return reciprocal_rank_fusion(order(bm25_scores(char_grams(translation), grams)),
+                                      order(bm25_scores(tokens(translation), words_)))
+    return order(bm25_scores(char_grams(claim), grams))
+
+
+def claim_pages(pages, selected, claim, spans, top_k, translation=None):
     """Keep whole pages: the opening spread, the pages holding the top-k spans, and their neighbours.
 
     Whole pages preserve the surrounding conditions that a 1200-char span can
-    cut off. On the public rows this keeps the gold page for 97% of claims at
-    about two thirds of the vote's text.
+    cut off. `translation` is the claim in the booklet language, if available.
     """
     provided = {i + 1 for i in selected}
     overview = {i + 1 for i in selected[:2]}
-    scores = bm25_scores(char_grams(claim), [char_grams(s['text']) for s in spans])
-    order = sorted(range(len(spans)), key=lambda i: (-scores[i], i))
+    order = rank_spans(claim, spans, translation)
     keep = set(overview)
     for i in order[:top_k]:
         page = spans[i]['page']
         keep.update(n for n in (page - 1, page, page + 1) if n in provided)
-    return tuple(text if number in keep else '' for number, text in enumerate(pages, 1)), {'kept_pages': sorted(keep)}
+    return tuple(text if number in keep else '' for number, text in enumerate(pages, 1)), {'kept_pages': sorted(keep), 'translated': bool(translation)}
 
 
 def rank_pages(claim, pages, page_numbers):
