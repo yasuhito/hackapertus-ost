@@ -1,6 +1,12 @@
 # Status — deadline 2026-10-16
 
-## 2026-10-16 16:00 JST baseline: paragraph context + escalation on strategy R
+## 2026-10-16 18:00 JST baseline: paragraph context + section prior + escalation on strategy R
+- Section prior (commit f3e7661): the claim's attributive opening (summary / committee / council /
+  vote text / if adopted) selects the booklet sections whose paragraphs are ranked first.
+  Production runtime, 3 sets: Task A F1 0.910, Task B F1 0.922, Hit@5 0.808, 7,137 tokens, 4.0 s per case.
+- Rejected: an extra SYSTEM sentence on recommendation direction (fixed 4 errors, added 8).
+
+## 2026-10-16 16:00 JST: paragraph context + escalation on strategy R
 - Image default CONTEXT_SELECTION=claim_paragraphs: the vote's pages are split into paragraphs,
   ranked by BM25 over an Apertus 8B translation of the claim fused with a local static multilingual
   embedding (model2vec potion-multilingual-128M int8, baked into the image at build), top 8 plus
