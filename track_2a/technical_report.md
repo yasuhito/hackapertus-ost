@@ -6,7 +6,7 @@
 - **Repository:** https://github.com/yasuhito/hackapertus-ost (submitted revision: latest commit on master)
 - **Demo:** No demo is provided; the CLI in Reproducibility reproduces the results.
 
-Full report (PDF, 6 pages plus references): `report/main-en.pdf` (Japanese version: `report/main.pdf`).
+Full report (PDF, 6 pages plus references): `report/main.pdf`.
 
 This is the submission version as of 2026-10-16. It covers the items of the official template [1]. All numbers in this report were measured on public data that we used during development. Performance on the organizers' private held-out data is unknown.
 

@@ -1,299 +1,294 @@
 % HackApertus OST Track 2A technical report.
-% Japanese working draft. The final submission is planned as an English PDF of at most six pages.
+% English version of main.tex (submission PDF, at most six pages of body).
 % Build: LuaLaTeX + BibTeX (plain). Bibliography keys live in refs.bib.
-\documentclass[10pt,a4paper]{ltjsarticle}
+\documentclass[10pt,a4paper]{article}
 
 \usepackage[margin=24mm]{geometry}
 \usepackage{fontspec}
-\usepackage{luatexja-fontspec}
-\setmainjfont{HaranoAjiMincho}
-\setsansjfont{HaranoAjiGothic}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
 \usepackage[section]{placeins}
 
-\newcommand{\TBD}[1]{\fbox{\textsf{TBD: #1}}}
-\renewcommand{\refname}{参考文献 (References)}
+\renewcommand{\refname}{References}
 
-\title{HackApertus OST Track 2A 技術レポート\\
-  \large スイス投票冊子に対する多言語NLIと原文根拠の復元\\
-  \normalsize (技術レポート)}
-\author{チーム yasuhito (Yasuhito Takamiya)}
-\date{2026年10月16日 (リポジトリ master の最新コミット)}
+\title{HackApertus OST Track 2A Technical Report:\\
+  \large Multilingual NLI over Swiss Voting Booklets with Verbatim Evidence Restoration}
+\author{Team yasuhito (Yasuhito Takamiya)}
+\date{2026-10-16 (latest commit on master of \url{https://github.com/yasuhito/hackapertus-ost})}
 
 \begin{document}
 \maketitle
 
 \begin{center}
   \fbox{\parbox{0.92\linewidth}{\small
-  本稿は2026-10-16時点の提出版です。本文は6ページ以内で、参考文献はページ数に含めません。
-  内容は公式テンプレート\cite{reporttemplate}の項目を含みます。
-  本稿の数値はすべて、開発中に使った公開データでの測定値です。主催者の非公開held-outデータでの成績はわかっていません。}}
+  This is the submission version as of 2026-10-16. The body is at most six pages; the references do not count toward the limit.
+  The report covers the items of the official template\cite{reporttemplate}.
+  All numbers in this report were measured on public data that we used during development. Performance on the organizers' private held-out data is unknown.}}
 \end{center}
 
 %======================================================================
-\section{概要 (Summary)}
+\section{Summary}
 
-本プロジェクトはHackApertus OST Track 2A\cite{ostchallenge}に取り組みます。
-入力はスイス連邦の投票冊子(PDF)または短い参照文と、独語、仏語、伊語のいずれかで書かれた主張(claim)です。
-システムは主張が原文から導けるか(0=entailment)、情報が足りないか(1=neutral)、原文と矛盾するか(2=contradiction)を判定し、判定の根拠となる原文を返します。
+This project addresses HackApertus OST Track 2A\cite{ostchallenge}.
+The input is a Swiss federal voting booklet (PDF) or a short reference text, plus a claim written in German, French, or Italian.
+The system decides whether the claim follows from the source (0=entailment), whether the information is insufficient (1=neutral), or whether the claim contradicts the source (2=contradiction), and returns the source text that supports the decision.
 
-モデルはApertus v1.5の70Bと8Bです\cite{apertus,apertus70b,apertus8b}。
-設計の中心は、モデルに引用文を書かせないことです。
-スクリプトがPDFをページ単位で抽出し、対象の投票案件のページを選び、原文の区間にIDを付けます。
-モデルは1件につき1回のネイティブのtool callでラベルとIDだけを返し、スクリプトがIDから原文とページ番号を復元します。
-冊子を読むTask Aは70B、参照文だけのTask Bは8Bが答えます。
-Task Aでは、案件のページを200から700文字の段落に分け、主張に近い上位8段落とその隣接段落だけを渡します。
-段落の順位は、8Bによる主張の翻訳に対するBM25と、ローカルの多言語埋め込みを融合し、主張の書き出しが示す冊子の節の段落を優先して決めます。
-やり直しても根拠を示せない非中立の回答は、案件の全ページで1回だけ答え直します。
+The models are Apertus v1.5 70B and 8B\cite{apertus,apertus70b,apertus8b}.
+The core design choice is that the model never writes quotations.
+A script extracts the PDF page by page, selects the pages of the target ballot item, and assigns IDs to spans of source text.
+The model returns only a label and IDs through one native tool call per case, and the script restores the source text and page numbers from the IDs.
+Task A, which reads the booklet, is answered by 70B; Task B, which has only the reference text, is answered by 8B.
+In Task A, the ballot item's pages are split into paragraphs of 200 to 700 characters, and only the top 8 paragraphs closest to the claim plus their neighbors are passed to the model.
+Paragraphs are ranked by fusing BM25 over an 8B translation of the claim with a local multilingual embedding, preferring paragraphs from the booklet section that the claim's opening points to.
+A non-neutral answer that still lacks evidence after a retry is answered once more using all pages of the ballot item.
 
-2026-10-16の朝、旧版(v5)のページ選択が、正解根拠のあるページの36\%をモデルに渡していなかったことがわかりました。
-選択を冊子の見出しに基づく方式に直し、根拠の補完を加えた新版(70B親と8B子の2段構成)は、開発用60問(DEV60)、公開60問(PUBLIC60)、確認用60問のすべてでTask Aのmacro-F1と根拠の一致率がv5を上回りました。
-その後、新版の420件では70B親の最終回答が8B子の推奨とすべて一致していたことがわかり、子をなくして1回の呼び出しで答える構成(R)に移りました(12:40 JST)。
-さらに、Rに段落単位の文脈、節の優先、全ページでの再実行を加えた構成が、2026-10-16 18:00 JST時点の本番構成です。
-提出用の実行系での3つの問題集の平均は、Rに全ページを渡した場合と比べて、Task A F1が0.881から0.910、Hit@5が0.746から0.808に上がり、トークンは10,939から7,137/件、時間は3.7から4.0秒/件でした。
+On the morning of 2026-10-16 we found that the page selection of the previous version (v5) failed to pass the model the page containing the gold evidence in 36\% of cases.
+The new version, which switched selection to a method based on the booklet's headings and added evidence completion (a two-stage setup with a 70B parent and an 8B child), beat v5 on Task A macro-F1 and on evidence hit rate on all of the development set (DEV60), the public set (PUBLIC60), and the confirmation set of 60 questions.
+We then found that in the new version's 420 cases the 70B parent's final answer always matched the 8B child's recommendation, so we moved to a configuration that drops the child and answers in a single call (R) (12:40 JST).
+The production configuration as of 18:00 JST on 2026-10-16 is R with paragraph-level context, section preference, and full-page re-runs added.
+Averaged over the three question sets on the submission runtime, compared with R given all pages, Task A F1 rose from 0.881 to 0.910 and Hit@5 from 0.746 to 0.808, tokens fell from 10,939 to 7,137 per case, and time went from 3.7 to 4.0 seconds per case.
 
 %======================================================================
-\section{課題と評価 (Task and evaluation)}
+\section{Task and evaluation}
 \label{sec:eval}
 
-Task A(Document)は冊子PDF全体と投票案件名(vote)を、Task B(Reference)は短い参照文を受け取り、JSONLで1件につき1行を返します。
-公式のSolution API Guide\cite{apiguide}によると、Task Aでentailmentまたはcontradictionと答える場合は、原文言語の逐語引用を物理ページ番号(1始まり)付きで1件以上返し、先頭5件(各約5,000文字以内)が採点されます。
-Task Bの根拠は任意で採点されず、返す場合のページは\texttt{null}です。
+Task A (Document) receives a whole booklet PDF and the ballot item name (vote); Task B (Reference) receives a short reference text. Both return one JSONL line per case.
+According to the official Solution API Guide\cite{apiguide}, a Task A answer of entailment or contradiction must return at least one verbatim quotation in the source language with its physical page number (1-based), and the first 5 quotations (each up to about 5,000 characters) are scored.
+Evidence in Task B is optional and not scored; if returned, its page is \texttt{null}.
 
-公式の評価は非公開held-outでの3クラスmacro-F1で、根拠の正確さ、トークン数、ケースあたりの時間も見ます\cite{ostchallenge,apiguide}。
-本稿では主催者の評価スクリプト(根拠の照合はrapidfuzz\cite{rapidfuzz}の部分一致)をローカルで実行し、Task AとBのmacro-F1、Hit@5(Task Aで正解根拠のある問題のうち、先頭5件の根拠に正解箇所が含まれた割合)、1件あたりのトークン数と時間、形式失敗(既定回答に退避した件数)を比べます。
-データは公開データセット\cite{dataset}のtrain splitだけです。DEV60、PUBLIC60、確認用60問(30行をTask AとBの両方の形式で使用)はどれもここから選んだ60問で、すべて開発中に使ったため、本稿の数値は未知データでの性能の推定値ではありません。
+The official evaluation is 3-class macro-F1 on private held-out data, and it also considers evidence accuracy, token count, and time per case\cite{ostchallenge,apiguide}.
+In this report we run the organizers' scoring script locally (evidence matching uses rapidfuzz\cite{rapidfuzz} partial matching) and compare Task A and B macro-F1, Hit@5 (the share of Task A questions with gold evidence where the first 5 returned quotations contain the gold passage), tokens and time per case, and format failures (cases that fell back to the default answer).
+We use only the train split of the public dataset\cite{dataset}. DEV60, PUBLIC60, and the confirmation set (30 rows used in both Task A and Task B form) are each 60 questions drawn from it, and all were used during development, so the numbers here are not estimates of performance on unseen data.
 
 %======================================================================
-\section{システム構成 (Architecture)}
+\section{Architecture}
 
 \begin{figure}[t]
   \centering
   \small
   \setlength{\fboxsep}{6pt}
   \fbox{\parbox{0.86\linewidth}{\centering
-  入力JSONL: 投票案件名、主張、PDFまたは参照文\\[2pt]
+  Input JSONL: ballot item name, claim, PDF or reference text\\[2pt]
   $\downarrow$\\[2pt]
-  pypdfでページ抽出 → 見出しによる案件ページ選択(Task A)\\[2pt]
+  Page extraction with pypdf $\rightarrow$ heading-based ballot item page selection (Task A)\\[2pt]
   $\downarrow$\\[2pt]
-  Task A: 200から700文字の段落に分割、異言語の主張は8Bで翻訳\\
-  BM25、多言語埋め込み、節の優先の順位融合 → 上位8段落と隣接段落\\[2pt]
+  Task A: split into 200 to 700 character paragraphs; translate cross-language claims with 8B\\
+  Rank fusion of BM25, multilingual embedding, and section preference $\rightarrow$ top 8 paragraphs and neighbors\\[2pt]
   $\downarrow$\\[2pt]
-  区間とIDの作成 → 1つのモデルが1回の\texttt{submit}(ラベルとID)\\
-  冊子(Task A)→ Apertus 70B、参照文(Task B)→ Apertus 8B\\
-  根拠のない非中立は1回やり直し → 案件の全ページで再実行 → neutral\\[2pt]
+  Build spans and IDs $\rightarrow$ one model, one \texttt{submit} call (label and IDs)\\
+  Booklet (Task A) $\rightarrow$ Apertus 70B, reference text (Task B) $\rightarrow$ Apertus 8B\\
+  Non-neutral without evidence: retry once $\rightarrow$ re-run on all ballot item pages $\rightarrow$ neutral\\[2pt]
   $\downarrow$\\[2pt]
-  IDから原文とページを復元 → 根拠の補完(Task A、最大5件)\\[2pt]
+  Restore source text and pages from IDs $\rightarrow$ evidence completion (Task A, up to 5)\\[2pt]
   $\downarrow$\\[2pt]
-  出力JSONL: ラベル、原文根拠、トークン数、ケース処理時間
+  Output JSONL: label, verbatim evidence, token counts, case processing time
   }}
-  \caption{推論パイプライン。モデルはラベルとspan IDだけを返し、引用文とページ番号はスクリプトが原文から復元します。}
+  \caption{Inference pipeline. The model returns only a label and span IDs; the script restores quotations and page numbers from the source.}
   \label{fig:pipeline}
 \end{figure}
 
-図\ref{fig:pipeline}に処理の流れを示します。
+Figure~\ref{fig:pipeline} shows the processing flow.
 
-\paragraph{PDF抽出とページ選択}
-pypdf\cite{pypdf}でPDFをページごとにテキスト化します。ページ番号はPDFの物理ページです。
-Task Aでは\texttt{document\_selection.py}の\texttt{vote\_pages}が案件のページを選びます。
-連邦の冊子は、各見開きの先頭ページに\texttt{Erste Vorlage}、\texttt{Premier objet}、\texttt{Primo oggetto}のような序数の見出しを印刷しています。
-見出しが1つだけ現れるページをその案件のページとし、見出しのないページは直前の見出しページに属するとみなします。
-表紙や目次のように全案件の見出しが並ぶページは、どの案件にも割り当てません。
-案件名とページ冒頭の語の重なりで序数を決め、一致度が0.45に届かない場合と、見出しのない冊子(単一案件など)では全ページを渡します。
-選ばなかったページは空文字列に置き換えるので、ページ番号は物理ページのまま保たれ、渡していないページは根拠として返せません。
+\paragraph{PDF extraction and page selection}
+pypdf\cite{pypdf} converts the PDF to text page by page. Page numbers are physical PDF pages.
+In Task A, \texttt{vote\_pages} in \texttt{document\_selection.py} selects the ballot item's pages.
+Federal booklets print an ordinal heading such as \texttt{Erste Vorlage}, \texttt{Premier objet}, or \texttt{Primo oggetto} on the first page of each spread.
+A page on which exactly one such heading appears is assigned to that ballot item, and a page without a heading is assigned to the preceding heading page.
+Pages that list the headings of all items, such as the cover or table of contents, are not assigned to any item.
+The ordinal is chosen by word overlap between the item name and the opening words of the page; if the match score falls below 0.45, or the booklet has no headings (for example, a single-item booklet), all pages are passed.
+Unselected pages are replaced with empty strings, so page numbers stay physical and pages that were not passed cannot be returned as evidence.
 
-\paragraph{段落の絞り込み(Task A)}
-選んだページを、空行と文の境界で200から700文字を目安とする段落に分けます(\texttt{document\_selection.py}の\texttt{paragraphs})。
-段落はページ本文の連続した部分文字列で、単語の途中では切りません。
-主張の言語が冊子と異なる場合は、Apertus 8B\cite{apertus8b}が主張を冊子の言語に訳します。短い呼び出しが1回増え、約100トークンをそのケースのトークンに含めます。
-段落の順位は、訳文に対する単語と文字4-gramのBM25\cite{robertson2009bm25}、原文の主張の文字4-gramのBM25、静的な多言語埋め込みのコサイン類似度を順位融合して決めます。
-さらに、主張の書き出しを5種類(要約、委員会、連邦政府と議会、投票条文、可決されれば)に分け、冊子のページには節のラベル(冒頭の見開き、詳細、委員会の論点、連邦政府の論点、法律の条文)を付けます。
-ページの先頭には小さな目次があるので、先頭数行で最後に現れた見出しをそのページの節とし、ラベルのないページは直前のページのラベルを引き継ぎます。
-主張の種類に合う節の段落は、順位融合で先に並べます。
-公開データ610行では、残した段落に採点器の照合に通る正解段落が含まれる割合が0.972から0.982に上がり、文字数は21\%減りました。
-埋め込みはmodel2vecの\texttt{potion-multilingual-128M}をint8に量子化したもの(140 MB)で、numpyだけでCPUで動きます。重みはイメージに同梱し(節\ref{sec:repro})、ローカルの埋め込みは大会の規則で許されています。
-上位8段落と、それぞれの同じページ内の前後の段落を残し、続き合う段落は1つの領域(region)にまとめて、原文のまま渡します。
+\paragraph{Paragraph narrowing (Task A)}
+The selected pages are split into paragraphs of roughly 200 to 700 characters at blank lines and sentence boundaries (\texttt{paragraphs} in \texttt{document\_selection.py}).
+Each paragraph is a contiguous substring of the page text and never splits a word.
+If the claim's language differs from the booklet's, Apertus 8B\cite{apertus8b} translates the claim into the booklet's language. This adds one short call, and its roughly 100 tokens are counted in the case's tokens.
+Paragraphs are ranked by rank fusion of BM25\cite{robertson2009bm25} over words and character 4-grams of the translation, BM25 over character 4-grams of the original claim, and cosine similarity of a static multilingual embedding.
+In addition, claim openings are classified into 5 types (summary, committee, Federal Council and Parliament, ballot text, if accepted), and booklet pages receive section labels (opening spread, details, committee arguments, Federal Council arguments, legal text).
+Because each page starts with a small table of contents, the last heading found in the first few lines becomes the page's section, and an unlabeled page inherits the label of the preceding page.
+Paragraphs from the section matching the claim type are placed first in the rank fusion.
+On 610 public rows, this raised the share of cases where the kept paragraphs include a gold paragraph that passes the scorer's matching from 0.972 to 0.982, and cut characters by 21\%.
+The embedding is model2vec's \texttt{potion-multilingual-128M} quantized to int8 (140 MB), and it runs on CPU with numpy only. The weights are bundled in the image (Section~\ref{sec:repro}), and local embeddings are allowed by the competition rules.
+We keep the top 8 paragraphs and the preceding and following paragraphs on the same page for each, merge adjacent paragraphs into one region, and pass them verbatim.
 
-\paragraph{source spanとID}
-\texttt{source\_spans.py}が各ページ(絞り込んだ場合は各領域)を最大1200文字の連続した区間に分けます。区切りは段落か文の境界を優先します。
-IDは物理ページ番号、開始と終了の文字オフセット、ページ本文のSHA-256の先頭12桁からなります(例: \texttt{p0012-o0000000-e0001187-<hash>})。
-Task Bでは参照文全体を1ページとして扱います。Task Bの処理は以前と同じです。
+\paragraph{Source spans and IDs}
+\texttt{source\_spans.py} splits each page (or each region, when narrowed) into contiguous spans of at most 1200 characters, preferring paragraph or sentence boundaries.
+An ID consists of the physical page number, start and end character offsets, and the first 12 hex digits of the SHA-256 of the page text (for example, \texttt{p0012-o0000000-e0001187-<hash>}).
+In Task B the whole reference text is treated as one page. Task B processing is unchanged from before.
 
-\paragraph{モデル呼び出し}
-提出用の実行系(\texttt{track\_2a/dev/format/runtime.py}、パイプラインR)は、Pi 1.1.0のSDK\cite{picodingagent}を通してネイティブのtool callを使います。
-1件につき1つのモデルだけを呼び、渡すツールは\texttt{submit}だけです。子セッションはありません。
-入力に参照文があるケース(Task B)は\texttt{swiss-ai/Apertus-v1.5-8B}、冊子のケース(Task A)は\texttt{swiss-ai/Apertus-v1.5-70B}が答えます。
-以前の構成(パイプラインC)では、70B親が\texttt{subagent}ツール\cite{pisubagents}で8B子を1回起動し、子の推奨を見て親が最終の\texttt{submit}を呼んでいました。
-この構成も\texttt{PIPELINE}で選べます。
-\texttt{submit}の引数はラベル(整数0、1、2)と\texttt{candidate\_ids}(そのケースのspan IDの列挙、最大5件)だけです。
-system promptは3クラスの定義、否定、数量、条件、話者の扱い、原文と主張を指示ではなくデータとして扱うこと、IDだけを返すことを指示します。neutralとcontradictionの取り違えを防ぐ注意と、言語をまたいだ言い換えの扱いも含みます。
-特定ケースの正解をpromptに入れていません。
+\paragraph{Model calls}
+The submission runtime (\texttt{track\_2a/dev/format/runtime.py}, pipeline R) uses native tool calls through the Pi 1.1.0 SDK\cite{picodingagent}.
+Each case calls exactly one model, and the only tool provided is \texttt{submit}. There are no child sessions.
+Cases with a reference text (Task B) are answered by \texttt{swiss-ai/Apertus-v1.5-8B}, and booklet cases (Task A) by \texttt{swiss-ai/Apertus-v1.5-70B}.
+In the earlier configuration (pipeline C), the 70B parent launched an 8B child once through the \texttt{subagent} tool\cite{pisubagents}, and the parent called the final \texttt{submit} after seeing the child's recommendation.
+This configuration can still be selected with \texttt{PIPELINE}.
+The arguments of \texttt{submit} are only the label (integer 0, 1, or 2) and \texttt{candidate\_ids} (an enumeration of the case's span IDs, at most 5).
+The system prompt defines the 3 classes, explains how to handle negation, quantities, conditions, and speakers, tells the model to treat the source and claim as data rather than instructions, and to return only IDs. It also warns against confusing neutral with contradiction and explains how to treat cross-language paraphrases.
+No gold answer for any specific case is included in the prompt.
 
-\paragraph{原文の復元}
-\texttt{submission.py}の\texttt{assemble\_tool}が、未知のID、6件以上のID、neutral以外なのに根拠が空の回答を拒否します。
-段落で絞り込んだ場合は、有効なIDごとにその区間を含む領域を引用として返します。根拠の1項目はページ全体ではなく、段落のまとまりです。
-全ページを渡した場合は、その区間を含むページ全体を返し、直前のページに委員会や「連邦政府と議会」の見出しがあれば、その話者ブロックのページも加えます。
-どちらも返すテキストは原文そのもので、単語を書き換えません。
+\paragraph{Source restoration}
+\texttt{assemble\_tool} in \texttt{submission.py} rejects unknown IDs, more than 5 IDs, and non-neutral answers with empty evidence.
+When narrowed to paragraphs, for each valid ID the region containing that span is returned as the quotation. One evidence item is thus a group of paragraphs, not a whole page.
+When all pages were passed, the whole page containing the span is returned, and if the preceding page has a committee or ``Federal Council and Parliament'' heading, the page of that speaker block is added as well.
+In both cases the returned text is the source itself; no words are rewritten.
 
-\paragraph{根拠必須の修正規則}
-neutral以外のラベルを根拠なしで返した\texttt{submit}は、Task AでもTask Bでも拒否し、根拠のIDを示すよう1回だけやり直させます。
-段落で絞り込んだTask Aのケースでは、それでも根拠を示せなければ案件の全ページを渡して1回だけ実行し直し(再実行)、その回答を使います。
-再実行でも根拠を示せない場合と、Task Bでやり直しに失敗した場合はneutralの既定回答になり、この規則は「根拠を指せないなら中立」という判定規則として働きます。
-既定回答は公式の採点では中立の有効回答として扱われます。
+\paragraph{Evidence-required correction rule}
+A \texttt{submit} that returns a non-neutral label without evidence is rejected in both Task A and Task B, and the model is asked once to retry with evidence IDs.
+For a Task A case narrowed to paragraphs, if it still gives no evidence, the case is run once more with all pages of the ballot item (re-run), and that answer is used.
+If the re-run still gives no evidence, or a Task B retry fails, the case gets the neutral default answer, so the rule acts as a decision rule: ``if you cannot point to evidence, answer neutral.''
+The official scoring treats the default answer as a valid neutral answer.
 
-\paragraph{根拠の補完と退避}
-Task Aでは\texttt{consulted\_pages}が、モデルの引用の後ろに、引用したページの隣接ページ、渡したページの先頭2ページ(案件冒頭の要約見開き)、残りのページを主張とのBM25の高い順に足し、5件までにします(5,000文字を超えるページは除きます)。段落で絞り込んだ場合は、ページの代わりに領域を同じ順で足します。
-補完はラベルとモデルの引用を変えず、neutralの回答と既定回答にも付けます。
-受理できる\texttt{submit}がないケースや処理が失敗したケースは、そのケースだけをneutralの既定回答にし、理由を診断用のファイルに残します。1ケースの上限時間は300秒です。
-\texttt{input\_tokens}と\texttt{output\_tokens}はそのケースの全呼び出しのAPIの\texttt{usage}の合計、\texttt{inference\_time\_ms}は文脈の準備を含むケース全体の時間です。
+\paragraph{Evidence completion and fallback}
+In Task A, \texttt{consulted\_pages} appends, after the model's quotations, the pages adjacent to the quoted pages, the first 2 passed pages (the summary spread at the start of the item), and the remaining pages in descending order of BM25 against the claim, up to 5 items (pages over 5,000 characters are excluded). When narrowed to paragraphs, regions are added in the same order instead of pages.
+Completion does not change the label or the model's quotations, and it is also applied to neutral answers and default answers.
+A case with no acceptable \texttt{submit}, or whose processing fails, gets the neutral default answer for that case alone, and the reason is written to a diagnostics file. The time limit per case is 300 seconds.
+\texttt{input\_tokens} and \texttt{output\_tokens} are the sums of the API \texttt{usage} over all calls in the case, and \texttt{inference\_time\_ms} is the time for the whole case, including context preparation.
 
 %======================================================================
-\section{開発の経緯と診断 (Development history and diagnosis)}
+\section{Development history and diagnosis}
 
-2026-10-14に、system promptの出力指示を\texttt{submit}の引数の形式に合わせた版(v5)を採用しました(\texttt{docs/prompt-eval-log.md})。v5はDEV60の5回平均でTask A F1 0.650、Task B F1 0.815、Hit@5 0.263でした。
-10-15の夜には、検証役や複数エージェントの研究\cite{dhuliawala2023cove,huang2024selfcorrect,du2023debate,smit2024mad}を動機に8Bの役を親に足す3つの構成を試しましたが、形式失敗が増え、根拠も改善しなかったので採用しませんでした。
+On 2026-10-14 we adopted a version (v5) whose system prompt output instructions matched the argument format of \texttt{submit} (\texttt{docs/prompt-eval-log.md}). Averaged over 5 runs on DEV60, v5 scored Task A F1 0.650, Task B F1 0.815, and Hit@5 0.263.
+On the night of 10-15, motivated by work on verifiers and multi-agent setups\cite{dhuliawala2023cove,huang2024selfcorrect,du2023debate,smit2024mad}, we tried 3 configurations that add an 8B role to the parent, but format failures increased and evidence did not improve, so none were adopted.
 
-10-16の朝、モデルを呼ばずにDEV60とPUBLIC60でTask Aの正解根拠がある39問を調べると、14問(36\%)で正解根拠のページをモデルに渡していませんでした。
-旧方式は\texttt{im Detail}などの語で案件詳細節の開始を探していましたが、この語が目次ページに誤って一致し、参照文の出典になりやすい案件の要約見開き(In Kürze、En bref、In breve)が落ちていました。別に3問は、正解根拠がpypdfの抽出したどのページとも一致しませんでした。
-見出しによる方式に置き換え、確認用の30行を除く公開データで、正解根拠がページと一致する501行を検査しました(表\ref{tab:audit}、個別の正解行に合わせた調整はしていません)。
+On the morning of 10-16 we examined, without calling the model, the 39 Task A questions with gold evidence in DEV60 and PUBLIC60, and found that in 14 of them (36\%) the page with the gold evidence was not passed to the model.
+The old method searched for words such as \texttt{im Detail} to find the start of the item's detail section, but these words falsely matched the table of contents page, and the item's summary spread (In Kürze, En bref, In breve), which is a frequent source for reference texts, was dropped. In another 3 questions the gold evidence matched none of the pages that pypdf extracted.
+We replaced it with the heading-based method and checked the 501 public rows, excluding the 30 confirmation rows, whose gold evidence matches a page (Table~\ref{tab:audit}; no tuning was done for individual gold rows).
 
 \begin{table}[t]
   \centering
-  \caption{ページ選択の検査(モデル呼び出しなし、501行)。}
+  \caption{Page selection audit (no model calls, 501 rows).}
   \label{tab:audit}
   \small
   \begin{tabular}{lrrr}
     \toprule
-    選択方式 & 正解根拠のページを含む & 文脈文字数 平均 & 最大 \\
+    Selection method & Contains gold evidence page & Context chars, mean & Max \\
     \midrule
-    旧(目次の正規表現) & 352 / 501 & 38,764 & 236,824 \\
-    新(見出し) & 501 / 501 & 33,463 & 162,973 \\
+    Old (table-of-contents regex) & 352 / 501 & 38,764 & 236,824 \\
+    New (headings) & 501 / 501 & 33,463 & 162,973 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-ページ選択だけを直してもDEV60のHit@5は0.263のままで、モデルは正解ページを渡されても別のページを引用しました。関連箇所を入力に含めても使われるとは限らないという報告\cite{liu2023lost,hsieh2024ruler}と同じ傾向で、そこで根拠の補完を加えました。
-コミット650de65では重複IDの統合、Task Bの根拠の任意化、隣接ページの補完を加え、保存済みの回答の再採点で正解根拠を含む件数が149件中89件から98件に増えました。次節の表の新版の値は、この変更より前の版によるものです。
+Fixing page selection alone left DEV60 Hit@5 at 0.263: even when given the correct page, the model quoted other pages. This matches reports that relevant passages in the input are not necessarily used\cite{liu2023lost,hsieh2024ruler}, so we added evidence completion.
+Commit 650de65 added merging of duplicate IDs, optional Task B evidence, and completion with adjacent pages; rescoring saved answers raised the number containing the gold evidence from 89 to 98 out of 149. The new-version values in the table in the next section come from a version before this change.
 
-新版の7回の実行(DEV60を3回、PUBLIC60を1回、確認用60問を3回、計420件)では、70B親の最終回答が420件すべてで8B子の推奨と一致し、親の2回の呼び出しが全トークンの63\%、待ち時間の65\%を占めていました。
-そこで1つのモデルが1回の\texttt{submit}だけで答える構成として、70BだけのSと、Task Aを70B、Task Bを8Bに振り分けるRを加えました。
-8Bだけの1回呼び出しはDEV60でTask A F1 0.714(テキストのJSONで答えさせると0.361)で、冊子の問題では70Bに届かないため、Task Aは70Bに残しました。
-Task Bで根拠なしの非中立回答を受け入れていた間は、70Bが話題違いの主張を根拠なしで矛盾と答えてTask B F1が0.693まで落ちたので、コミット8d5c7e6で根拠必須の規則をTask Bにも戻しました。
+In 7 runs of the new version (DEV60 3 times, PUBLIC60 once, the confirmation set 3 times, 420 cases in total), the 70B parent's final answer matched the 8B child's recommendation in all 420 cases, and the parent's 2 calls accounted for 63\% of all tokens and 65\% of wait time.
+We therefore added configurations in which one model answers with a single \texttt{submit}: S, which uses only 70B, and R, which routes Task A to 70B and Task B to 8B.
+A single 8B call scored Task A F1 0.714 on DEV60 (0.361 when asked to answer in text JSON), short of 70B on booklet questions, so Task A stayed on 70B.
+While Task B accepted non-neutral answers without evidence, 70B answered off-topic claims as contradictions without evidence and Task B F1 dropped to 0.693, so commit 8d5c7e6 restored the evidence-required rule for Task B.
 
-次に、案件のページから主張に関係する段落だけを渡す方式を試しました。
-公開データ610行で、残した段落のどれかが採点器の照合に通る割合は、訳文のBM25だけで0.970、埋め込みだけで0.915、融合で0.975(異言語の組で0.968)で、渡す文字数は約8,700でした。
-しかし段落だけでは、Hit@5は上がってもTask A F1が下がりました(DEV60で0.833、PUBLIC60で0.857、確認用60問で0.734)。矛盾を裏付ける箇所を引用できず既定回答に落ちる問題が増えたためで、段落を12、16に増やしても戻りませんでした(0.826、0.806)。
-そこで既定回答に落ちる問題だけを案件の全ページで答え直す再実行を加えると、開発用の実行系での3つの問題集の平均Task A F1は、全ページを渡す場合の0.882に対して0.900になりました。再実行した問題は60問中11、8、6問で、そのうち6、4、3問で根拠付きの回答を得ました。
+Next we tried passing only the paragraphs of the item's pages that relate to the claim.
+On 610 public rows, the share where some kept paragraph passes the scorer's matching was 0.970 with translation BM25 alone, 0.915 with the embedding alone, and 0.975 with fusion (0.968 for cross-language pairs), with about 8,700 characters passed.
+With paragraphs alone, however, Hit@5 rose but Task A F1 fell (0.833 on DEV60, 0.857 on PUBLIC60, 0.734 on the confirmation set). More questions fell back to the default answer because the model could not quote a passage supporting a contradiction, and raising the paragraph count to 12 or 16 did not recover it (0.826, 0.806).
+We then added a re-run that answers only the questions falling back to the default answer again with all of the item's pages. On the development runtime, the average Task A F1 over the three question sets became 0.900, against 0.882 when passing all pages. Re-runs occurred in 11, 8, and 6 of 60 questions, and yielded answers with evidence in 6, 4, and 3 of them.
 
-主張の96\%は書き出しで出典を名乗り、要約を出典とする主張では、公開データの96\%で正解根拠が要約見開きにありました。これを使ったのが節の優先です。
-一方、勧告の向き(可決か否決か)を確かめさせる1文をsystem promptに足すと、向きの誤り5件中4件は直りましたが、中立を矛盾とする誤りが8件増え、3つの問題集の誤りは180問中15件から17件に増えたので、取り消しました。
+96\% of claims name their source in their opening words, and for claims whose source is the summary, the gold evidence was on the summary spread in 96\% of the public data. Section preference uses this.
+On the other hand, adding one sentence to the system prompt asking the model to check the direction of the recommendation (accept or reject) fixed 4 of 5 direction errors but added 8 errors labeling neutral as contradiction, raising errors on the three question sets from 15 to 17 out of 180, so we reverted it.
 
 %======================================================================
-\section{結果 (Results)}
+\section{Results}
 
-表\ref{tab:results}に、v5、新版(70B親と8B子、コミット76a0e6e)、全ページを渡すR、採用した段落、節の優先、再実行を使うRを比べます。
-確認用60問では、v5、新版の順に交互に各3回を実行し、すべて終わってから採点しました。Rの2列は、提出用の実行系(\texttt{runtime.py})で各問題集を1回ずつ実行し、公式の採点器で採点した値です。
-温度0でも同じ入力で実行ごとに数件の差が出るので、1回どうしの差が0.03程度なら偶然の範囲と見ています。
+Table~\ref{tab:results} compares v5, the new version (70B parent and 8B child, commit 76a0e6e), R with all pages, and the adopted R with paragraphs, section preference, and re-runs.
+On the confirmation set, v5 and the new version were run alternately 3 times each and scored only after all runs finished. The two R rows were obtained by running each question set once on the submission runtime (\texttt{runtime.py}) and scoring with the official scorer.
+Even at temperature 0, the same input differs by a few cases between runs, so we treat a difference of about 0.03 between single runs as within chance.
 
 \begin{table}[t]
   \centering
-  \caption{v5、新版(70B+8B)、R(全ページ)、R(段落、節の優先、再実行、採用)の比較。値は平均で、実行回数はDEV60、PUBLIC60、確認用60問の順にv5が5、5、3回、新版が3、1、3回、Rはどちらも各1回です。PUBLIC60のv5の時間は参照した資料に記録がありません。}
+  \caption{Comparison of v5, the new version (70B+8B), R (all pages), and R (paragraphs, section preference, re-run; adopted). Values are means; the number of runs for DEV60, PUBLIC60, and the confirmation set is 5, 5, 3 for v5, 3, 1, 3 for the new version, and 1 each for both R rows. The time for v5 on PUBLIC60 is not recorded in the materials we consulted.}
   \label{tab:results}
   \small
   \begin{tabular}{llrrrrr}
     \toprule
-    問題集 & 構成 & Task A F1 & Task B F1 & Hit@5 & トークン/件 & 秒/件 \\
+    Question set & Configuration & Task A F1 & Task B F1 & Hit@5 & Tokens/case & s/case \\
     \midrule
     DEV60 & v5 & 0.650 & 0.815 & 0.263 & 28,232 & 6.3 \\
      & 70B+8B & 0.705 & 0.815 & 0.544 & 24,361 & 5.8 \\
-     & R 全ページ & 0.875 & 0.853 & 0.737 & 10,864 & 3.9 \\
-     & R 段落+節+再実行 & 0.867 & 0.897 & 0.842 & 8,223 & 4.2 \\
+     & R all pages & 0.875 & 0.853 & 0.737 & 10,864 & 3.9 \\
+     & R para.+sect.+re-run & 0.867 & 0.897 & 0.842 & 8,223 & 4.2 \\
     \midrule
-    PUBLIC60 & v5 & 0.701 & 0.917 & 0.30 & 30,382 & 記録なし \\
+    PUBLIC60 & v5 & 0.701 & 0.917 & 0.30 & 30,382 & not recorded \\
      & 70B+8B & 0.869 & 0.931 & 0.65 & 28,964 & 6.5 \\
-     & R 全ページ & 0.967 & 1.000 & 0.750 & 11,000 & 3.8 \\
-     & R 段落+節+再実行 & 1.000 & 0.967 & 0.750 & 7,314 & 4.1 \\
+     & R all pages & 0.967 & 1.000 & 0.750 & 11,000 & 3.8 \\
+     & R para.+sect.+re-run & 1.000 & 0.967 & 0.750 & 7,314 & 4.1 \\
     \midrule
-    確認用60問 & v5 & 0.734 & 0.929 & 0.569 & 25,980 & 6.7 \\
+    Confirmation 60 & v5 & 0.734 & 0.929 & 0.569 & 25,980 & 6.7 \\
      & 70B+8B & 0.797 & 0.929 & 0.625 & 28,843 & 6.8 \\
-     & R 全ページ & 0.802 & 0.904 & 0.750 & 10,954 & 3.5 \\
-     & R 段落+節+再実行 & 0.863 & 0.903 & 0.833 & 5,874 & 3.7 \\
+     & R all pages & 0.802 & 0.904 & 0.750 & 10,954 & 3.5 \\
+     & R para.+sect.+re-run & 0.863 & 0.903 & 0.833 & 5,874 & 3.7 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\paragraph{v5と新版}
-DEV60では3回とも新版のTask A F1がv5を上回り(0.690から0.728)、確認用60問ではv5が送信上限の240,000バイトを超えた1問を既定回答かつトークン0としているため、両版が処理した59問で比べるとv5が26,420、新版が26,692トークン/件です。
-新版は事前登録の基準のうちHit@5(v5より0.10以上高い、実際は+0.056)とトークン(v5以下、実際は+11\%)を満たしませんでしたが、所有者はこの2つを大会の規則にない基準として大会の評価項目で比べ直し、新版を採用しました(\texttt{docs/confirmation-protocol-2026-10-16.md})。
+\paragraph{v5 and the new version}
+On DEV60 the new version's Task A F1 beat v5 in all 3 runs (0.690 to 0.728). On the confirmation set, v5 recorded one question that exceeded the 240,000-byte request limit as a default answer with 0 tokens, so on the 59 questions both versions processed, v5 used 26,420 and the new version 26,692 tokens per case.
+The new version failed two of the preregistered criteria, Hit@5 (at least 0.10 above v5; actual +0.056) and tokens (no more than v5; actual +11\%), but the owner judged these two criteria to be absent from the competition rules, recompared on the competition's evaluation items, and adopted the new version (\texttt{docs/confirmation-protocol-2026-10-16.md}).
 
-\paragraph{新版とR}
-全ページを渡すRは3つの問題集すべてで新版よりTask A F1とHit@5が高く、トークンは半分以下ですが、確認用60問ではTask A F1の差(0.797と0.802)が偶然の範囲で、Task B F1は新版の0.929に対して0.904でした。
-70BだけのSもTask A F1とHit@5で新版を上回りましたが、既定回答が多く(DEV60、PUBLIC60、確認用60問で15、10、8件)、Task Bで話題違いを矛盾と答える傾向があるため、Rを選びました(\texttt{docs/single-call-results-2026-10-16.md})。
+\paragraph{The new version and R}
+R with all pages had higher Task A F1 and Hit@5 than the new version on all three question sets, at less than half the tokens, but on the confirmation set the Task A F1 difference (0.797 vs.\ 0.802) is within chance, and Task B F1 was 0.904 against the new version's 0.929.
+S, which uses only 70B, also beat the new version on Task A F1 and Hit@5, but it produced many default answers (15, 10, and 8 on DEV60, PUBLIC60, and the confirmation set) and tended to answer off-topic Task B claims as contradictions, so we chose R (\texttt{docs/single-call-results-2026-10-16.md}).
 
-\paragraph{全ページと段落+節+再実行}
-3つの問題集の平均で、採用した構成はTask A F1を0.881から0.910、Hit@5を0.746から0.808に上げ、トークンを10,939から7,137/件に減らし、時間は翻訳と再実行の分だけ3.7から4.0秒/件に増えました。
-Task A F1の上昇はPUBLIC60(0.967から1.000)と確認用60問(0.802から0.863)によるもので、DEV60では0.875から0.867でした。Task Bは冊子を使わないので、Task B F1の差(平均0.919と0.922)は実行ごとのぶれです。
-
-%======================================================================
-\section{限界と今後 (Limitations and next steps)}
-
-\paragraph{評価の限界}
-すべての数値は開発中に使った公開データでの値で、60問、1回から5回の実行です。採用した構成は各問題集1回しか測っていません。
-公式のheld-outでの成績はわかりません。
-
-\paragraph{抽出の限界}
-前述の新版の420件のうち、Task Aで根拠が採点される149件を調べると、26件は正解の根拠文がpypdfの抽出テキストと一致しません。
-この種の不一致は、根拠を領域単位にしたことで大部分が解消したと考えています。引用がページ全体より短くなり、採点器の部分一致に通りやすくなるからです。
-ただし、この26件を個別に採点し直してはいません。
-テキストを抽出できないPDFはOCRを行わずエラーにします。
-見出しのない冊子では全ページを渡すので、入力が長くなります。
-
-\paragraph{再実行の費用と実行環境}
-再実行は、段落で根拠を示せなかった冊子の問題に呼び出しを1回足します。
-埋め込みの重みを同梱するDockerイメージは2026-10-16にbuildし、end-to-endで動作を確認しました(節\ref{sec:repro})。
-
-\paragraph{残る分類誤り}
-最終構成の3問題集(各1回、計180問)では、ラベルの誤りが15件残ります。
-うち5件は、連邦政府や議会が可決と否決のどちらを勧めているかの取り違えで、Task Bでも起きます。
-system promptに規則を足すと向きの誤りは減りましたが、別の誤りが増えたので、副作用なしに直す方法はまだ見つかっていません。
-
-\paragraph{根拠の性質}
-source IDは引用が原文のどこから来たかを保証しますが、引用が判定を支えるかどうかは保証しません\cite{gao2023alce}。
-段落の絞り込みと、補完で足したページや領域は検索で選んだもので、モデルの判断ではありません。
-
-\paragraph{今後}
-採用した構成を各問題集で複数回実行し、実行ごとのばらつきを見積もります。
-抽出が一致しなかった26件が領域単位の根拠で当たるかを確かめ、残るものについてpypdf以外のPDF抽出ライブラリを比べます。
+\paragraph{All pages vs.\ paragraphs+sections+re-run}
+Averaged over the three question sets, the adopted configuration raised Task A F1 from 0.881 to 0.910 and Hit@5 from 0.746 to 0.808, cut tokens from 10,939 to 7,137 per case, and increased time from 3.7 to 4.0 seconds per case due to translation and re-runs.
+The Task A F1 gain comes from PUBLIC60 (0.967 to 1.000) and the confirmation set (0.802 to 0.863); on DEV60 it went from 0.875 to 0.867. Task B does not use the booklet, so the Task B F1 difference (means 0.919 and 0.922) is run-to-run variation.
 
 %======================================================================
-\section{再現方法 (Reproducibility)}
+\section{Limitations and next steps}
+
+\paragraph{Evaluation limits}
+All numbers are on public data used during development, with 60 questions and 1 to 5 runs. The adopted configuration was measured only once per question set.
+Performance on the official held-out data is unknown.
+
+\paragraph{Extraction limits}
+Of the new version's 420 cases described above, we examined the 149 Task A cases whose evidence is scored, and in 26 the gold evidence text does not match pypdf's extracted text.
+We believe most of these mismatches are resolved by making evidence region-level, because quotations become shorter than whole pages and pass the scorer's partial matching more easily.
+However, we have not rescored these 26 cases individually.
+PDFs whose text cannot be extracted are reported as errors without OCR.
+Booklets without headings are passed in full, so the input becomes long.
+
+\paragraph{Re-run cost and runtime environment}
+A re-run adds one call for booklet questions where the paragraphs gave no evidence.
+The Docker image that bundles the embedding weights was built and run end to end on 2026-10-16 (Section~\ref{sec:repro}).
+
+\paragraph{Remaining classification errors}
+On the final configuration's three question sets (one run each, 180 questions), 15 label errors remain.
+Of these, 5 confuse whether the Federal Council or Parliament recommends acceptance or rejection, and this also happens in Task B.
+Adding a rule to the system prompt reduced direction errors but increased other errors, and we have not yet found a fix without side effects.
+
+\paragraph{Nature of the evidence}
+A source ID guarantees where in the source a quotation comes from, but not that the quotation supports the decision\cite{gao2023alce}.
+Paragraph narrowing and the pages or regions added by completion are chosen by retrieval, not by the model's judgment.
+
+\paragraph{Next steps}
+Run the adopted configuration several times per question set to estimate run-to-run variance.
+Check whether region-level evidence hits the 26 extraction mismatches, and for the rest compare PDF extraction libraries other than pypdf.
+
+%======================================================================
+\section{Reproducibility}
 \label{sec:repro}
 
-提出物はDockerで動かします。
-公式の契約\cite{apiguide}では、CPUのみのlinux/amd64イメージで、注入された\texttt{BASE\_URL}と\texttt{API\_KEY}をすべてのモデル呼び出しに使い(ホストの鍵は読みません)、実行時にダウンロードしないことが求められます。
-\texttt{Dockerfile.agent}は、Node 26.10.0の段階で\texttt{package-lock.json}からPi 1.1.0と\texttt{@tintinweb/pi-subagents}を入れ、\texttt{python:3.11-slim-bookworm}に\texttt{track\_2a/src}と実行系をコピーし、\texttt{model2vec==0.10.0}と埋め込みの重みを\texttt{docker build}のときに同梱します。
-入口は\texttt{runtime.py}で、既定は\texttt{PIPELINE=R}(\texttt{Dockerfile.agent}と\texttt{Makefile}の両方)、\texttt{CONTEXT\_SELECTION=claim\_paragraphs}、\texttt{CLAIM\_SPANS=8}です。
-\texttt{ESCALATE\_ON\_FALLBACK=0}で再実行を止め、\texttt{CONTEXT\_SELECTION=vote\_pages}で案件の全ページを渡します。\texttt{PIPELINE=C}で70B親と8B子、\texttt{PIPELINE=S}で70Bだけの構成を選べます。Rでは\texttt{LLM\_MODEL}を指定しても使いません。
+The submission runs in Docker.
+The official contract\cite{apiguide} requires a CPU-only linux/amd64 image that uses the injected \texttt{BASE\_URL} and \texttt{API\_KEY} for every model call (host keys are not read) and downloads nothing at run time.
+\texttt{Dockerfile.agent} installs Pi 1.1.0 and \texttt{@tintinweb/pi-subagents} from \texttt{package-lock.json} in a Node 26.10.0 stage, copies \texttt{track\_2a/src} and the runtime into \texttt{python:3.11-slim-bookworm}, and bundles \texttt{model2vec==0.10.0} and the embedding weights at \texttt{docker build} time.
+The entry point is \texttt{runtime.py}, with defaults \texttt{PIPELINE=R} (in both \texttt{Dockerfile.agent} and \texttt{Makefile}), \texttt{CONTEXT\_SELECTION=claim\_paragraphs}, and \texttt{CLAIM\_SPANS=8}.
+\texttt{ESCALATE\_ON\_FALLBACK=0} disables re-runs, and \texttt{CONTEXT\_SELECTION=vote\_pages} passes all of the item's pages. \texttt{PIPELINE=C} selects the 70B parent with 8B child, and \texttt{PIPELINE=S} the 70B-only configuration. In R, \texttt{LLM\_MODEL} is ignored even if set.
 \begin{verbatim}
 make run INPUT_DIR=/path/to/input INPUT=/data/input.jsonl \
   OUTPUT_DIR=/path/to/new/output
 \end{verbatim}
-出力ディレクトリには正規のJSONLのほか、\texttt{.diagnostics.jsonl}と\texttt{.evaluation.jsonl}を書きます。
-Dockerイメージは2026-10-16にlinux/amd64でbuildし、\texttt{make run}で6問を通して公式の採点器で読めることを確認しました(イメージ249 MB、埋め込みの重み140 MBを同梱)。
+Besides the canonical JSONL, the output directory receives \texttt{.diagnostics.jsonl} and \texttt{.evaluation.jsonl}.
+On 2026-10-16 we built the Docker image for linux/amd64 and confirmed with \texttt{make run} on 6 questions that the official scorer can read the output (image 249 MB, including the 140 MB embedding weights).
 
-開発用のハーネスでは、Pi 1.1.0を\texttt{\textasciitilde/.cache/ost-pi-1.1.0}に置き、\texttt{PI\_PACKAGE\_ROOT}と\texttt{PI\_SUBAGENTS\_ROOT}でその場所を指定します。
-リポジトリは\url{https://github.com/yasuhito/hackapertus-ost}で、提出リビジョンはmasterの最新コミットです。デモは用意せず、上記のCLIで再現します。
+In the development harness, Pi 1.1.0 is placed in \texttt{\textasciitilde/.cache/ost-pi-1.1.0}, and \texttt{PI\_PACKAGE\_ROOT} and \texttt{PI\_SUBAGENTS\_ROOT} point to that location.
+The repository is \url{https://github.com/yasuhito/hackapertus-ost}, and the submitted revision is the latest commit on master. No demo is provided; the CLI above reproduces the results.
 
 %======================================================================
-\section*{ライセンス (License)}
-\addcontentsline{toc}{section}{ライセンス (License)}
+\section*{License}
+\addcontentsline{toc}{section}{License}
 
-リポジトリのコードにはApache License 2.0が付いています(リポジトリ直下の\texttt{LICENSE})。本レポートのライセンスはCC-BY-4.0とします。
-大会規約では、コードと重みはApache-2.0、文書はCC-BY-4.0、提出データセットはCDLA-Permissive-2.0での許諾が定められています。
-同梱したpypdfは、同梱のライセンスファイルの条件に従います。
-公開データセット\cite{dataset}のカードにはMITと記載され、作成者はOSTのAI Applications and Deployment Labです。投票冊子PDFの再配布権は別途確認が必要で、本レポートには同梱しません。
+The repository code is licensed under the Apache License 2.0 (\texttt{LICENSE} at the repository root). This report is licensed under CC-BY-4.0.
+The competition terms require code and weights under Apache-2.0, documents under CC-BY-4.0, and submitted datasets under CDLA-Permissive-2.0.
+The bundled pypdf is subject to the terms of its bundled license file.
+The card of the public dataset\cite{dataset} states MIT, and its creator is OST's AI Applications and Deployment Lab. Redistribution rights for the voting booklet PDFs need separate confirmation, and they are not bundled with this report.
 
 %======================================================================
 \begingroup

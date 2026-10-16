@@ -1,7 +1,7 @@
 # Status — deadline 2026-10-16
 
 ## SUBMITTED 2026-10-16 18:50 JST at commit f82eafb (master = main)
-- Report: `report/main-en.pdf` (English), `report/main.pdf` (Japanese). Repository https://github.com/yasuhito/hackapertus-ost.
+- Report: `report/main.pdf` (English; the Japanese draft was retired after submission, see git tag submission-2026-10-16). Repository https://github.com/yasuhito/hackapertus-ost.
 - Configuration: strategy R, claim_paragraphs with section prior, escalation on; Docker image verified.
 - Do not change the submitted configuration retroactively; later work belongs on a new branch.
 

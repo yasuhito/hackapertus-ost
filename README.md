@@ -1,8 +1,8 @@
 # Hack Apertus Track 2A, OST: multilingual NLI over Swiss voting booklets
 
 Team yasuhito (Yasuhito Takamiya). Repository: https://github.com/yasuhito/hackapertus-ost.
-Technical report: `report/main-en.pdf` (English, 6 pages plus references) and
-`report/main.pdf` (Japanese); Markdown summary in `track_2a/technical_report.md`.
+Technical report: `report/main.pdf` (6 pages plus references); Markdown summary in
+`track_2a/technical_report.md`.
 Development log and measurements: `STATUS.md`, `docs/single-call-results-2026-10-16.md`.
 
 ## What the submitted pipeline does
