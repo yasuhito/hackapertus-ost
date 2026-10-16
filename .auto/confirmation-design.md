@@ -1,0 +1,25 @@
+# Reserved public confirmation: execution prerequisites only
+
+Drafted before any completed selector-quality result or reserved input/expected inspection. NOT an executable control, permission to open reserve, winner declaration or extra inference allocation. Current source/deadline policy remains authoritative. Exact selected method and all ten execution identities still require a separately frozen protocol if a research winner exists and time permits.
+
+## Selection and scope
+
+Reserve two of the session's seven experiment records for an actual fresh control and one candidate confirmation. Already used38/39/40; bound-input comparison would use41. At most one additional genuinely justified distinct development candidate can fit before two confirmation records; no arbitrary extra candidate merely to spend slots. Incomplete/permanent/quality failures are not winners. Select exactly ONE research-retained method with the highest unrounded DEVELOPMENT60 mean_Q among those passing all original gates, before preparing or inspecting reserved rows. Ties retain earlier method. If none passes, no confirmation. Do not select a method using reserved data, partial confirmation outputs or a second reserve attempt.
+
+Use exactly the already input-ranked reserve source rows30:60 from the original selection freeze, yielding60A/B inputs. No new seed, label quotas, substitutions, date/PDF/context-size filters or changing claim/reference groups. Reproduce the original pin/source/input/expected/PDF/code provenance and order; source expected remains owner-only. Fail preparation rather than selecting replacements or changing extraction when a required input/PDF/context is unavailable. Current development inputs are exposed and never substituted for reserve.
+
+Scope is claim/reference-group disjoint public confirmation outside documented local real-LLM development, not universal never-viewed data, absent-from-training data or private competition holdout. Shared booklet/date clusters can remain. Reserved source pins exist; no reserved cases/expected/PDF preparation or inspection has yet been authorized by an executable freeze.
+
+## Fixed comparison
+
+Freeze the selected candidate's EXACT development source, reviewer view/prompt/schema/roles, production-v5 control source, all input/expected/extraction hashes, runtime/dependency/official-scorer and ten exclusive jobs before any confirmation model request. No method/source/rendering repair after reserved model outputs. If exact frozen candidate/control cannot satisfy all actual native-packet bounds, stop before inference rather than compress/reselect against reserve.
+
+Measure NEW current-v5 five-repeat control on confirmation60, not imported development Q. Only after allfive control repeats complete, grade allcanonicaloutputs unchanged and establish a real measured reference. Then execute selected candidate once for five repeats, grade only after allfive complete, including all legal fallbacks. No prefix reuse, favorable repeats or success-only grading. Changed workload requires exactly one fresh mean_Q-HIGHER experiment config after full offline preparation, not a synthetic0reference. Keep manual total session allocation<=7 despite target header reset.
+
+Formula(.30F1A+.28F1B)/.58 and prospective candidate gates remain same RULES: gain>=.02 AND strictly>new control's conservative five-repeat noise, EACHcandidate repeatF1A>=.60/F1B>=.75, meanHitA>=newcontrolmean, totalfallbacks<=newcontroltotal, valid source-role reports ACTUALLYDELIVERED>=.95, allcanonical/source/model/usage/ledger integrity. Keep helper-role-specific no-pair truth limits and known/unknown costs. Do not relax gates if gain barelymisses, round a failure upward or use uncertainty analysis to rescue it. Failure ends confirmation, not further development on reserve. No production adoption/push/merge follows even a passing confirmation under current authorization.
+
+All existing case/request/socket/physical/token/input/role/deadline caps remain EXACT. WholeactualSDK->RootTransport fakeHTTP packet preflight for all600control/candidate case paths, no credential/network/gold in Node. No inference after Unix1792098000; each arm starts only with>=5700s remaining. Prefer >=12000s remaining at confirmation baseline start to reserve room for both bounded arms and local verification/grading; if not, report confirmation unavailable rather than rush a shorter measurement. All old STOP/inflight/controls immutable. Retry only as frozen new-protocol transient policy permits; known200/permanent/localguard/quality failures never become capacity retries.
+
+## Reporting
+
+Report all per-repeat primary/F1A/F1B/HitA/format/availability and role costs/latency, fixed gates, all observations/fallbacks and preparation failures. No generalization/significance claim from five repeated deterministic runs on the same60inputs. Optional uncertainty must be preregistered in the executable protocol before outcomes, pair A/B tasks by original source row and account for date/booklet dependence; it is supplemental only, never changes gates. Do not treat300repeat outputs as300independent questions.

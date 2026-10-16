@@ -11,6 +11,31 @@ import subprocess
 import sys
 context = json.loads(Path('.auto/check-context.json').read_text())
 mode, candidate = context['mode'], context['candidate']
+# BEGIN dual-evidence-v1 additive
+if mode == 'dual_evidence':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/dual_evidence_research.py', '--check-context'], check=True)
+    sys.exit(0)
+# END dual-evidence-v1 additive
+# BEGIN span-retrieval-v1 additive
+if mode == 'span_retrieval':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/span_retrieval_research.py', '--check-context'], check=True)
+    sys.exit(0)
+# END span-retrieval-v1 additive
+# BEGIN evidence-only-v1 additive
+if mode == 'evidence_only':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/evidence_only_research.py', '--check-context'], check=True)
+    sys.exit(0)
+# END evidence-only-v1 additive
+# BEGIN bound-review-v1 additive
+if mode == 'bound_review':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/bound_review_research.py', '--check-context'], check=True)
+    sys.exit(0)
+# END bound-review-v1 additive
+# BEGIN fragment-review-v1 additive
+if mode == 'fragment_review':
+    subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/fragment_review_research.py', '--check-context'], check=True)
+    sys.exit(0)
+# END fragment-review-v1 additive
 if mode == 'role_review':
     subprocess.run(['/tmp/hackapertus-ost-contract/.venv/bin/python', '-B', '-Werror::ResourceWarning', '.auto/role_review_research.py', '--check-context'], check=True)
 elif mode in ('fullbranch_reference', 'fullbranch_candidate'):

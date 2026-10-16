@@ -3,6 +3,51 @@
 set -euo pipefail
 # The experiment tool requires this canonical entry point; TRAIN controls stay separate.
 case "${1:-}" in
+# BEGIN dual-evidence-v1 additive
+  --dual-evidence-prepare|--dual-evidence-candidate)
+    [[ $# == 1 ]] || exit 2
+    case "$1" in
+      --dual-evidence-prepare) phase=--prepare-only ;;
+      --dual-evidence-candidate) phase=--candidate ;;
+    esac
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B -Werror::ResourceWarning "$(dirname -- "${BASH_SOURCE[0]}")/dual_evidence_research.py" "$phase" ;;
+# END dual-evidence-v1 additive
+# BEGIN span-retrieval-v1 additive
+  --span-retrieval-prepare|--span-retrieval-candidate)
+    [[ $# == 1 ]] || exit 2
+    case "$1" in
+      --span-retrieval-prepare) phase=--prepare-only ;;
+      --span-retrieval-candidate) phase=--candidate ;;
+    esac
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B -Werror::ResourceWarning "$(dirname -- "${BASH_SOURCE[0]}")/span_retrieval_research.py" "$phase" ;;
+# END span-retrieval-v1 additive
+# BEGIN evidence-only-v1 additive
+  --evidence-only-prepare|--evidence-only-candidate)
+    [[ $# == 1 ]] || exit 2
+    case "$1" in
+      --evidence-only-prepare) phase=--prepare-only ;;
+      --evidence-only-candidate) phase=--candidate ;;
+    esac
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B -Werror::ResourceWarning "$(dirname -- "${BASH_SOURCE[0]}")/evidence_only_research.py" "$phase" ;;
+# END evidence-only-v1 additive
+# BEGIN bound-review-v1 additive
+  --bound-review-prepare|--bound-review-candidate)
+    [[ $# == 1 ]] || exit 2
+    case "$1" in
+      --bound-review-prepare) phase=--prepare-only ;;
+      --bound-review-candidate) phase=--candidate ;;
+    esac
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B -Werror::ResourceWarning "$(dirname -- "${BASH_SOURCE[0]}")/bound_review_research.py" "$phase" ;;
+# END bound-review-v1 additive
+# BEGIN fragment-review-v1 additive
+  --fragment-review-prepare|--fragment-review-candidate)
+    [[ $# == 1 ]] || exit 2
+    case "$1" in
+      --fragment-review-prepare) phase=--prepare-only ;;
+      --fragment-review-candidate) phase=--candidate ;;
+    esac
+    exec /tmp/hackapertus-ost-contract/.venv/bin/python -B -Werror::ResourceWarning "$(dirname -- "${BASH_SOURCE[0]}")/fragment_review_research.py" "$phase" ;;
+# END fragment-review-v1 additive
   --role-review-prepare|--role-review-baseline|--role-review-candidate)
     [[ $# == 1 ]] || exit 2
     case "$1" in
