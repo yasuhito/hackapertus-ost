@@ -9,6 +9,55 @@ import time
 import run_comparison as r
 
 
+def translate_claim(job, case, target, client_factory):
+    """Cache context inputs privately; the attempt log contains only safe metadata."""
+    cache = job / ('translation-' + r.legacy.digest(r.legacy.encode(case)) + '.json')
+    if cache.exists():
+        return r.legacy.load(cache)
+    record = {'case_id': case['id'], 'target': target, 'ok': False,
+              'usage': None, 'finish_reason': None, 'error_type': None}
+    translation = None
+    try:
+        language = {'de': 'German', 'fr': 'French', 'it': 'Italian'}[target]
+        payload = {'model': r.MODELS[0], 'messages': [
+            {'role': 'system', 'content': f'Translate the user text into {language}. Output only the translation, nothing else.'},
+            {'role': 'user', 'content': case['claim']['text']}],
+            'temperature': 0, 'max_tokens': 256, 'stream': False}
+        response = client_factory(r.MODELS[0]).request('POST', '/v1/chat/completions', payload)
+        if isinstance(response, dict):
+            usage = response.get('usage')
+            if r.legacy.usage_known(usage):
+                record['usage'] = {key: usage[key] for key in ('prompt_tokens', 'completion_tokens', 'total_tokens')}
+            choice = response['choices'][0]
+            finish = choice.get('finish_reason')
+            record['finish_reason'] = finish if finish in ('stop', 'length') else None
+            content = choice['message']['content']
+            if isinstance(content, str) and content.strip() and record['finish_reason'] and record['usage'] is not None:
+                translation = content.strip()
+                record['ok'] = True
+        if not record['ok']:
+            record['error_type'] = 'INVALID_TRANSLATION_RESPONSE'
+    except Exception as exc:
+        record['error_type'] = type(exc).__name__
+    fd = os.open(job / 'translations.jsonl', os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'ab') as log:
+        log.write(r.legacy.encode(record) + b'\n')
+        log.flush()
+        os.fsync(log.fileno())
+    result = {'translation': translation, 'usage': record['usage']}
+    # Cache failures too: retrying retrieval on resume could change frozen context.
+    r.legacy.exclusive(cache, result)
+    return result
+
+
+def case_metrics(ledger, model, index, wall_ms, translation_usage):
+    metrics, wait = r.metrics_for(ledger, model, index, wall_ms)
+    if translation_usage is not None:
+        metrics['input_tokens'] += translation_usage['prompt_tokens']
+        metrics['output_tokens'] += translation_usage['completion_tokens']
+    return metrics, wait
+
+
 def execute(input_path, output_path, strategy, client_factory=None):
     if strategy not in r.LIMITS:
         raise r.Stop('ROLE_MODEL_REFUSED')
@@ -25,34 +74,53 @@ def execute(input_path, output_path, strategy, client_factory=None):
     rows = [r.submission.strict_json(line.decode('utf-8')) for line in blob.splitlines() if line.strip()]
     if len(rows) > 100000 or len({row['id'] for row in rows}) != len(rows):
         raise r.Stop('INPUT_COUNT_OR_DUPLICATE_IDS')
+    selection = os.environ.get('CONTEXT_SELECTION', 'vote_pages')
+    if selection not in ('vote_pages', 'claim_pages', 'full'):
+        raise r.Stop('CONTEXT_SELECTION_REFUSED')
+    claim_spans = int(os.environ.get('CLAIM_SPANS', '8'))
+    engine = r.legacy.engine()
+    engine.CLAIM_SPANS = claim_spans
+    job = output_path.parent / 'tmp' / 'format-runtime'
+    job.mkdir(mode=0o700, parents=True, exist_ok=True)
+    identity = {'context_selection': selection, 'claim_spans': claim_spans}
+    if (job / 'manifest.json').exists():
+        previous = r.legacy.load(job / 'manifest.json')
+        if any(previous.get(key) != value for key, value in identity.items()):
+            raise r.Stop('MANIFEST_CHANGED')
+    clients = {}
+    def client(selected):
+        if selected not in clients:
+            clients[selected] = r.Transport(selected, submitted=True)
+        return clients[selected]
+    client_factory = client_factory or client
     frozen = []
+    translation_usages = []
     preparation = []
     for case in rows:
         started = time.monotonic()
-        pages, messages = r.legacy.engine().context(case, input_path.parent)
+        translated = {'translation': None, 'usage': None}
+        target = case.get('booklet', {}).get('language')
+        if selection == 'claim_pages' and target and case['claim'].get('language') != target:
+            translated = translate_claim(job, case, target, client_factory)
+        pages, messages = engine.context(case, input_path.parent, selection_strategy=selection,
+                                         translator=lambda text, language: translated['translation'])
+        translation_usages.append(translated['usage'])
         messages[0]['content'] += '\n\n' + r.legacy.PROTOCOL_REMINDER
         ids = [c['span_id'] for c in r.candidates(pages, 'reference' in case)]
         frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids, strategy=strategy)))})
         preparation.append((time.monotonic() - started) * 1000)
     request_limit = 5 * len(rows)
-    manifest = {'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': request_limit, 'token_budget': request_limit * r.RESERVE, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
+    manifest = {**identity, 'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': request_limit, 'token_budget': request_limit * r.RESERVE, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
     if strategy == 'C':
         manifest.update(models=[model], role_models={'parent': r.MODELS[1], 'child': r.MODELS[0]})
     if strategy in ('S', 'R'):
         manifest['models'] = [model]
-    job = output_path.parent / 'tmp' / 'format-runtime'
-    job.mkdir(mode=0o700, parents=True, exist_ok=True)
     import fcntl
     fd = os.open(job / 'lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, 'w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         r.initialize(job, manifest)
-        clients = {}
-        def client(selected):
-            if selected not in clients:
-                clients[selected] = r.Transport(selected, submitted=True)
-            return clients[selected]
-        ledger = r.Ledger(job, manifest, client_factory or client)
+        ledger = r.Ledger(job, manifest, client_factory)
         for index, item in enumerate(frozen):
             name = r.legacy.result_name(model, index).replace('.json', '-case.json')
             if name in ledger.state['cases']:
@@ -71,7 +139,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
                     args, diagnostics = r.run_a(item, model, post)
                 else:
                     args, diagnostics, sdk = r.run_b(item, request_model, post, strategy=strategy)
-                metrics, wait = r.metrics_for(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000)
+                metrics, wait = case_metrics(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000, translation_usages[index])
                 result = r.submission.assemble_tool(args, item['case'], item['pages'], metrics) if args is not None else r.submission.fallback(item['case'], item['pages'], metrics)
                 error = None if args is not None else 'NO_ACCEPTED_SUBMIT'
             except Exception as exc:
@@ -93,7 +161,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
                         record = r.legacy.load(job / attempt)
                         if r.legacy.usage_known(record['usage']):
                             ledger.records[attempt] = record
-                metrics, wait = r.metrics_for(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000)
+                metrics, wait = case_metrics(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000, translation_usages[index])
                 result = r.submission.fallback(item['case'], item['pages'], metrics)
             ledger.save_case(name, {'model': model, 'request_model': request_model, 'prediction': result, 'error': error, 'diagnostics': diagnostics, 'api_wait_ms': wait, 'sdk': sdk})
         try:

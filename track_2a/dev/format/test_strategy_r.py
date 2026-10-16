@@ -95,8 +95,8 @@ def test_runtime_r_routes_with_nominal_owner_and_replay(tmp_path, monkeypatch):
     source.write_text(''.join(json.dumps(case) + '\n' for case in cases))
     engine = r.legacy.engine()
     original = engine.context
-    monkeypatch.setattr(engine, 'context', lambda case, base: (booklet_item()['pages'], booklet_item()['messages'])
-                        if 'booklet' in case else original(case, base))
+    monkeypatch.setattr(engine, 'context', lambda case, base, **options: (booklet_item()['pages'], booklet_item()['messages'])
+                        if 'booklet' in case else original(case, base, **options))
     monkeypatch.setattr(r.legacy, 'engine', lambda: engine)
     output = tmp_path / 'out/predictions.jsonl'
     calls = []

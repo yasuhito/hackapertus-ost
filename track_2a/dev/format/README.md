@@ -150,7 +150,11 @@ make run PIPELINE=C LLM_MODEL=swiss-ai/Apertus-v1.5-70B \
 # Makefile and Dockerfile default: PIPELINE=R, one native submit call per case,
 # booklet cases on Apertus 70B and reference cases on Apertus 8B. PIPELINE=S is
 # the same single call with one model (LLM_MODEL). PIPELINE=A selects the same
-# assembler's text path.
+# assembler's text path. CONTEXT_SELECTION=claim_pages (default vote_pages) narrows
+# each booklet case to the vote's opening spread plus the pages of the eight spans
+# closest to the claim and their neighbours; cross-language claims are first
+# translated into the booklet language by Apertus 8B (one short call, recorded in
+# tmp/format-runtime/translations.jsonl and counted in the case's tokens).
 ```
 
 The Node executable is resolved before child environment sanitization, including

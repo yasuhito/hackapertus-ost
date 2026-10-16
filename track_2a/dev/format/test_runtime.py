@@ -228,3 +228,133 @@ def test_runtime_unknown_response_preserves_block_and_known_usage(tmp_path, monk
     state = json.loads((job / 'state.json').read_text())
     assert state['blocked'] is True and state['reserved_tokens'] == 0
     assert not (job / 'inflight.json').exists() and not (job / 'STOP.json').exists()
+
+
+@pytest.fixture
+def booklet_runtime(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLM_MODEL', r.MODELS[0])
+    engine = r.legacy.engine()
+    monkeypatch.setattr(engine, 'pdf_pages', lambda _: (
+        '', '3 Erste Vorlage Alpha In Kürze 4 Im Detail 6',
+        '4 Erste Vorlage: Alpha Die Vorlage senkt Steuern.', '5 Frage.',
+        '6 Erste Vorlage: Alpha Im Detail Steuern sinken ab 2027.'))
+    translations = []
+    original = engine.claim_pages
+    def claim_pages(*args, **kwargs):
+        translations.append(args[-1])
+        return original(*args, **kwargs)
+    monkeypatch.setattr(engine, 'claim_pages', claim_pages)
+    case = {'id': 'booklet', 'booklet': {'path': 'fake.pdf', 'language': 'de'},
+            'claim': {'text': 'Les impôts baissent.', 'language': 'fr'}, 'vote': 'Alpha'}
+    source = tmp_path / 'input.jsonl'
+    output = tmp_path / 'out/predictions.jsonl'
+    return case, source, output, translations
+
+
+def test_runtime_claim_translation_payload_metrics_and_resume(booklet_runtime, monkeypatch):
+    case, source, output, translations = booklet_runtime
+    monkeypatch.setenv('CONTEXT_SELECTION', 'claim_pages')
+    monkeypatch.setenv('CLAIM_SPANS', '2')
+    source.write_text(json.dumps(case) + '\n')
+    calls = []
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(payload)
+            assert (method, path) == ('POST', '/v1/chat/completions')
+            if len(calls) == 1:
+                assert payload == {'model': r.MODELS[0], 'messages': [
+                    {'role': 'system', 'content': 'Translate the user text into German. Output only the translation, nothing else.'},
+                    {'role': 'user', 'content': case['claim']['text']}],
+                    'temperature': 0, 'max_tokens': 256, 'stream': False}
+                assert translations == []
+                runtime.time.sleep(0.01)
+                return response(r.MODELS[0], content='Die Steuern sinken.')
+            assert translations == ['Die Steuern sinken.']
+            return response(r.MODELS[0], content='{"label":1,"evidence":[]}')
+    def factory(model):
+        assert model == r.MODELS[0]
+        return Fake()
+    runtime.execute(source, output, 'A', factory)
+    assert len(calls) == 2
+    row = json.loads(output.read_text())
+    assert row['metrics']['input_tokens'] == 160
+    assert row['metrics']['output_tokens'] == 40
+    assert row['metrics']['inference_time_ms'] >= 10
+    job = output.parent / 'tmp/format-runtime'
+    attempts = [json.loads(line) for line in (job / 'translations.jsonl').read_text().splitlines()]
+    assert attempts == [{'case_id': 'booklet', 'target': 'de', 'ok': True,
+                         'usage': {'prompt_tokens': 80, 'completion_tokens': 20, 'total_tokens': 100},
+                         'finish_reason': 'stop', 'error_type': None}]
+    manifest = json.loads((job / 'manifest.json').read_text())
+    assert manifest['context_selection'] == 'claim_pages' and manifest['claim_spans'] == 2
+    original = output.read_bytes()
+    runtime.execute(source, output, 'A', lambda _: pytest.fail('resume called client'))
+    assert output.read_bytes() == original
+    assert len((job / 'translations.jsonl').read_text().splitlines()) == 1
+    for variable, value in [('CONTEXT_SELECTION', 'full'), ('CLAIM_SPANS', '3')]:
+        with monkeypatch.context() as patch:
+            patch.setenv(variable, value)
+            with pytest.raises(r.Stop, match='MANIFEST_CHANGED'):
+                runtime.execute(source, output, 'A', lambda _: pytest.fail('changed selection called client'))
+
+
+@pytest.mark.parametrize('failure', ['stop', 'garbage', 'bad-content', 'bad-finish', 'bad-usage'])
+def test_runtime_translation_failure_is_nonfatal(booklet_runtime, monkeypatch, failure):
+    case, source, output, translations = booklet_runtime
+    monkeypatch.setenv('CONTEXT_SELECTION', 'claim_pages')
+    source.write_text(json.dumps(case) + '\n')
+    calls = []
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(payload)
+            if len(calls) == 1:
+                if failure == 'stop':
+                    raise r.Stop('SECRET RESPONSE BODY')
+                if failure == 'garbage':
+                    return None
+                result = response(r.MODELS[0], content='Steuern sinken.')
+                if failure == 'bad-content':
+                    result['choices'][0]['message']['content'] = '   '
+                elif failure == 'bad-finish':
+                    result['choices'][0]['finish_reason'] = 'tool_calls'
+                else:
+                    result['usage'] = None
+                return result
+            return response(r.MODELS[0], content='{"label":1,"evidence":[]}')
+    runtime.execute(source, output, 'A', lambda _: Fake())
+    assert len(calls) == 2 and translations == [None]
+    assert json.loads(output.read_text())['label'] == 1
+    log = output.parent / 'tmp/format-runtime/translations.jsonl'
+    attempt = json.loads(log.read_text())
+    assert attempt['ok'] is False and attempt['error_type']
+    assert 'SECRET' not in log.read_text()
+    expected_tokens = 160 if failure in ('bad-content', 'bad-finish') else 80
+    assert json.loads(output.read_text())['metrics']['input_tokens'] == expected_tokens
+    original = output.read_bytes()
+    runtime.execute(source, output, 'A', lambda _: pytest.fail('failed translation retried'))
+    assert output.read_bytes() == original
+
+
+@pytest.mark.parametrize('kind', ['same-language', 'reference', 'default', 'full'])
+def test_runtime_skips_unneeded_translation(booklet_runtime, monkeypatch, kind):
+    case, source, output, translations = booklet_runtime
+    monkeypatch.setenv('CONTEXT_SELECTION', 'claim_pages')
+    if kind == 'same-language':
+        case['claim']['language'] = 'de'
+    elif kind == 'reference':
+        case.pop('booklet')
+        case['reference'] = {'text': 'Steuern sinken.', 'language': 'de'}
+    elif kind == 'default':
+        monkeypatch.delenv('CONTEXT_SELECTION')
+    else:
+        monkeypatch.setenv('CONTEXT_SELECTION', 'full')
+    source.write_text(json.dumps(case) + '\n')
+    calls = []
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(payload)
+            assert payload['messages'][0]['content'].endswith(r.legacy.PROTOCOL_REMINDER)
+            return response(r.MODELS[0], content='{"label":1,"evidence":[]}')
+    runtime.execute(source, output, 'A', lambda _: Fake())
+    assert len(calls) == 1
+    assert not (output.parent / 'tmp/format-runtime/translations.jsonl').exists()
