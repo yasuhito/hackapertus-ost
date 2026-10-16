@@ -1,5 +1,11 @@
 # Status — deadline 2026-10-16
 
+## Post-submission improvements on master (2026-10-16 evening)
+- Section labels rebuilt from the detail part's table of contents (498b481); paragraph-ranked
+  padding after escalation (633049c). Three sets x three runs: Task A F1 0.915 (spread 0.012),
+  Task B F1 0.922, Hit@5 0.857 (3 runs identical), 7,387 tokens per case. See
+  `docs/single-call-results-2026-10-16.md`. The submitted revision stays at tag submission-2026-10-16.
+
 ## SUBMITTED 2026-10-16 18:50 JST at commit f82eafb (master = main)
 - Report: `report/main.pdf` (English; the Japanese draft was retired after submission, see git tag submission-2026-10-16). Repository https://github.com/yasuhito/hackapertus-ost.
 - Configuration: strategy R, claim_paragraphs with section prior, escalation on; Docker image verified.
