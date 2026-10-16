@@ -29,7 +29,7 @@ legacy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(legacy)
 Stop = legacy.c.Stop
 MODELS = legacy.MODELS
-LIMITS = {'A': 216, 'B': 540, 'C': 270}
+LIMITS = {'A': 216, 'B': 540, 'C': 270, 'S': 180}
 TOKEN_BUDGET = 6_000_000
 RESERVE = 262400
 CASE_SECONDS = 300
@@ -43,7 +43,7 @@ def fixed_role_model(strategy, case_owner_model, role):
         if case_owner_model != MODELS[1]:
             raise Stop('ROLE_MODEL_REFUSED')
         return MODELS[1] if role == 'parent' else MODELS[0]
-    if strategy == 'A' and role != 'parent':
+    if strategy in ('A', 'S') and role != 'parent':
         raise Stop('ROLE_MODEL_REFUSED')
     return case_owner_model
 
@@ -54,11 +54,16 @@ def validate_role_models(manifest):
         if manifest.get('models', [manifest.get('model')]) != [MODELS[1]] or manifest.get('role_models') != expected:
             raise Stop('ROLE_MODEL_REFUSED')
 
+    if manifest['strategy'] == 'S':
+        models = manifest.get('models')
+        if not isinstance(models, list) or len(models) != 1 or models[0] not in MODELS or 'role_models' in manifest or manifest.get('model', models[0]) != models[0]:
+            raise Stop('ROLE_MODEL_REFUSED')
 
-def schemas(ids, child=False):
+
+def schemas(ids, child=False, strategy=None):
     submit = {'type': 'function', 'function': {'name': 'submit', 'description': 'Select NLI label and exact supporting candidate IDs.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['label', 'candidate_ids'], 'properties': {'label': {'enum': [0, 1, 2], 'type': 'integer'}, 'candidate_ids': {'type': 'array', 'maxItems': 5, 'items': {'type': 'string', 'enum': ids}}}}}}
     delegate = {'type': 'function', 'function': {'name': 'subagent', 'description': 'One fixed source-only child recommendation.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['mode'], 'properties': {'mode': {'type': 'string', 'enum': ['source_only']}}}}}
-    return [submit] if child else [submit, delegate]
+    return [submit] if child or strategy == 'S' else [submit, delegate]
 
 
 class Transport:
@@ -145,7 +150,7 @@ def prepare(strategy, case_ids=None):
     manifest = legacy.prepare()
     manifest.update(version='format-1', strategy=strategy, request_limit=LIMITS[strategy], token_budget=TOKEN_BUDGET,
                     request_token_reserve=RESERVE, request_wall_seconds=60, socket_seconds=45, case_wall_seconds=CASE_SECONDS,
-                    parent_completion_limit=2 if strategy == 'A' else 3, child_completion_limit=0 if strategy == 'A' else 2,
+                    parent_completion_limit=2 if strategy == 'A' else 3, child_completion_limit=0 if strategy in ('A', 'S') else 2,
                     schema_repair_limit=1, native_schema='OpenAI tools only for B/C; no structured_output or json_schema' if strategy == 'C' else 'OpenAI tools only for B; no structured_output or json_schema', pi_version='1.1.0')
     if strategy == 'C':
         manifest.update(models=[MODELS[1]], role_models={'parent': MODELS[1], 'child': MODELS[0]})
@@ -153,7 +158,7 @@ def prepare(strategy, case_ids=None):
     manifest['sources'].update({str(p.relative_to(REPO)): legacy.digest(p.read_bytes()) for p in files})
     for item in manifest['frozen']:
         item['candidate_ids'] = [x['span_id'] for x in candidates(item['pages'], 'reference' in item['case'])]
-        item['schema_sha256'] = legacy.digest(legacy.encode(schemas(item['candidate_ids'])))
+        item['schema_sha256'] = legacy.digest(legacy.encode(schemas(item['candidate_ids'], strategy=strategy)))
     return select_cases(manifest, case_ids) if case_ids is not None else manifest
 
 
@@ -326,7 +331,7 @@ def missing_support_args(args):
 def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strategy='B'):
     """Python owns the assembler and all requests. Node receives no credentials."""
     fixed_role_model(strategy, model, 'parent')
-    child_model = fixed_role_model(strategy, model, 'child')
+    child_model = None if strategy == 'S' else fixed_role_model(strategy, model, 'child')
     with tempfile.TemporaryDirectory(prefix='ost-pi-', dir='/tmp') as home:
         node = shutil.which('node')
         if not node:
@@ -358,20 +363,20 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strate
                 message = submission.strict_json(line)
                 kind = message['kind']
                 if kind == 'done':
-                    if not message['result']['counts']['child']:
+                    if strategy != 'S' and not message['result']['counts']['child']:
                         diagnostics.append('NO_SUBAGENT_CALL')
                     return accepted, diagnostics, message['result']
                 if kind == 'fatal':
                     raise Stop('SDK_FATAL_ALL_STOP')
                 data = message['data']
                 role = data.get('role')
-                if role not in ('parent', 'child'):
+                if role not in (('parent',) if strategy == 'S' else ('parent', 'child')):
                     raise Stop('ROLE_REFUSED')
                 if kind == 'request':
                     payload = data['payload']
                     if payload.get('model') != fixed_role_model(strategy, model, role):
                         raise Stop('ROLE_MODEL_REFUSED')
-                    enforce_tools(payload, item['candidate_ids'], role)
+                    enforce_tools(payload, item['candidate_ids'], role, strategy=strategy)
                     if counters[role] >= (3 if role == 'parent' else 2) or accepted is not None:
                         raise Stop('SDK_REQUEST_LIMIT')
                     response = post(role, counters[role], payload)
@@ -450,14 +455,14 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strate
             process.stdout.close()
 
 
-def enforce_tools(payload, ids, role):
+def enforce_tools(payload, ids, role, strategy=None):
     tools = payload.get('tools')
-    names = ['submit', 'subagent'] if role == 'parent' else ['submit']
+    names = ['submit', 'subagent'] if role == 'parent' and strategy != 'S' else ['submit']
     if not isinstance(tools, list) or any(not isinstance(t, dict) or not isinstance(t.get('function'), dict) or not isinstance(t['function'].get('name'), str) for t in tools) or sorted(t['function']['name'] for t in tools) != sorted(names):
         raise Stop('TOOLS_REFUSED')
     # Native HTTP declarations are a compatibility projection, not the stronger
     # Pi TypeBox schema. Compare canonical JSON exactly (bool is not integer).
-    expected = {t['function']['name']: t['function']['parameters'] for t in schemas(ids, child=role == 'child')}
+    expected = {t['function']['name']: t['function']['parameters'] for t in schemas(ids, child=role == 'child', strategy=strategy)}
     for t in tools:
         if set(t) != {'type', 'function'} or t.get('type') != 'function':
             raise Stop('TOOL_SCHEMA_REFUSED')

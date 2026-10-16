@@ -133,7 +133,7 @@ def main():
     parser.add_argument('--job', type=Path, required=True)
     parser.add_argument('--grade', action='store_true')
     parser.add_argument('--prepare-only', action='store_true')
-    parser.add_argument('--strategy', choices=['A', 'C'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON')
+    parser.add_argument('--strategy', choices=['A', 'C', 'S'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON; S: one model, submit tool')
     parser.add_argument('--model', choices=['8b', '70b'], default='70b')
     args = parser.parse_args()
     core = module(RUNNER, 'format_runner')

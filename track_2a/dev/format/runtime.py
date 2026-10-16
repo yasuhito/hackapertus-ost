@@ -12,7 +12,7 @@ import run_comparison as r
 def execute(input_path, output_path, strategy, client_factory=None):
     if strategy not in r.LIMITS:
         raise r.Stop('ROLE_MODEL_REFUSED')
-    selected = os.environ.get('LLM_MODEL') or os.environ.get('LLM_NAME') or r.MODELS[1 if strategy == 'C' else 0]
+    selected = os.environ.get('LLM_MODEL') or os.environ.get('LLM_NAME') or r.MODELS[1 if strategy in ('C', 'S') else 0]
     model = next((allowed for allowed in r.MODELS if selected.casefold() == allowed.casefold()), None)
     if model is None:
         raise r.Stop('MODEL_REFUSED')
@@ -30,12 +30,14 @@ def execute(input_path, output_path, strategy, client_factory=None):
         pages, messages = r.legacy.engine().context(case, input_path.parent)
         messages[0]['content'] += '\n\n' + r.legacy.PROTOCOL_REMINDER
         ids = [c['span_id'] for c in r.candidates(pages, 'reference' in case)]
-        frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids)))})
+        frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids, strategy=strategy)))})
         preparation.append((time.monotonic() - started) * 1000)
     request_limit = 5 * len(rows)
     manifest = {'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': request_limit, 'token_budget': request_limit * r.RESERVE, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
     if strategy == 'C':
         manifest.update(models=[model], role_models={'parent': r.MODELS[1], 'child': r.MODELS[0]})
+    if strategy == 'S':
+        manifest['models'] = [model]
     job = output_path.parent / 'tmp' / 'format-runtime'
     job.mkdir(mode=0o700, parents=True, exist_ok=True)
     import fcntl
@@ -114,7 +116,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--pipeline', choices=['A', 'B', 'C'], default=os.environ.get('PIPELINE', 'A'))
+    parser.add_argument('--pipeline', choices=['A', 'B', 'C', 'S'], default=os.environ.get('PIPELINE', 'A'))
     args = parser.parse_args()
     r.legacy.c.protect()
     execute(args.input, args.output, args.pipeline)
