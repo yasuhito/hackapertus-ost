@@ -1,5 +1,10 @@
 # Status — deadline 2026-10-16
 
+## SUBMITTED 2026-10-16 18:50 JST at commit f82eafb (master = main)
+- Report: `report/main-en.pdf` (English), `report/main.pdf` (Japanese). Repository https://github.com/yasuhito/hackapertus-ost.
+- Configuration: strategy R, claim_paragraphs with section prior, escalation on; Docker image verified.
+- Do not change the submitted configuration retroactively; later work belongs on a new branch.
+
 ## 2026-10-16 18:00 JST baseline: paragraph context + section prior + escalation on strategy R
 - Section prior (commit f3e7661): the claim's attributive opening (summary / committee / council /
   vote text / if adopted) selects the booklet sections whose paragraphs are ranked first.
