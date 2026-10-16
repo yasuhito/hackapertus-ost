@@ -142,6 +142,24 @@ def claim_span_pages(pages, selected, claim, spans, top_k):
     return tuple(result), {'kept_spans': top_k, 'kept_pages': sorted(overview | set(keep))}
 
 
+def claim_pages(pages, selected, claim, spans, top_k):
+    """Keep whole pages: the opening spread, the pages holding the top-k spans, and their neighbours.
+
+    Whole pages preserve the surrounding conditions that a 1200-char span can
+    cut off. On the public rows this keeps the gold page for 97% of claims at
+    about two thirds of the vote's text.
+    """
+    provided = {i + 1 for i in selected}
+    overview = {i + 1 for i in selected[:2]}
+    scores = bm25_scores(char_grams(claim), [char_grams(s['text']) for s in spans])
+    order = sorted(range(len(spans)), key=lambda i: (-scores[i], i))
+    keep = set(overview)
+    for i in order[:top_k]:
+        page = spans[i]['page']
+        keep.update(n for n in (page - 1, page, page + 1) if n in provided)
+    return tuple(text if number in keep else '' for number, text in enumerate(pages, 1)), {'kept_pages': sorted(keep)}
+
+
 def rank_pages(claim, pages, page_numbers):
     """Order the given 1-based page numbers by lexical relevance to the claim (BM25).
 

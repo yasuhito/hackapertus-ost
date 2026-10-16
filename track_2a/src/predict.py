@@ -10,7 +10,7 @@ import sys
 import time
 import urllib.request
 from source_spans import candidates, restore
-from document_selection import claim_span_pages, selected_context
+from document_selection import claim_pages, claim_span_pages, selected_context
 
 LABELS = {0: "entailment", 1: "neutral", 2: "contradiction"}
 SYSTEM = '\n'.join([
@@ -42,7 +42,7 @@ CLAIM_SPANS = int(os.getenv("CLAIM_SPANS", "8"))
 
 
 def context(case, base, selection_strategy="vote_pages"):
-    if selection_strategy not in ("full", "vote_pages", "claim_spans"):
+    if selection_strategy not in ("full", "vote_pages", "claim_spans", "claim_pages"):
         raise ValueError("invalid context strategy")
     if not isinstance(case, dict) or not isinstance(case.get("claim"), dict):
         raise ValueError("case/claim must be objects")
@@ -67,13 +67,15 @@ def context(case, base, selection_strategy="vote_pages"):
         if not any(p.strip() for p in pages):
             raise ValueError("PDF has no extractable text (OCR needed)")
     reference_text = "\n\n".join(f"[PAGE {i}]\n{p}" for i, p in enumerate(pages, 1))
-    if selection_strategy in ("vote_pages", "claim_spans") and "booklet" in case and isinstance(case.get("vote"), str) and case["vote"].strip():
+    if selection_strategy in ("vote_pages", "claim_spans", "claim_pages") and "booklet" in case and isinstance(case.get("vote"), str) and case["vote"].strip():
         reference_text, selection = selected_context(pages, case, "vote_pages")
         selected = selection.get("selected_pages", list(range(1, len(pages) + 1)))
         # Keep physical page indices; unprovided pages cannot supply evidence.
         pages = tuple(text if i in selected else "" for i, text in enumerate(pages, 1))
         if selection_strategy == "claim_spans":
             pages, _ = claim_span_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS)
+        elif selection_strategy == "claim_pages":
+            pages, _ = claim_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS)
     return pages, messages_for_pages(case, pages)
 
 

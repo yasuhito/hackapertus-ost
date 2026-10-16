@@ -21,3 +21,10 @@ def test_claim_span_pages_keeps_overview_and_top_spans_verbatim():
     assert reduced[5] == pages[5] and reduced[4] == "" and reduced[6] == ""
     assert meta["kept_pages"] == [3, 4, 6]
     assert all(text in page or text == "" for text, page in zip(reduced, pages))
+
+
+def test_claim_pages_keeps_whole_pages_with_neighbours():
+    pages = ("", "", "4 Vorlage Alpha In Kürze.", "5 Frage.", "10 Verkehr und Strassen.", "11 Pestizide sind ab 2027 verboten.", "12 Argumente zu Steuern.", "13 Ende.")
+    reduced, meta = ds.claim_pages(pages, [2, 3, 4, 5, 6, 7], "I pesticidi sono vietati dal 2027.", candidates(pages), 1)
+    assert meta["kept_pages"] == [3, 4, 5, 6, 7]
+    assert reduced[4] == pages[4] and reduced[5] == pages[5] and reduced[6] == pages[6] and reduced[7] == ""
