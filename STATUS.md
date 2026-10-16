@@ -1,5 +1,14 @@
 # Status — deadline 2026-10-16
 
+## 2026-10-16 baseline: running-header page selection + consulted-page evidence (commit 76a0e6e)
+- Replaces v5 after a one-time comparison on the reserved confirmation 60 (3 runs each):
+  Task A F1 0.734 -> 0.797, Task B F1 0.929 -> 0.929, Hit@5 0.569 -> 0.625, fallbacks 3 -> 0,
+  tokens on the 59 cases both versions processed 26,420 -> 26,692, time 6.7 -> 6.8 s/case.
+- Decision and gates: `docs/confirmation-protocol-2026-10-16.md`. Diagnosis and dev/public
+  measurements: `docs/next-strategy-2026-10-16.md`. Reserved 60 is now exposed.
+- Dev harness pins Pi 1.1.0 (`~/.cache/ost-pi-1.1.0`); the Docker image installs it from the lock file.
+
+
 ## Data
 - Public HF `OSTswiss/MNLIoverSwissVotingBooklets`, **ungated**; curl download succeeded.
 - `v1.1.jsonl`: 1,488 rows, 12,742,710 bytes; only official split is `train`.
