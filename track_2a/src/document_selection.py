@@ -261,8 +261,97 @@ def paragraphs(pages, selected):
     return result
 
 
-def rank_paragraphs(claim, paras, translation=None, embedder=None):
-    """Fuse lexical and optional local embedding rankings deterministically."""
+CLAIM_KINDS = (
+    ('summary', r'(?:le resume|il riassunto|nel riassunto|die zusammenfassung|laut der zusammenfassung|gemass der zusammenfassung|secondo il riassunto|d.apres le resume|selon le resume|the summary)'),
+    ('committee', r'(?:das (?:initiativ|referendums)?komitee|le comite|il comitato|laut dem komitee|selon le comite|secondo il comitato)'),
+    ('council', r'(?:der bundesrat|le conseil federal|il consiglio federale|bundesrat und parlament|laut (?:dem )?bundesrat|selon le conseil federal|secondo il consiglio federale)'),
+    ('votetext', r'(?:laut dem abstimmungstext|der abstimmungstext|gemass abstimmungstext|selon le texte soumis|d.apres le texte|le texte (?:soumis au vote|de vote)|secondo il testo|stando al testo|il testo (?:di voto|in votazione))'),
+    ('ifadopted', r'(?:wird die abstimmung|bei annahme|bei einer annahme|si le vote|en cas d.acceptation|si l.objet est|se il voto|se la votazione|in caso di accettazione)'),
+)
+# Which booklet sections the dataset's claim openings quote from (public rows,
+# gold passages): summary claims cite the opening spread almost exclusively;
+# committee and council claims cite their own argument pages or the detail
+# section; vote-text claims cite the law text.
+PREFERRED_SECTIONS = {
+    'summary': {'overview'},
+    'committee': {'committee', 'detail', 'overview', 'arguments'},
+    'council': {'council', 'detail', 'overview', 'arguments'},
+    'votetext': {'votetext'},
+    'ifadopted': {'detail', 'overview', 'votetext'},
+}
+
+
+def claim_kind(claim):
+    """Classify a claim by its attributive opening; 'other' when none applies."""
+    head = normalize(claim)[:80]
+    for kind, pattern in CLAIM_KINDS:
+        if re.match(pattern, head):
+            return kind
+    return 'other'
+
+
+SECTION_MARKERS = (
+    ('votetext', r'(?:abstimmungstext|texte soumis au vote|testo in votazione)\b'),
+    ('committee', r'\b(?:argumente|arguments|argomenti)\b[^.]{0,40}?\b(?:komitee|komitees|comite|comitato)\b'),
+    ('council', r'\b(?:argumente|arguments|argomenti)\b[^.]{0,40}?\b(?:bundesrat und parlament|conseil federal et parlement|consiglio federale e parlamento)\b'),
+    ('detail', r'(?:im detail|en detail|in dettaglio)\b'),
+)
+SPEAKER_LINES = (
+    ('committee', r'(?:das |le |il )?(?:(?:initiativ|referendums)?komitee|comite(?: referendaire| d.initiative)?|comitato(?: referendario| d.iniziativa)?)'),
+    ('council', r'(?:bundesrat und parlament|conseil federal et parlement|consiglio federale e parlamento)'),
+)
+LAW_SIGN = re.compile(r'^\s*\d*\s*§')
+
+
+def page_sections(pages, selected):
+    """Section label per selected page (0-based index -> label).
+
+    The first two selected pages are the vote's opening spread ('overview').
+    Later pages take the section of the last marker in their first lines (a
+    page's mini table of contents precedes its own heading), a standalone
+    speaker line marks argument pages, and pages without any marker inherit
+    the previous page's section. Law text is recognised by its paragraph sign.
+    """
+    labels = {}
+    current = 'detail'
+    for position, page in enumerate(sorted(set(selected))):
+        text = pages[page]
+        if position < 2:
+            labels[page] = 'overview'
+            continue
+        head = normalize(text[:400])
+        found, best = None, -1
+        for label, pattern in SECTION_MARKERS:
+            for m in re.finditer(pattern, head):
+                if m.start() >= best:
+                    best, found = m.start(), label
+        for line in text[:400].splitlines():
+            normal = normalize(line)
+            for label, pattern in SPEAKER_LINES:
+                if re.fullmatch(pattern, normal):
+                    found = label
+        if found is None and LAW_SIGN.match(text):
+            found = 'votetext'
+        if found:
+            current = found
+        labels[page] = current
+    return labels
+
+
+def section_order(paras, sections, kind):
+    """Paragraph indices whose page section fits the claim kind, in document order."""
+    preferred = PREFERRED_SECTIONS.get(kind)
+    if not preferred:
+        return []
+    return [i for i, p in enumerate(paras) if sections.get(p['page'] - 1) in preferred]
+
+
+def rank_paragraphs(claim, paras, translation=None, embedder=None, sections=None, kind=None, section_mode='fuse'):
+    """Fuse lexical, optional local embedding and optional section-prior rankings.
+
+    section_mode 'fuse' adds the section prior as one more fused ranking;
+    'first' moves fitting paragraphs ahead of the rest (fused order inside).
+    """
     import math
 
     def order(scores):
@@ -286,15 +375,27 @@ def rank_paragraphs(claim, paras, translation=None, embedder=None):
                 denom = qnorm * math.sqrt(sum(float(x) ** 2 for x in vector))
                 scores.append(sum(float(a) * float(b) for a, b in zip(q, vector)) / denom if denom else 0.0)
             orders.append(order(scores))
-    return reciprocal_rank_fusion(*orders)
+    fused = reciprocal_rank_fusion(*orders)
+    if sections is not None and kind:
+        fitting = section_order(paras, sections, kind)
+        if fitting:
+            if section_mode == 'first':
+                fit = set(fitting)
+                return [i for i in fused if i in fit] + [i for i in fused if i not in fit]
+            # Rank fitting paragraphs by their fused position so the prior is stable.
+            rank = {i: r for r, i in enumerate(fused)}
+            return reciprocal_rank_fusion(fused, sorted(fitting, key=lambda i: rank[i]))
+    return fused
 
 
-def paragraph_context(pages, selected, claim, top_k, translation=None, embedder=None, neighbours=1):
+def paragraph_context(pages, selected, claim, top_k, translation=None, embedder=None, neighbours=1, section_prior=True, section_mode='fuse'):
     """Keep ranked paragraphs and page-local neighbours as original regions."""
     from source_spans import REGION_BREAK
     paras = paragraphs(pages, selected)
+    sections = page_sections(pages, selected) if section_prior else None
+    kind = claim_kind(claim) if section_prior else None
     keep = set()
-    for i in rank_paragraphs(claim, paras, translation, embedder)[:top_k]:
+    for i in rank_paragraphs(claim, paras, translation, embedder, sections, kind, section_mode)[:top_k]:
         keep.update(j for j in range(max(0, i - neighbours), min(len(paras), i + neighbours + 1))
                     if paras[j]['page'] == paras[i]['page'])
     groups = {}
