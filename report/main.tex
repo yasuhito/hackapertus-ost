@@ -19,8 +19,8 @@
 \title{HackApertus OST Track 2A 技術レポート\\
   \large スイス投票冊子に対する多言語NLIと原文根拠の復元\\
   \normalsize (日本語作業稿)}
-\author{チーム名 \TBD{チーム名とメンバー}}
-\date{改訂 \TBD{最終提出リビジョンと日付}}
+\author{チーム yasuhito (Yasuhito Takamiya)}
+\date{2026年10月16日 (リポジトリ master の最新コミット)}
 
 \begin{document}
 \maketitle
@@ -284,7 +284,7 @@ make run INPUT_DIR=/path/to/input INPUT=/data/input.jsonl \
 Dockerイメージは2026-10-16にlinux/amd64でbuildし、\texttt{make run}で6問を通して公式の採点器で読めることを確認しました(イメージ249 MB、埋め込みの重み140 MBを同梱)。
 
 開発用のハーネスでは、Pi 1.1.0を\texttt{\textasciitilde/.cache/ost-pi-1.1.0}に置き、\texttt{PI\_PACKAGE\_ROOT}と\texttt{PI\_SUBAGENTS\_ROOT}でその場所を指定します。
-リポジトリURLと提出リビジョンは\TBD{リポジトリURLと最終コミット}、デモは\TBD{デモ}です。
+リポジトリは\url{https://github.com/yasuhito/hackapertus-ost}で、提出リビジョンはmasterの最新コミットです。デモは用意せず、上記のCLIで再現します。
 
 %======================================================================
 \section*{ライセンス (License)}
