@@ -53,11 +53,11 @@ def test_wrong_page_stale_source_and_unprovided_page():
         restore(response([second]), (pages[0], ""))
 
 
+@pytest.mark.parametrize("reference", [False, True])
 @pytest.mark.parametrize("label", [0, 2])
-def test_missing_support_is_failure_for_booklets_only(label):
+def test_missing_support_is_failure(label, reference):
     with pytest.raises(ValueError, match="supporting span"):
-        restore(response([], label), ("Original.",), False)
-    assert restore(response([], label), ("Original.",), True) == (label, [])
+        restore(response([], label), ("Original.",), reference)
 
 
 def test_neutral_can_omit_evidence():

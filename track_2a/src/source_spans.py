@@ -76,8 +76,9 @@ def restore(raw, pages, reference=False):
     evidence = obj["evidence"]
     if not isinstance(evidence, list) or len(evidence) > 5:
         raise ValueError("invalid evidence list")
-    # Task B evidence is optional under the official rules; only booklet answers need support.
-    if label != 1 and not evidence and not reference:
+    # The official rules do not score Task B evidence, but a non-neutral answer
+    # that cannot point at any span is not grounded; keep the repair for both tasks.
+    if label != 1 and not evidence:
         raise ValueError("supporting span required")
     index = {c["span_id"]: c for c in candidates(pages, reference)}
     restored = []
