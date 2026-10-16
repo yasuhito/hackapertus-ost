@@ -160,7 +160,7 @@ Submitted transport requires injected BASE_URL/API_KEY for every parent/child
 call. It never reads a host key or uses a default CSCS endpoint. Output is
 canonical JSONL; sibling `.diagnostics.jsonl` and `.evaluation.jsonl` files
 retain fallback flags. Durable state is under the output directory's `tmp/`.
-At most 108 input cases are accepted. Use a dedicated output directory; changed
+Request and token budgets scale with the input size (five requests per case); a case whose requests fail yields the neutral fallback with its error in the diagnostics sidecar. Use a dedicated output directory; changed
 inputs/code/output refuse reuse. Runtime sources hash every local Python, TS,
 MJS and JSON dependency/entry/plugin file, including package and lockfile, so
 changed child code cannot resume an existing deployment. Empty input produces

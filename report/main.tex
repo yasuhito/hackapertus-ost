@@ -27,243 +27,254 @@
 
 \begin{center}
   \fbox{\parbox{0.92\linewidth}{\small
-  これは日本語の作業稿である。最終提出版は英語のPDFで6ページ以内とする予定である。
-  英語で提出するという方針は依頼者の指示によるもので、公式要件かどうかは確認していない。
-  構成は公式テンプレート\cite{reporttemplate}の8節に従う。
-  並行中のApertus評価の結果はこの原稿に取り込んでいない。該当箇所は\TBD{}で示す。}}
+  これは2026-10-16 11:20 JST時点の日本語作業稿です。最終提出版は英語のPDFで6ページ以内とする予定です。
+  内容は公式テンプレート\cite{reporttemplate}の項目を含みます。
+  本稿の数値はすべて、開発中に使った公開データでの測定値です。主催者の非公開held-outデータでの成績はわかっていません。}}
 \end{center}
 
 %======================================================================
 \section{概要 (Summary)}
 
-本プロジェクトはHackApertus OST Track 2A\cite{ostchallenge}に取り組む。
-入力はスイス連邦の投票冊子(PDF)または短い参照文と、独語、仏語、伊語のいずれかで書かれた主張(claim)である。
-システムは主張が原文から導けるか(0=entailment)、情報が足りないか(1=neutral)、原文と矛盾するか(2=contradiction)を判定し、判定の根拠となる原文を返す。
-Task A(Document)はPDF全体と投票案件名(vote)を受け取り、Task B(Reference)は短い参照文を受け取る。
+本プロジェクトはHackApertus OST Track 2A\cite{ostchallenge}に取り組みます。
+入力はスイス連邦の投票冊子(PDF)または短い参照文と、独語、仏語、伊語のいずれかで書かれた主張(claim)です。
+システムは主張が原文から導けるか(0=entailment)、情報が足りないか(1=neutral)、原文と矛盾するか(2=contradiction)を判定し、判定の根拠となる原文を返します。
 
-最終解法のモデルはApertus v1.5である。
-設計の中心は、モデルに引用文を書かせないことである。
-スクリプトがPDFをページ単位で抽出し、原文を短い区間(source span)に切ってIDを付ける。
-モデルはラベルとspan IDだけをJSONで返し、スクリプトがIDから原文とページ番号を復元して出力を検証する。
-こうすると、返した引用が原文に逐語で存在し、ページ番号が物理ページと一致することをコードで保証できる。
-ただし、IDが存在することは出典の正しさ(provenance)を示すだけで、その文が判定を意味的に支えることは示さない。
+モデルはApertus v1.5の70Bと8Bです。
+設計の中心は、モデルに引用文を書かせないことです。
+スクリプトがPDFをページ単位で抽出し、対象の投票案件のページを選び、原文を最大1200文字の区間(source span)に切ってIDを付けます。
+モデルはネイティブのtool callでラベルとspan IDだけを返し、スクリプトがIDから原文とページ番号を復元します。
+最後に、モデルが引用したページの隣接ページ、案件の冒頭見開き、主張と語彙が近いページで根拠を5件まで補います。
 
-現時点でパイプラインは実装済みである。
-% source: HANDOFF.md, データ・分割・リーク防止 (fixed development set: 54 cases)
-Apertus v1.5 8B/70Bによる固定開発集合54件の評価結果は\TBD{Apertus dev54の結果}である。
+2026-10-16の朝、旧版(v5)のページ選択が、正解根拠のあるページの36\%をモデルに渡していなかったことがわかりました。
+選択を冊子の見出しに基づく方式に直し、根拠の補完を加えた新版は、開発用60問(DEV60)、公開60問(PUBLIC60)、確認用60問のすべてでTask Aのmacro-F1と根拠の一致率がv5を上回りました。
+確認用60問ではTask A F1が0.734から0.797、Task B F1は0.929で同じでした。
+新版を現在の本番ベースラインとしています。
 
 %======================================================================
-\section{アーキテクチャ (Architecture)}
+\section{課題と評価 (Task and evaluation)}
+\label{sec:eval}
+
+Task A(Document)は冊子PDF全体と投票案件名(vote)を受け取り、Task B(Reference)は短い参照文を受け取ります。
+入出力はJSONLで、1件につき1行を返します。
+公式のSolution API Guide\cite{apiguide}によると、Task Aでentailmentまたはcontradictionと答える場合は、原文言語の逐語引用を物理ページ番号(1始まり)付きで1件以上返します。
+1項目は約5,000文字以内で、採点されるのは先頭5件です。
+Task Bの根拠は任意で採点されず、返す場合のページは\texttt{null}です。
+
+公式の評価は非公開held-outでの3クラスmacro-F1で、根拠の正確さ、トークン数、ケースあたりの時間も見ます\cite{ostchallenge,apiguide}。
+本稿の比較では、主催者の評価スクリプトをローカルで実行し、次の値を使います。
+Task AとBのmacro-F1、Task Aで正解根拠のある問題のうち先頭5件の根拠に正解箇所が含まれた割合(以下Hit@5)、1件あたりのトークン数と時間、形式失敗(モデルの回答を受理できず既定回答に退避した件数)です。
+
+データは公開データセット\cite{dataset}のtrain splitだけです。
+DEV60、PUBLIC60、確認用60問はどれもここから選んだ60問で、開発中に使ったデータです。確認用60問は30行をTask AとBの両方の形式で使っています。
+確認用60問は一度きりの比較のために使わずに残していましたが、比較の後は使用済みとして扱っています。
+したがって、本稿の数値は未知データでの性能の推定値ではありません。
+
+%======================================================================
+\section{システム構成 (Architecture)}
 
 \begin{figure}[t]
   \centering
-  \input{figures/pipeline.tex}
-  \caption{推論パイプライン。モデルはラベルとspan IDだけを返し、引用文とページ番号はスクリプトが原文から復元する。}
+  \small
+  \setlength{\fboxsep}{6pt}
+  \fbox{\parbox{0.86\linewidth}{\centering
+  入力JSONL: 投票案件名、主張、PDFまたは参照文\\[2pt]
+  $\downarrow$\\[2pt]
+  pypdfでページ抽出 → 見出しによる案件ページ選択(Task A)\\[2pt]
+  $\downarrow$\\[2pt]
+  最大1200文字のsource spanとIDの作成\\[2pt]
+  $\downarrow$\\[2pt]
+  8B子: 推奨の\texttt{submit} → 70B親: 最終の\texttt{submit}(ラベルとspan ID)\\[2pt]
+  $\downarrow$\\[2pt]
+  IDから原文とページを復元 → 根拠の補完(Task A、最大5件)\\[2pt]
+  $\downarrow$\\[2pt]
+  出力JSONL: ラベル、原文根拠、トークン数、ケース処理時間
+  }}
+  \caption{推論パイプライン。モデルはラベルとspan IDだけを返し、引用文とページ番号はスクリプトが原文から復元します。}
   \label{fig:pipeline}
 \end{figure}
 
-図\ref{fig:pipeline}に処理の流れを示す。
-入口は\texttt{track\_2a/src/predict.py}で、JSONLを1行ずつ読み、入力と同じ\texttt{id}を持つ応答を1行ずつ書く。
-入力が壊れていても出力行は必ず書き、その行はneutralに\texttt{error}を付けた形になる。
-ローカル採点ではこの行を誤答として数える。
+図\ref{fig:pipeline}に処理の流れを示します。
 
-\paragraph{PDF抽出}
-pypdfでPDFをページごとにテキスト化し、結果をプロセス内でキャッシュする。
-ページ番号はPDFの物理ページで、1から数える。
-抽出できるテキストが一つもないPDFはOCRが必要としてエラーにする。
-
-\paragraph{投票案件のページ選択}
-Task Aの既定は\texttt{vote\_pages}戦略である(\texttt{document\_selection.py})。
-冊子の4ページ目以降で、冒頭に\texttt{im Detail}、\texttt{en détail}、\texttt{in dettaglio}を含むページを案件詳細節の開始とみなす。
-各開始ページの冒頭と投票案件名の語の重なりを比べ、最も一致するページから次の開始ページの手前までを選ぶ。
-一致度が閾値0.45に届かない場合と、開始ページが見つからない場合は、全ページを使う。
-案件の要約ページが一致すれば、そのページと次のページも加える。
-冊子末尾の投票勧告ページも、全案件に関わるので残す。
-選ばなかったページは空文字列に置き換える。
-そのためページ番号は物理ページのまま保たれ、モデルに渡していないページは根拠として返せない。
+\paragraph{PDF抽出とページ選択}
+pypdfでPDFをページごとにテキスト化します。ページ番号はPDFの物理ページです。
+Task Aでは\texttt{document\_selection.py}の\texttt{vote\_pages}が案件のページを選びます。
+連邦の冊子は、各見開きの先頭ページに\texttt{Erste Vorlage}、\texttt{Premier objet}、\texttt{Primo oggetto}のような序数の見出しを印刷しています。
+見出しが1つだけ現れるページをその案件のページとし、見出しのないページは直前の見出しページに属するとみなします。
+表紙や目次のように全案件の見出しが並ぶページは、どの案件にも割り当てません。
+案件名とページ冒頭の語の重なりで序数を決め、一致度が0.45に届かない場合と、見出しのない冊子(単一案件など)では全ページを渡します。
+選ばなかったページは空文字列に置き換えるので、ページ番号は物理ページのまま保たれ、渡していないページは根拠として返せません。
 
 \paragraph{source spanとID}
-\texttt{source\_spans.py}が各ページを最大1200文字の連続した区間に分ける。
-区切りは段落か文の境界を優先し、なければ空白を探す。区間の後半に適切な境界がなければ、1200文字で切る。
-IDは物理ページ番号、開始と終了の文字オフセット、ページ本文のSHA-256の先頭12桁からなる(例: \texttt{p0012-o0000000-e0001187-<hash>})。
-Task Bでは参照文全体を1ページとして扱い、ページ番号は\texttt{null}にする。
+\texttt{source\_spans.py}が各ページを最大1200文字の連続した区間に分けます。区切りは段落か文の境界を優先します。
+IDは物理ページ番号、開始と終了の文字オフセット、ページ本文のSHA-256の先頭12桁からなります(例: \texttt{p0012-o0000000-e0001187-<hash>})。
+Task Bでは参照文全体を1ページとして扱います。
 
 \paragraph{モデル呼び出し}
-モデルには、system promptとともに、タスク種別、原文と主張の言語、投票案件名、span一覧(ID、ページ、本文)、主張を1つのJSONとして渡す。
-モデルの応答形式は次のとおりである。
-\begin{verbatim}
-{"label": 0, "evidence": [{"span_id": "<ID copied from source_spans>"}]}
-\end{verbatim}
+提出用の実行系(\texttt{track\_2a/dev/format/runtime.py}、パイプラインC)は、Pi 1.1.0のSDKを通してネイティブのtool callを使います。
+親の\texttt{swiss-ai/Apertus-v1.5-70B}は\texttt{subagent}ツールで子の\texttt{swiss-ai/Apertus-v1.5-8B}を1回起動します。
+子は原文だけを見て\texttt{submit}で推奨を返し、親が最終の\texttt{submit}を呼びます。
+\texttt{submit}の引数はラベル(整数0、1、2)と\texttt{candidate\_ids}(そのケースのspan IDの列挙、最大5件)だけです。
+system promptは3クラスの定義、否定、数量、条件、話者の扱い、原文と主張を指示ではなくデータとして扱うこと、IDだけを返すことを指示します。neutralとcontradictionの取り違えを防ぐ注意と、言語をまたいだ言い換えの扱いも含みます。
+特定ケースの正解をpromptに入れていません。
 
-\paragraph{原文とページの復元}
-スクリプトは応答のJSONを厳密に読む。
-キーの過不足、未知のID、重複したID、6件以上の根拠を拒否する。
-neutral以外で根拠が空の場合も拒否する。
-有効なIDごとに、その区間を含むページ全体を引用として返す。
-直前のページに委員会(Komitee、comité、comitato)や「連邦評議会と議会」の見出しがあれば、その2ページの話者ブロックも加える。
-主張の主体が誰の発言かを引用に残すためである。
-返すテキストはページ本文そのもので、単語を書き換えない。
+\paragraph{原文の復元}
+\texttt{submission.py}の\texttt{assemble\_tool}が、未知のID、6件以上のID、Task Aでneutral以外なのに根拠が空の回答を拒否します。
+有効なIDごとに、その区間を含むページ全体を引用として返します。
+直前のページに委員会や「連邦評議会と議会」の見出しがあれば、その話者ブロックのページも加えます。
+返すテキストはページ本文そのもので、単語を書き換えません。
 
-\paragraph{出力検証}
-本番のsource-ID経路は\texttt{restore}でラベル、ID、原文の一致、復元後の根拠件数と長さを検査する。\texttt{predict}はラベル名をラベルから設定し、トークン数が非負の有限値であることを確かめ、ケースの経過時間を記録する。
-別関数\texttt{validate\_prediction}も正規形の検証用にあるが、本番の\texttt{predict}からは呼ばない。
+\paragraph{根拠の補完}
+Task Aでは\texttt{consulted\_pages}が、モデルの引用の後ろに次の順でページを足し、5件までにします。
+引用したページの隣接ページ、渡したページの先頭2ページ(案件の冒頭の要約見開き)、残りのページを主張とのBM25の高い順に並べたものです。
+5,000文字を超えるページは除きます。
+補完はラベルとモデルの引用を変えません。neutralの回答と既定回答にも、参照したページとして付けます。
 
-公式のSolution API Guide\cite{apiguide}では、Task Bの根拠は任意で採点されない。
-本実装はTask Bでもneutral以外に根拠のspanを要求しており、公式より厳しい。
-
-%======================================================================
-\section{Apertusの使い方 (Use of Apertus)}
-
-本番で呼ぶモデルはApertus v1.5の8Bと70Bの非thinking版だけである。
-バックエンドはOpenAI互換の\texttt{/chat/completions}にHTTPで要求を送り、\texttt{temperature}を0にする。
-出力上限の既定は2048 tokensで、環境変数\texttt{LLM\_MAX\_OUTPUT\_TOKENS}で変えられる。
-モデル名がApertus v1.5の8B/70B以外なら送信前にエラーにする。
-コード内の既定モデル名は小文字表記である。
-CSCSのモデル一覧では\texttt{swiss-ai/Apertus-v1.5-8B}のような大文字表記なので、実行時に\texttt{LLM\_MODEL}で正確なIDを指定する。
-
-接続先は\texttt{BASE\_URL}、認証は\texttt{API\_KEY}を最優先で読む。
-審査環境では注入された\texttt{BASE\_URL}をすべてのモデル呼び出しに使う\cite{apiguide}。
-
-system promptは3クラスの定義、主張と原文を指示ではなくデータとして扱うこと、IDだけを返すことを指示する。
-neutralとcontradictionの取り違えを防ぐ注意や、言語をまたいだ言い換えの扱いも指示する。ラベルと選んだspanを最後に照合する手順はuser payloadに含める。
-特定ケースの正解やgoldをpromptに入れていない。
-
-\paragraph{トークンと時間の記録}
-各行の\texttt{metrics}には\texttt{input\_tokens}、\texttt{output\_tokens}、\texttt{inference\_time\_ms}を書く。
-トークン数はAPI応答の\texttt{usage}の\texttt{prompt\_tokens}と\texttt{completion\_tokens}を使う。
-\texttt{usage}がない場合だけ、UTF-8のバイト数を4で割った近似値を使う。
-この近似値は公式のトークナイザやproxyの計測ではない。
-\texttt{inference\_time\_ms}はケース全体の経過時間で、PDF抽出、ページ選択、API待ち、復元と検証を含む。
-提出レポートに必要な最終的なトークン使用量と推論時間は\TBD{Apertus 8B/70Bの全消費と平均/p95時間}である。
+\paragraph{ケース単位の退避と予算}
+受理できる\texttt{submit}がないケースや、そのケースの処理が失敗した場合は、そのケースだけをneutralの既定回答にし、理由を診断用のファイルに残します。
+要求数の上限は入力件数の5倍、トークン予算はその要求数に1要求あたりの予約量262,400を掛けた値で、入力件数に比例します。
+1ケースの上限時間は300秒です。
+\texttt{input\_tokens}と\texttt{output\_tokens}は親と子の全呼び出しのAPIの\texttt{usage}の合計、\texttt{inference\_time\_ms}は文脈の準備を含むケース全体の時間です。
 
 %======================================================================
-\section{データ (Data)}
+\section{開発の経緯と診断 (Development history and diagnosis)}
 
-開発には公開開発データ\cite{dataset}を使う。
-公開されているのはtrain splitだけなので、投票日単位のグループで開発用の分割を作り、同じ投票日の全言語を同じ側に置いた。
-後から保護holdoutとして予約した投票日があり、本作業はそのデータを読み取らず、推論、採点、prompt調整、gold診断のどれにも使わない。
-このholdoutを含む旧開発集合の結果は本レポートに載せない。
-主催者が持つ非公開のheld-outデータは、これらとは別物である。
+2026-10-14に、system promptの出力指示を\texttt{submit}ツールの引数の形式に合わせた版(v5)を採用しました(\texttt{docs/prompt-eval-log.md})。
+10-15の夜には、8Bに事実やspanを選ばせる役を親に足す3つの構成を試しましたが、形式失敗が増え、根拠の提示も改善しなかったので採用しませんでした。
+v5はDEV60の5回平均でTask A F1 0.650、Task B F1 0.815、Hit@5 0.263でした。
 
-% source: HANDOFF.md, データ・分割・リーク防止 (approved development dates)
-% source: HANDOFF.md, データ・分割・リーク防止 (54 cases, 27 per task)
-固定開発集合dev54は、投票日2020-09-27と2021-03-07の2日分から作った54件で、Task AとTask Bが27件ずつである。
-同じ原文の行をA/B両方の形式で使っている。
-この集合は開発中に何度も見ているので、性能の偏りのない推定値ではない。
+10-16の朝、モデルを呼ばずに、DEV60とPUBLIC60でTask Aの正解根拠がある39問を調べました。
+14問(36\%)で、正解根拠のページをモデルに渡していませんでした。
+旧方式は\texttt{im Detail}などの語で案件詳細節の開始を探していましたが、この語が目次ページに誤って一致し、データセットの参照文の出典になりやすい案件の要約見開き(In Kürze、En bref、In breve)が落ちていました。
+これとは別に、3問は正解根拠がpypdfの抽出したどのページとも一致しませんでした。
 
-元データにはgoldの物理ページ番号がない。
-PDF抽出からgoldページを推測して埋めることはしていない。
-推論に渡すのは入力ケース、PDF、原文、主張、投票案件名だけで、goldやannotationは採点側でだけ読む。
-投票冊子のPDFはリポジトリに含めず(gitignore)、別環境では取得して配置する必要がある。
-
-%======================================================================
-\section{評価 (Evaluation)}
-\label{sec:eval}
-
-\paragraph{公式の評価}
-公式は非公開held-outで、3クラスを等しく重み付けしたmacro-F1を測る。言語別の分析もあり得る\cite{ostchallenge}。本原稿ではTask A/B別と同一言語/cross-lingual別の集計を準備する。
-Task Aの根拠は先頭5件が採点対象で、効率としてトークン数と時間も見る\cite{apiguide}。
-本リポジトリのローカル採点器は公式の評価器と同一ではない。
-原文に逐語で含まれることと、根拠が判定を意味的に支えることは別に測る必要がある。
-
-\paragraph{Apertusの中断したrun}
-% source: HANDOFF.md, CSCSアクセスと初回実評価の失敗 (model, interrupted batch scope)
-旧版の評価runnerでApertus 8Bのdev54を始めたが、2件目で止まった。
-API要求は2回で、入力18,979 tokens、出力302 tokens、合計19,281 tokensを消費した。
-2件の出力検証の結果は1件目が有効、2件目が無効だった。
-% source: output/cscs/preparation-v2/legacy-usage-audit.json
-%   requests: .requests (2); input: .prompt_tokens (18979); output: .completion_tokens (302)
-%   total: .total_tokens (19281); validity flags: .output_valid ([true, false])
-2件では性能を論じられないので、この数値は消費量の記録としてだけ扱う。
-この旧バッチでは70Bを実行していない。並行中の新バッチについてはここでは述べない。
-
-\paragraph{Apertus dev54の評価}
-表\ref{tab:apertus}の値は本原稿には未収録である。
-修正した評価runnerによる新しいrunの結果が出たら埋める。
+見出しによる方式に置き換え、確認用の30行を除く公開データで、正解根拠がページと一致する501行を検査しました(表\ref{tab:audit})。
+個別の正解行に合わせた調整はしていません。
 
 \begin{table}[t]
   \centering
-  \caption{Apertus v1.5によるdev54評価(結果待ち)。}
-  \label{tab:apertus}
+  \caption{ページ選択の検査(モデル呼び出しなし、501行)。}
+  \label{tab:audit}
   \small
-  \begin{tabular}{lcc}
+  \begin{tabular}{lrrr}
     \toprule
-    項目 & 8B & 70B \\
+    選択方式 & 正解根拠のページを含む & 文脈文字数 平均 & 最大 \\
     \midrule
-    A macro-F1 & \TBD{} & \TBD{} \\
-    B macro-F1 & \TBD{} & \TBD{} \\
-    有効出力率 & \TBD{} & \TBD{} \\
-    API要求数、入力/出力tokens(失敗分を含む) & \TBD{} & \TBD{} \\
-    ケースあたり時間 平均/p95 & \TBD{} & \TBD{} \\
-    根拠の意味的な支持の評価 & \TBD{} & \TBD{} \\
+    旧(目次の正規表現) & 352 / 501 & 38,764 & 236,824 \\
+    新(見出し) & 501 / 501 & 33,463 & 162,973 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Apertusで全文書と選択ページを比べた結果も\TBD{Apertusの全文書と選択ページの比較}である。
+ページ選択だけを直したDEV60の1回目では、Hit@5は0.263のままでした。
+正解ページを渡しても、モデルが詳細説明や論点の別のページを引用したためです。
+そこで根拠の補完を加えました。
+
+本日(コミット650de65)、さらに3つの変更を入れました。
+同じIDが重複した回答を修正の往復なしに1件にまとめること、公式の規則に合わせてTask Bの根拠を任意にすること、引用ページの隣接ページを補完に加えることです。
+保存済みの回答をモデルを呼ばずに採点し直すと、正解根拠を含む件数は149件中89件から98件に増えました。
+次節の実測は、この変更より前の版によるものです。
 
 %======================================================================
-\section{制約 (Limitations)}
+\section{結果 (Results)}
 
-本原稿には、完了したApertus dev54評価の性能をまだ記載していない。
+表\ref{tab:results}に、v5と新版(コミット76a0e6e)の比較を示します。
+DEV60とPUBLIC60のv5の値は以前の5回平均です。
+確認用60問では、v5、新版の順に交互に各3回、計6回を実行し、すべて終わってから採点しました。
+両版とも同じ実行系(70B親と8B子)と同じ評価スクリプトを使っています。
 
-source IDは引用が原文のどこから来たかを保証するが、その引用が判定を支えるかどうかは保証しない。
-意味的な支持はモデルの判断に頼っており、公式の根拠採点と同じ尺度ではまだ測っていない。
+\begin{table}[t]
+  \centering
+  \caption{v5と新版の比較。値は平均、括弧内は実行回数です。PUBLIC60の時間は参照した資料に記録がありません。}
+  \label{tab:results}
+  \small
+  \begin{tabular}{lrrrrrr}
+    \toprule
+     & \multicolumn{2}{c}{DEV60} & \multicolumn{2}{c}{PUBLIC60} & \multicolumn{2}{c}{確認用60問} \\
+    指標 & v5 (5) & 新版 (3) & v5 (5) & 新版 (1) & v5 (3) & 新版 (3) \\
+    \midrule
+    Task A F1 & 0.650 & 0.705 & 0.701 & 0.869 & 0.734 & 0.797 \\
+    Task B F1 & 0.815 & 0.815 & 0.917 & 0.931 & 0.929 & 0.929 \\
+    Hit@5 & 0.263 & 0.544 & 0.30 & 0.65 & 0.569 & 0.625 \\
+    トークン/件 & 28,232 & 24,361 & 30,382 & 28,964 & 25,980 & 28,843 \\
+    時間/件(秒) & 6.3 & 5.8 & 記録なし & 6.5 & 6.7 & 6.8 \\
+    形式失敗(合計) & 0 & 0 & 7 / 300 & 1 / 60 & 3 & 0 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
-ページ選択は案件詳細節の見出し語に依存する。
-見出しが見つからないか一致度が低い冊子では全ページに戻るので、入力が長くなる。
-話者ブロックの補完は直前の2ページまでで、3ページ以上にわたる話者の文脈や任意のレイアウトで十分かは確認していない。
-テキストを抽出できないPDFはOCRを行わずエラーにする。
+DEV60では3回ともTask A F1がv5を上回り(0.690から0.728)、Hit@5は0.526から0.579でした。
+Task Aの矛盾の再現率は42\%から53\%に上がり、矛盾を含意とする誤りは30\%から19\%に減りました。
+Task Bは冊子を使わないので、DEV60では値が変わりません。
+PUBLIC60のHit@5は20問中13問です。
 
-\texttt{inference\_time\_ms}はケース全体の時間で、API待ちだけを分けた値ではない。
-\texttt{usage}がない場合のトークン数は近似値である。
-公式proxyによる計測とどこまで一致するかは確認していない。
+確認用60問のv5の形式失敗3件は、文脈が248,883バイトで送信上限の240,000バイトを超えた1問を、各回で既定回答として数えたものです。
+v5はこの1問のトークンを0として数えているので、表のトークン数はv5に有利です。
+両版が実際に処理した59問では、v5が26,420、新版が26,692トークン/件でした。
+新版の文脈は最大182,418バイトで、60問すべてが上限内でした。
+Hit@5は新版が3回とも0.625、v5は0.50から0.625の範囲でした。
 
-Task Bでneutral以外に根拠を要求する本実装の契約は公式より厳しく、その分だけ有効出力が減る可能性がある。
+確認用60問の比較の前に5つの合格基準を登録していました。
+新版は「Hit@5がv5より0.10以上高い」(実際は+0.056)と「トークン/件がv5以下」(実際は+11\%)の2つを満たしませんでした。
+所有者はこの2つが大会の規則にない基準だったとして、大会の評価項目(macro-F1、根拠の正しさ、未回答数、トークンと時間)で比べ直しました。
+新版はTask A F1、根拠、未回答数で上回り、ほかの項目は同等だったので、新版を本番ベースラインに採用しました(\texttt{docs/confirmation-protocol-2026-10-16.md})。
 
 %======================================================================
-\section{再現手順 (Reproducibility)}
+\section{限界と今後 (Limitations and next steps)}
 
-提出物はDockerで動かす。
-公式の契約\cite{apiguide}では、CPUのみのlinux/amd64イメージで、外部から注入された\texttt{BASE\_URL}と\texttt{API\_KEY}を使い、実行時に重みなどをダウンロードしないことが求められる。
-現在の\texttt{Dockerfile}は\texttt{python:3.11-slim}を元に、固定版のpypdf 6.1.1を入れ、\texttt{predict.py}を起動する。
-\texttt{Makefile}の\texttt{run}は\texttt{BASE\_URL}と\texttt{API\_KEY}をコンテナに渡し、入力とPDFを読み取り専用で、出力先を書き込み可能でマウントする。
-ただし、これらの契約を満たして動くことはまだ確認していない。
-作業環境ではDocker daemonを利用できず、イメージのbuildとrunによる確認ができていない。
+\paragraph{評価の限界}
+すべての数値は開発中に使った公開データでの値で、60問、1回から5回の実行です。
+公式のheld-outでの成績はわかりません。
 
-想定する手順は次のとおりである。
+\paragraph{抽出の限界}
+新版の7回の実行(開発用60問を3回、公開60問を1回、確認用60問を3回、計420件)のうち、Task Aで根拠が採点される149件を調べると、26件は正解の根拠文がpypdfの抽出テキストと一致しません。
+この26件は、ページ選択や補完をどう変えても根拠として当てられません。
+テキストを抽出できないPDFはOCRを行わずエラーにします。
+見出しのない冊子では全ページを渡すので、入力が長くなります。
+
+\paragraph{親モデルの役割}
+同じ7回の実行の420件すべてで、70B親の最終回答は8B子の推奨と一致しました。
+現状では親は判断を加えておらず、トークンと時間を増やしているだけです。
+
+\paragraph{残る分類誤り}
+残る主な誤りは、矛盾をneutralとする誤りと、含意を矛盾とする誤りです。
+v5のDEV60の5回分では、Task Aで矛盾→中立が17件、Task Bで含意→矛盾が35件中15件ありました。
+後者は開発用60問に偏った誤りで、PUBLIC60ではTask Bの含意40件がすべて正解でした。そのため、指示文を変える根拠はまだ弱いと考えています。
+
+\paragraph{根拠の性質}
+source IDは引用が原文のどこから来たかを保証しますが、引用が判定を支えるかどうかは保証しません。
+補完で足したページは検索で選んだもので、モデルの判断ではありません。
+
+\paragraph{今後}
+70Bを1回だけネイティブのtool callで呼ぶ構成を試験中です。親が子の推奨をそのまま採用しているので、子を外してトークンと時間を減らせるかを確かめます。
+また、抽出が一致しない26件に対して、pypdf以外のPDF抽出ライブラリを比べる予定です。
+
+%======================================================================
+\section{再現方法 (Reproducibility)}
+
+提出物はDockerで動かします。
+公式の契約\cite{apiguide}では、CPUのみのlinux/amd64イメージで、注入された\texttt{BASE\_URL}と\texttt{API\_KEY}をすべてのモデル呼び出しに使い、実行時にダウンロードしないことが求められます。
+\texttt{Dockerfile.agent}は、Node 26.10.0の段階で\texttt{package-lock.json}からPi 1.1.0と\texttt{@tintinweb/pi-subagents}を入れ、\texttt{python:3.11-slim-bookworm}に\texttt{track\_2a/src}と実行系をコピーします。
+既定は\texttt{PIPELINE=C}で、入口は\texttt{runtime.py}です。
 \begin{verbatim}
-git clone <repository URL>
-cd <repository>
-BASE_URL=<injected proxy URL> API_KEY=<injected key> \
-  LLM_BACKEND=openai LLM_MODEL=swiss-ai/Apertus-v1.5-70B make run
+make run PIPELINE=C LLM_MODEL=swiss-ai/Apertus-v1.5-70B \
+  INPUT_DIR=/path/to/input INPUT=/data/input.jsonl \
+  OUTPUT_DIR=/path/to/new/output
 \end{verbatim}
-クリーンな checkout で\texttt{make run}が通ること、Task AとBが混在した入力を処理できること、PDFのパスを解決できることは\TBD{clean checkoutでのmake run検証}である。
-リポジトリURLと提出リビジョンは\TBD{リポジトリURLと最終コミット}、デモは\TBD{デモ}である。
-使うモデル(8Bか70Bか)は\TBD{提出モデルの選択}である。
+\texttt{BASE\_URL}と\texttt{API\_KEY}は主催者が注入する値を使い、ホストの鍵は読みません。
+出力ディレクトリには正規のJSONLのほか、退避の理由を残す\texttt{.diagnostics.jsonl}と、評価用の\texttt{.evaluation.jsonl}を書きます。
+\texttt{track\_2a/dev/format/README.md}によると、開発ホストではDocker daemonを使えず、イメージのbuildとrunは確認できていません。
 
-%======================================================================
-\section{今後の作業 (Next steps)}
-
-まず、修正した評価runnerでApertus v1.5の8Bと70Bをdev54の54件ずつで評価する。
-品質不合格の出力も母数と消費量に含め、表\ref{tab:apertus}を埋める。
-同じ条件で全文書と選択ページを比べる。
-
-次に、提出経路を確認する。
-クリーンな checkout からCPUのlinux/amd64イメージを作り、注入した\texttt{BASE\_URL}経由で混在入力を処理できること、実行時にダウンロードしないこと、秘密情報がイメージに入らないことを確かめる。
-あわせて、ケースごとの全体時間とAPI待ち時間を分けて記録する。
-
-その後、Apertusの誤答を分析し、否定、数量、条件、時制、話者、言い換えといった一般的な観点でpromptを改善する。
-同じ候補を独立に繰り返して安定性を測る。保護holdoutを使うかどうかは、最終版を固定した後に本人の許可を確認する。本作業では使わない。
+開発用のハーネスでは、Pi 1.1.0を\texttt{\textasciitilde/.cache/ost-pi-1.1.0}に置き、\texttt{PI\_PACKAGE\_ROOT}と\texttt{PI\_SUBAGENTS\_ROOT}でその場所を指定します。
+リポジトリURLと提出リビジョンは\TBD{リポジトリURLと最終コミット}、デモは\TBD{デモ}です。
 
 %======================================================================
 \section*{ライセンス (License)}
 \addcontentsline{toc}{section}{ライセンス (License)}
 
-リポジトリのコードにはApache License 2.0が付いている(リポジトリ直下の\texttt{LICENSE})。本作業では公開しない。本レポートのライセンスはCC-BY-4.0とする。
-大会規約では、コードと重みはApache-2.0、文書はCC-BY-4.0、提出データセットはCDLA-Permissive-2.0での許諾が定められている。
-同梱したpypdfは、同梱のライセンスファイルの条件に従う。
-公開データセット\cite{dataset}のカードにはMITと記載され、作成者はOSTのAI Applications and Deployment Labである。投票冊子PDFの再配布権は別途確認が必要であり、本レポートには同梱しない。
+リポジトリのコードにはApache License 2.0が付いています(リポジトリ直下の\texttt{LICENSE})。本レポートのライセンスはCC-BY-4.0とします。
+大会規約では、コードと重みはApache-2.0、文書はCC-BY-4.0、提出データセットはCDLA-Permissive-2.0での許諾が定められています。
+同梱したpypdfは、同梱のライセンスファイルの条件に従います。
+公開データセット\cite{dataset}のカードにはMITと記載され、作成者はOSTのAI Applications and Deployment Labです。投票冊子PDFの再配布権は別途確認が必要で、本レポートには同梱しません。
 
 %======================================================================
 \begingroup
