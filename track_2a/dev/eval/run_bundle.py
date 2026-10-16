@@ -42,7 +42,7 @@ def load_jsonl(path):
     return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
 
 
-def prepare(core, bundle, strategy='C', model=None, selection='vote_pages'):
+def prepare(core, bundle, strategy='C', model=None, selection='vote_pages', case_ids=None):
     engine = core.legacy.engine()
     translations = {}
     cache = REPO / 'output/validation/claim-translations.json'
@@ -59,6 +59,8 @@ def prepare(core, bundle, strategy='C', model=None, selection='vote_pages'):
     cases = load_jsonl(bundle / 'cases.jsonl')
     frozen, oversize = [], []
     for case in cases:
+        if case_ids is not None and case['id'] not in case_ids:
+            continue
         if 'booklet' in case:
             case = {**case, 'booklet': {**case['booklet'], 'path': str((bundle / 'booklets' / Path(case['booklet']['path']).name).resolve())}}
         pages, messages = engine.context(case, bundle.resolve(), selection_strategy=selection, translator=translator)
@@ -97,16 +99,19 @@ def run(core, transport, job, manifest):
             raise core.Stop('PHASE_DEADLINE_STOP')
         return original(*args, **kwargs, seconds=min(300, phase_end + 300 - time.time()))
     core.run_b = bounded
-    core.initialize(job, manifest)
-    side = transport.PhysicalLedger(core, job, time.monotonic() + ARM_SECONDS + 300)
-    summary = core.run(job, manifest, side.client)
-    summary['wall_seconds'] = time.monotonic() - started
-    return summary
+    try:
+        core.initialize(job, manifest)
+        side = transport.PhysicalLedger(core, job, time.monotonic() + ARM_SECONDS + 300)
+        summary = core.run(job, manifest, side.client)
+        summary['wall_seconds'] = time.monotonic() - started
+        return summary
+    finally:
+        core.run_b = original
 
 
-def grade(job, bundle, core, oversize, prefix='70b'):
+def grade(job, bundle, core, oversize, prefix='70b', predictions=None):
     report = job / 'official.json'
-    predictions = job / f'{prefix}-canonical.jsonl'
+    predictions = predictions or job / f'{prefix}-canonical.jsonl'
     if oversize:
         rows = predictions.read_text(encoding='utf-8')
         zero = {'input_tokens': 0, 'output_tokens': 0, 'inference_time_ms': 0}
@@ -120,15 +125,41 @@ def grade(job, bundle, core, oversize, prefix='70b'):
     return json.loads(report.read_text())
 
 
-def metrics(job, summary, official, oversize, prefix='70b'):
+def escalate(core, transport, job, bundle, manifest, prefix):
+    cases = [json.loads(p.read_text()) for p in sorted(job.glob(f'{prefix}-*-case.json'))]
+    booklet_ids = {i['case']['id'] for i in manifest['frozen'] if 'booklet' in i['case']}
+    ids = {c['case_id'] for c in cases if c['case_id'] in booklet_ids and c.get('error') == 'NO_ACCEPTED_SUBMIT'}
+    second_cases, oversize = [], []
+    summary = {'wall_seconds': 0, 'generation_requests': 0}
+    second_job = None
+    if ids:
+        second_manifest, oversize = prepare(core, bundle, strategy='R', selection='vote_pages', case_ids=ids)
+        if second_manifest['frozen']:
+            second_job = job.with_name(job.name + '-escalation')
+            # Each phase gets the same independent transport/time limits.
+            transport.ABSOLUTE_STOP = int(time.time()) + ARM_SECONDS + 600
+            summary = run(core, transport, second_job, second_manifest)
+            second_cases = [json.loads(p.read_text()) for p in sorted(second_job.glob('70b-*-case.json'))]
+    recovered = {c['case_id']: c['prediction'] for c in second_cases if c['output_valid']}
+    rows = load_jsonl(job / f'{prefix}-canonical.jsonl')
+    predictions = job / 'canonical-escalated.jsonl'
+    predictions.write_text(''.join(json.dumps(recovered.get(row['id'], row), ensure_ascii=False) + '\n' for row in rows), encoding='utf-8')
+    return {'job': second_job, 'cases': second_cases, 'oversize': oversize, 'summary': summary,
+            'escalated_cases': len(ids), 'escalation_recovered': len(recovered), 'predictions': predictions}
+
+
+def metrics(job, summary, official, oversize, prefix='70b', escalation=None):
     cases = [json.loads(p.read_text()) for p in sorted(job.glob(f'{prefix}-*-case.json'))]
     oversize_count = len(oversize)
     physical = [json.loads(p.read_text()) for p in sorted((job / 'physical').glob('*-result.json'))]
+    extra_cases = escalation['cases'] if escalation else []
+    if escalation and escalation['job'] is not None:
+        physical += [json.loads(p.read_text()) for p in sorted((escalation['job'] / 'physical').glob('*-result.json'))]
     tokens = sum(r['usage']['total_tokens'] for r in physical if r.get('usage_known'))
     a = official['official_report']['tasks']['A']
     b = official['official_report']['tasks']['B']
     return {
-        'cases': len(cases) + oversize_count, 'fallbacks': sum(not c['output_valid'] for c in cases) + oversize_count,
+        'cases': len(cases) + oversize_count, 'fallbacks': sum(not c['output_valid'] for c in cases + extra_cases) + oversize_count + (len(escalation['oversize']) if escalation else 0),
         'oversize_context_fallbacks': oversize_count,
         'f1a': a['macro_f1'], 'f1b': b['macro_f1'], 'hita': a.get('evidence_score'),
         'evidence': a.get('evidence'), 'q': official['classification_objective']['value'],
@@ -137,7 +168,8 @@ def metrics(job, summary, official, oversize, prefix='70b'):
         'tokens_per_case': round(tokens / (len(cases) + oversize_count)) if cases else None,
         'translation_tokens_cached': json.loads((job / 'manifest.json').read_text()).get('translation_tokens', 0),
         'mean_case_seconds': round(sum(c['case_wall_ms'] for c in cases) / len(cases) / 1000, 2) if cases else None,
-        'wall_seconds': round(summary.get('wall_seconds', 0)),
+        'wall_seconds': round(summary.get('wall_seconds', 0) + (escalation['summary'].get('wall_seconds', 0) if escalation else 0)),
+        **({key: escalation[key] for key in ('escalated_cases', 'escalation_recovered')} if escalation else {}),
         'diagnostics': summary['models'][next(iter(summary['models']))]['diagnostic_counts'],
     }
 
@@ -147,6 +179,7 @@ def main():
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--job', type=Path, required=True)
     parser.add_argument('--grade', action='store_true')
+    parser.add_argument('--escalate', action='store_true', help='Retry booklet NO_ACCEPTED_SUBMIT cases with vote_pages in a separate job')
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--strategy', choices=['A', 'C', 'S', 'R'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON; S: one model, submit tool; R: input-routed model, submit tool')
     parser.add_argument('--model', choices=['8b', '70b'], default='70b')
@@ -169,8 +202,14 @@ def main():
     transport.ABSOLUTE_STOP = int(time.time()) + ARM_SECONDS + 600
     summary = run(core, transport, args.job, manifest)
     result = {'job': str(args.job), 'strategy': args.strategy, 'model': model, 'selection': args.selection, 'claim_spans': core.legacy.engine().CLAIM_SPANS, 'status': summary['status'], 'requests': summary['generation_requests']}
+    escalation = escalate(core, transport, args.job, args.bundle, manifest, prefix) if args.escalate else None
+    if escalation:
+        result.update({key: escalation[key] for key in ('escalated_cases', 'escalation_recovered')})
+        result['requests'] += escalation['summary']['generation_requests']
     if args.grade:
-        result['metrics'] = metrics(args.job, summary, grade(args.job, args.bundle, core, oversize, prefix), oversize, prefix)
+        official = grade(args.job, args.bundle, core, oversize, prefix,
+                         predictions=escalation['predictions'] if escalation else None)
+        result['metrics'] = metrics(args.job, summary, official, oversize, prefix, escalation)
     (args.job / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
     print(json.dumps(result, ensure_ascii=False))
 

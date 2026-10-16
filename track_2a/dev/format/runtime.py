@@ -82,7 +82,9 @@ def execute(input_path, output_path, strategy, client_factory=None):
     engine.CLAIM_SPANS = claim_spans
     job = output_path.parent / 'tmp' / 'format-runtime'
     job.mkdir(mode=0o700, parents=True, exist_ok=True)
-    identity = {'context_selection': selection, 'claim_spans': claim_spans}
+    reduced = selection in ('claim_pages', 'claim_paragraphs')
+    escalation = os.environ.get('ESCALATE_ON_FALLBACK', '1' if reduced else '0') == '1' and reduced
+    identity = {'context_selection': selection, 'claim_spans': claim_spans, 'escalation': escalation}
     if (job / 'manifest.json').exists():
         previous = r.legacy.load(job / 'manifest.json')
         if any(previous.get(key) != value for key, value in identity.items()):
@@ -93,6 +95,12 @@ def execute(input_path, output_path, strategy, client_factory=None):
             clients[selected] = r.Transport(selected, submitted=True)
         return clients[selected]
     client_factory = client_factory or client
+    def build_item(case, selected, translator=None):
+        pages, messages = engine.context(case, input_path.parent, selection_strategy=selected, translator=translator)
+        messages[0]['content'] += '\n\n' + r.legacy.PROTOCOL_REMINDER
+        ids = [c['span_id'] for c in r.candidates(pages, 'reference' in case)]
+        return {'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids, strategy=strategy)))}
+
     frozen = []
     translation_usages = []
     preparation = []
@@ -102,14 +110,10 @@ def execute(input_path, output_path, strategy, client_factory=None):
         target = case.get('booklet', {}).get('language')
         if selection in ('claim_pages', 'claim_paragraphs') and target and case['claim'].get('language') != target:
             translated = translate_claim(job, case, target, client_factory)
-        pages, messages = engine.context(case, input_path.parent, selection_strategy=selection,
-                                         translator=lambda text, language: translated['translation'])
+        frozen.append(build_item(case, selection, lambda text, language: translated['translation']))
         translation_usages.append(translated['usage'])
-        messages[0]['content'] += '\n\n' + r.legacy.PROTOCOL_REMINDER
-        ids = [c['span_id'] for c in r.candidates(pages, 'reference' in case)]
-        frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids, strategy=strategy)))})
         preparation.append((time.monotonic() - started) * 1000)
-    request_limit = 5 * len(rows)
+    request_limit = 5 * (len(rows) + sum(escalation and 'booklet' in case for case in rows))
     manifest = {**identity, 'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': request_limit, 'token_budget': request_limit * r.RESERVE, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
     if strategy == 'C':
         manifest.update(models=[model], role_models={'parent': r.MODELS[1], 'child': r.MODELS[0]})
@@ -127,10 +131,12 @@ def execute(input_path, output_path, strategy, client_factory=None):
                 continue
             request_model = r.case_model(strategy, model, item['case'])
             started = time.monotonic()
+            deadline = started + r.CASE_SECONDS
+            number_offset = 0
             def post(role, number, payload):
                 if ledger.state['requests'] + ledger.state.get('uncertain_requests', 0) >= request_limit:
                     raise r.Stop('HARD_BUDGET_STOP_BEFORE_SEND')
-                return ledger.post(request_model, index, role, number, payload, deadline=started + r.CASE_SECONDS)
+                return ledger.post(request_model, index, role, number + number_offset, payload, deadline=deadline)
             sdk = None
             diagnostics = []
             error = None
@@ -139,8 +145,23 @@ def execute(input_path, output_path, strategy, client_factory=None):
                     args, diagnostics = r.run_a(item, model, post)
                 else:
                     args, diagnostics, sdk = r.run_b(item, request_model, post, strategy=strategy)
+                result_item = item
+                if args is None and escalation and 'booklet' in item['case']:
+                    diagnostics.append('ESCALATED')
+                    full = build_item(item['case'], 'vote_pages')
+                    number_offset = 10
+                    deadline = time.monotonic() + r.CASE_SECONDS
+                    # Ledger source_sha256 intentionally remains the frozen reduced
+                    # messages hash; numbered escalation records have separate identities.
+                    if strategy == 'A':
+                        args, extra = r.run_a(full, model, post)
+                    else:
+                        args, extra, sdk = r.run_b(full, request_model, post, strategy=strategy)
+                    diagnostics += extra
+                    if args is not None:
+                        result_item = full
                 metrics, wait = case_metrics(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000, translation_usages[index])
-                result = r.submission.assemble_tool(args, item['case'], item['pages'], metrics) if args is not None else r.submission.fallback(item['case'], item['pages'], metrics)
+                result = r.submission.assemble_tool(args, result_item['case'], result_item['pages'], metrics) if args is not None else r.submission.fallback(item['case'], item['pages'], metrics)
                 error = None if args is not None else 'NO_ACCEPTED_SUBMIT'
             except Exception as exc:
                 error = str(exc) if isinstance(exc, r.Stop) else 'CASE_FAILED'

@@ -358,3 +358,54 @@ def test_runtime_skips_unneeded_translation(booklet_runtime, monkeypatch, kind):
     runtime.execute(source, output, 'A', lambda _: Fake())
     assert len(calls) == 1
     assert not (output.parent / 'tmp/format-runtime/translations.jsonl').exists()
+
+
+@pytest.mark.parametrize('mode', ['recover', 'disabled', 'reference', 'fail-again'])
+def test_runtime_escalates_only_reduced_booklet_fallback(booklet_runtime, monkeypatch, mode):
+    case, source, output, _ = booklet_runtime
+    monkeypatch.setenv('CONTEXT_SELECTION', 'claim_pages')
+    monkeypatch.setenv('CLAIM_SPANS', '0')
+    monkeypatch.delenv('ESCALATE_ON_FALLBACK', raising=False)
+    case['claim']['language'] = 'de'
+    if mode == 'disabled':
+        monkeypatch.setenv('ESCALATE_ON_FALLBACK', '0')
+    if mode == 'reference':
+        case.pop('booklet')
+        case['reference'] = {'text': 'Steuern sinken.', 'language': 'de'}
+    source.write_text(json.dumps(case) + '\n')
+    calls, full_ids = [], []
+
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(payload)
+            user = next(m for m in payload['messages'] if m['role'] == 'user')
+            spans = json.loads(user['content'])['source_spans']
+            full = next((s for s in spans if '2027' in s['text']), None)
+            if full and mode != 'fail-again':
+                full_ids.append(full['span_id'])
+                return response(r.MODELS[0], calls=[tool('submit', {'label': 2, 'candidate_ids': [full['span_id']]})])
+            return response(r.MODELS[0], content='no submission')
+
+    runtime.execute(source, output, 'S', lambda _: Fake())
+    row = json.loads(output.read_text())
+    diagnostic = json.loads(output.with_suffix('.jsonl.diagnostics.jsonl').read_text())
+    escalated = mode in ('recover', 'fail-again')
+    assert ('ESCALATED' in diagnostic['diagnostics']) == escalated
+    assert row['label'] == (2 if mode == 'recover' else 1)
+    assert diagnostic['error'] == (None if mode == 'recover' else 'NO_ACCEPTED_SUBMIT')
+    job = output.parent / 'tmp/format-runtime'
+    state = json.loads((job / 'state.json').read_text())
+    records = [json.loads((job / name).read_text()) for name in state['attempts']]
+    assert any(record['number'] >= 10 for record in records) == escalated
+    assert row['metrics']['input_tokens'] == 80 * len(calls)
+    assert row['metrics']['output_tokens'] == 20 * len(calls)
+    if mode == 'recover':
+        assert full_ids and row['evidence']
+        assert '2027' in str(row['evidence'])
+        manifest = json.loads((job / 'manifest.json').read_text())
+        assert full_ids[0] not in manifest['frozen'][0]['candidate_ids']
+        assert manifest['escalation'] is True
+        runtime.execute(source, output, 'S', lambda _: pytest.fail('resume called client'))
+        monkeypatch.setenv('ESCALATE_ON_FALLBACK', '0')
+        with pytest.raises(r.Stop, match='MANIFEST_CHANGED'):
+            runtime.execute(source, output, 'S', lambda _: pytest.fail('changed escalation called client'))
