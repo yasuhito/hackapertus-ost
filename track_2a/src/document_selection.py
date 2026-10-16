@@ -79,6 +79,69 @@ def vote_pages(pages, vote):
     return selected, {'ordinal': ordinal, 'confidence': confidence, 'selected_pages': [i + 1 for i in selected]}
 
 
+def char_grams(text, n=4):
+    """Character 4-grams of content words plus bare numbers.
+
+    Claims and booklets are often in different languages; shared stems such as
+    pestizid / pesticid / pesticide still overlap at the character level, which
+    plain word matching misses.
+    """
+    out = []
+    for w in re.findall(r'\w+', normalize(text)):
+        if w.isdigit():
+            out.append(w)
+        elif len(w) > 3 and w not in STOP:
+            padded = f' {w} '
+            out.extend(padded[i:i + n] for i in range(len(padded) - n + 1))
+    return out
+
+
+def bm25_scores(query_tokens, docs_tokens):
+    import math
+    count = len(docs_tokens) or 1
+    frequency = {}
+    for d in docs_tokens:
+        for w in set(d):
+            frequency[w] = frequency.get(w, 0) + 1
+    average = sum(len(d) for d in docs_tokens) / count
+    query = set(query_tokens)
+    scores = []
+    for d in docs_tokens:
+        counts = {}
+        for w in d:
+            counts[w] = counts.get(w, 0) + 1
+        length = len(d) / average if average else 1
+        scores.append(sum(math.log(1 + (count - frequency[w] + 0.5) / (frequency[w] + 0.5)) * (counts[w] * 2.2) / (counts[w] + 1.2 * (0.25 + 0.75 * length))
+                          for w in query if w in counts))
+    return scores
+
+
+def claim_span_pages(pages, selected, claim, spans, top_k):
+    """Reduce the vote's pages to its opening spread plus the spans most related to the claim.
+
+    `selected` are 0-based indices of the vote's pages, `spans` the candidate
+    spans over those pages (each with 'page' and 'text'). Returns a page tuple
+    of the booklet's length: the first two selected pages intact, other pages
+    reduced to their kept spans in document order (joined by blank lines),
+    unselected pages empty. Verbatim text only; nothing is rewritten.
+    """
+    overview = {i + 1 for i in selected[:2]}
+    scores = bm25_scores(char_grams(claim), [char_grams(s['text']) for s in spans])
+    order = sorted(range(len(spans)), key=lambda i: (-scores[i], i))
+    keep = {}
+    for i in order[:top_k]:
+        keep.setdefault(spans[i]['page'], []).append(i)
+    result = []
+    for number, text in enumerate(pages, 1):
+        if number in overview:
+            result.append(text)
+        elif number in keep:
+            result.append('\n\n'.join(spans[i]['text'] for i in sorted(keep[number])))
+        else:
+            result.append('')
+    return tuple(result), {'kept_spans': top_k, 'kept_pages': sorted(overview | set(keep))}
+
+
 def rank_pages(claim, pages, page_numbers):
     """Order the given 1-based page numbers by lexical relevance to the claim (BM25).
 

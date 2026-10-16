@@ -42,14 +42,14 @@ def load_jsonl(path):
     return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
 
 
-def prepare(core, bundle, strategy='C', model=None):
+def prepare(core, bundle, strategy='C', model=None, selection='vote_pages'):
     engine = core.legacy.engine()
     cases = load_jsonl(bundle / 'cases.jsonl')
     frozen, oversize = [], []
     for case in cases:
         if 'booklet' in case:
             case = {**case, 'booklet': {**case['booklet'], 'path': str((bundle / 'booklets' / Path(case['booklet']['path']).name).resolve())}}
-        pages, messages = engine.context(case, bundle.resolve(), selection_strategy='vote_pages')
+        pages, messages = engine.context(case, bundle.resolve(), selection_strategy=selection)
         messages[0]['content'] += '\n\n' + core.legacy.PROTOCOL_REMINDER
         size = len(core.legacy.encode(messages))
         if size > INPUT_BYTES:
@@ -62,7 +62,7 @@ def prepare(core, bundle, strategy='C', model=None):
     base = {'version': 2, 'protocol_reminder': core.legacy.PROTOCOL_REMINDER, 'native_schema': 'offline proposal only, not sent',
             'case_sha256': core.legacy.digest((bundle / 'cases.jsonl').read_bytes()), 'models': core.MODELS,
             'request_limit': REQUEST_LIMIT, 'token_budget': TOKEN_BUDGET, 'request_token_reserve': core.RESERVE,
-            'output_limit': 256, 'temperature': 0, 'selection_strategy': 'vote_pages', 'sources': sources, 'frozen': frozen}
+            'output_limit': 256, 'temperature': 0, 'selection_strategy': selection, 'sources': sources, 'frozen': frozen}
     core.legacy.prepare = lambda: base
     manifest = core.prepare(strategy, [i['case']['id'] for i in frozen])
     manifest.update(request_limit=REQUEST_LIMIT, token_budget=TOKEN_BUDGET)
@@ -137,13 +137,14 @@ def main():
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--strategy', choices=['A', 'C', 'S', 'R'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON; S: one model, submit tool; R: input-routed model, submit tool')
     parser.add_argument('--model', choices=['8b', '70b'], default='70b')
+    parser.add_argument('--selection', choices=['vote_pages', 'claim_spans', 'full'], default='vote_pages')
     args = parser.parse_args()
     core = module(RUNNER, 'format_runner')
     model = core.MODELS[0] if args.model == '8b' else core.MODELS[1]
     if args.strategy == 'R':
         model = core.MODELS[1]
     prefix = '70b' if args.strategy == 'R' else args.model
-    manifest, oversize = prepare(core, args.bundle, args.strategy, model)
+    manifest, oversize = prepare(core, args.bundle, args.strategy, model, args.selection)
     sizes = [len(core.legacy.encode(i['messages'])) for i in manifest['frozen']] + [o['bytes'] for o in oversize]
     print(json.dumps({'prepared_cases': len(manifest['frozen']), 'oversize_context_fallbacks': [o['case']['id'] for o in oversize],
                       'context_bytes_max': max(sizes), 'context_bytes_mean': round(sum(sizes) / len(sizes)),
@@ -154,7 +155,7 @@ def main():
     # The overnight module pins its own absolute stop; this runner stops when its arm ends.
     transport.ABSOLUTE_STOP = int(time.time()) + ARM_SECONDS + 600
     summary = run(core, transport, args.job, manifest)
-    result = {'job': str(args.job), 'strategy': args.strategy, 'model': model, 'status': summary['status'], 'requests': summary['generation_requests']}
+    result = {'job': str(args.job), 'strategy': args.strategy, 'model': model, 'selection': args.selection, 'claim_spans': core.legacy.engine().CLAIM_SPANS, 'status': summary['status'], 'requests': summary['generation_requests']}
     if args.grade:
         result['metrics'] = metrics(args.job, summary, grade(args.job, args.bundle, core, oversize, prefix), oversize, prefix)
     (args.job / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
