@@ -281,7 +281,7 @@ make run INPUT_DIR=/path/to/input INPUT=/data/input.jsonl \
   OUTPUT_DIR=/path/to/new/output
 \end{verbatim}
 出力ディレクトリには正規のJSONLのほか、\texttt{.diagnostics.jsonl}と\texttt{.evaluation.jsonl}を書きます。
-開発ホストではDocker daemonを使えず、イメージのbuildとrunは確認できていません(\texttt{track\_2a/dev/format/README.md})。
+Dockerイメージは2026-10-16にlinux/amd64でbuildし、\texttt{make run}で6問を通して公式の採点器で読めることを確認しました(イメージ249 MB、埋め込みの重み140 MBを同梱)。
 
 開発用のハーネスでは、Pi 1.1.0を\texttt{\textasciitilde/.cache/ost-pi-1.1.0}に置き、\texttt{PI\_PACKAGE\_ROOT}と\texttt{PI\_SUBAGENTS\_ROOT}でその場所を指定します。
 リポジトリURLと提出リビジョンは\TBD{リポジトリURLと最終コミット}、デモは\TBD{デモ}です。

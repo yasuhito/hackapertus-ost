@@ -5,6 +5,8 @@
   vote text / if adopted) selects the booklet sections whose paragraphs are ranked first.
   Production runtime, 3 sets: Task A F1 0.910, Task B F1 0.922, Hit@5 0.808, 7,137 tokens, 4.0 s per case.
 - Rejected: an extra SYSTEM sentence on recommendation direction (fixed 4 errors, added 8).
+- Docker image built and run end to end on 2026-10-16 18:10 JST (249 MB, weights baked in, 6-case smoke
+  through `make run` with injected BASE_URL/API_KEY). Branch merged to master.
 
 ## 2026-10-16 16:00 JST: paragraph context + escalation on strategy R
 - Image default CONTEXT_SELECTION=claim_paragraphs: the vote's pages are split into paragraphs,

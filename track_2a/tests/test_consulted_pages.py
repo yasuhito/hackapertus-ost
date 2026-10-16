@@ -76,7 +76,8 @@ def test_neighbouring_pages_follow_the_citation():
 
 def test_reduced_pages_pad_regions_cited_then_adjacent_then_lexical():
     from source_spans import REGION_BREAK
-    texts = ['Opening.', 'Before.', 'Cited.', 'After.', 'Steuern Familien 2027.', 'Other.']
+    pad = ' Dieser Absatz ist lang genug, um als Belegstelle zu gelten.'
+    texts = [x + pad for x in ['Opening.', 'Before.', 'Cited.', 'After.', 'Steuern Familien 2027.', 'Other.']]
     pages = (REGION_BREAK.join(texts), 'Unrelated page.')
     case, _ = booklet_case(pages)
     evidence = [{'page': 1, 'text': texts[2]}]
@@ -85,3 +86,13 @@ def test_reduced_pages_pad_regions_cited_then_adjacent_then_lexical():
     assert len(padded) == 5
     assert all(item['text'] in pages[item['page'] - 1] and REGION_BREAK not in item['text'] for item in padded)
     assert len({(x['page'], x['text']) for x in padded}) == 5
+
+
+def test_region_padding_skips_bare_fragments():
+    from source_spans import REGION_BREAK
+    page = "4 Steuerreform In Kürze. Die Reform senkt die Steuern für Familien ab 2027." + REGION_BREAK + "2323" + REGION_BREAK + "Argumente des Komitees zu Steuern und Familien, ausführlich dargestellt."
+    pages = ("", "", page)
+    case, pages = booklet_case(pages)
+    result = submission.fallback(case, pages, metrics())
+    assert all(len(item["text"].strip()) >= 40 for item in result["evidence"])
+    assert len(result["evidence"]) == 2

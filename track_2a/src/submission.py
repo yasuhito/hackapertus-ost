@@ -8,6 +8,7 @@ from source_spans import candidates, restore, regions, REGION_BREAK
 
 MAX_EVIDENCE = 5
 MAX_EVIDENCE_CHARS = 5000
+MIN_PADDING_CHARS = 40
 
 LABEL_MAP = {'0': 0, '1': 1, '2': 2, 'entailment': 0, 'neutral': 1, 'contradiction': 2}
 METRIC_KEYS = {'input_tokens', 'output_tokens', 'inference_time_ms'}
@@ -122,6 +123,9 @@ def consulted_pages(evidence, case, pages):
         result = []
         for i in cited + adjacent + ranked:
             n, text = provided_regions[i]
+            # Padding never spends a slot on a bare page number or heading fragment.
+            if i not in cited and len(text.strip()) < MIN_PADDING_CHARS:
+                continue
             items = ([{'page': n, 'text': text}] if len(text) <= MAX_EVIDENCE_CHARS else
                      [item for item in evidence if item['page'] == n and item['text'] in text])
             for item in items:
