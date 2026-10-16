@@ -1,84 +1,113 @@
-"""Local context candidates. Uses request + PDF only; never gold or prior outputs."""
-import math,re,unicodedata
-from collections import Counter
+"""Select the pages of one vote from a multi-vote booklet. Uses request + PDF only; never gold."""
+import re
+import unicodedata
+
+STOP = {'volksinitiative', 'initiative', 'iniziativa', 'populaire', 'popolare', 'federale', 'fur', 'eine', 'ein',
+        'der', 'die', 'das', 'des', 'du', 'de', 'la', 'le', 'les', 'une', 'un', 'per', 'una', 'di', 'della', 'del'}
+ORDINALS = {
+    'erste': 1, 'zweite': 2, 'dritte': 3, 'vierte': 4, 'funfte': 5, 'sechste': 6, 'siebte': 7, 'achte': 8,
+    'premier': 1, 'premiere': 1, 'deuxieme': 2, 'troisieme': 3, 'quatrieme': 4, 'cinquieme': 5, 'sixieme': 6,
+    'septieme': 7, 'huitieme': 8,
+    'primo': 1, 'secondo': 2, 'terzo': 3, 'quarto': 4, 'quinto': 5, 'sesto': 6, 'settimo': 7, 'ottavo': 8,
+}
+ORDINAL_WORDS = '|'.join(ORDINALS)
+ORDINAL_RE = re.compile(r'\b(' + ORDINAL_WORDS + r')(?:\s+(?:und|et|e)\s+(' + ORDINAL_WORDS + r'))?\s+(?:vorlagen?|objets?|oggett[oi])\b')
+MIN_TITLE_MATCH = 0.45
+
 
 def normalize(text):
-    text=re.sub(r'(\w)\s*[-\u00ad]\s*\n\s*(?=\w)',r'\1',text)
-    return ' '.join(''.join(c for c in unicodedata.normalize('NFKD',text.casefold()) if not unicodedata.combining(c)).split())
-STOP={'volksinitiative','initiative','iniziativa','populaire','popolare','federale','fur','eine','ein','der','die','das','des','du','de','la','le','les','une','un','per','una','un','di','della','del','federale'}
-CONCEPTS={
-'council':['bundesrat','bundesrates','conseil federal','consiglio federale'],
-'parliament':['bundesversammlung','parlament','parliament','parlement','parlamento','assemblee federale'],
-'committee':['komitee','comite','comitato'],
-'pension':['rente','renten','pension','pensione','pensioni','retraite','ahv','avs'],
-'approve':['annehmen','annahme','accepter','acceptation','accogliere','approvare'],
-'reject':['ablehnen','ablehnung','rejeter','rejet','respingere'],
-'finance':['finanzen','finanzi','finanzier','finances','financ','finanziar'],
-'generation':['generation','generazione','generazioni'],
-'condition':['wenn','falls','sofern','si','se'],
-'negation':['nicht','kein','keine','pas','non','nein'],
-}
+    text = re.sub(r'(\w)\s*[-\u00ad]\s*\n\s*(?=\w)', r'\1', text)
+    folded = unicodedata.normalize('NFKD', text.casefold())
+    return ' '.join(''.join(c for c in folded if not unicodedata.combining(c)).split())
+
+
 def tokens(text):
-    n=normalize(text);words=[w for w in re.findall(r'\w+',n) if len(w)>2 and w not in STOP]
-    words.extend('concept_'+k for k,v in CONCEPTS.items() if any(s in n for s in v))
-    return words
+    return [w for w in re.findall(r'\w+', normalize(text)) if len(w) > 2 and w not in STOP]
 
-def page_section(pages,vote):
-    query=set(tokens(vote))
-    def match(text):return len(query & set(tokens(text)))/max(1,len(query))
-    starts=[i for i,p in enumerate(pages) if i>=3 and re.search(r'\b(?:im detail|en detail|in dettaglio)\b',normalize(p[:500]))]
-    if not starts:return list(range(len(pages))),{'fallback':'no section markers'}
-    start=max(starts,key=lambda i:(match(pages[i][:900]),i))
-    confidence=match(pages[start][:900])
-    if confidence<0.45:return list(range(len(pages))),{'fallback':'weak vote match','confidence':confidence}
-    end=next((i for i in starts if i>start),len(pages))
-    # Trailing voting recommendations refer to every vote; retain as context.
-    selected=set(range(start,end))
-    summaries=list(range(3,min(starts)))
-    if summaries:
-        summary=max(summaries,key=lambda i:match(pages[i][:800]))
-        if match(pages[summary][:800])>=0.45:selected.update(i for i in (summary,summary+1) if i<min(starts))
-    if len(pages)-1>=end:selected.add(len(pages)-1)
-    return sorted(selected),{'detail_start_page':start+1,'detail_end_page':end,'confidence':confidence,'selected_pages':[i+1 for i in sorted(selected)]}
 
-def chunks(text,limit=1200):
-    # Cut only at sentence/paragraph boundaries; preserve original bytes/spans.
-    boundaries=[0]+[m.end() for m in re.finditer(r'\n\s*\n|(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Þ])',text)]+[len(text)]
-    start=0;result=[]
-    for end in boundaries[1:]:
-        if end-start>=limit:
-            result.append(text[start:end]);start=end
-    if start<len(text):result.append(text[start:])
-    return [x for x in result if x.strip()]
+def page_ordinals(page):
+    """Vote ordinals printed in the running header at the top of a booklet page.
 
-def selected_context(pages,case,variant):
-    selected,meta=page_section(pages,case['vote'])
-    if variant=='vote_pages':
-        return '\n\n'.join(f'[PAGE {i+1}]\n{pages[i]}' for i in selected),meta
-    entries=[(i,c) for i in selected for c in chunks(pages[i])]
-    bag=[Counter(tokens(c)) for i,c in entries]
-    query=set(tokens(case['claim']['text']))
-    df=Counter(w for b in bag for w in b)
-    avg=sum(sum(b.values()) for b in bag)/max(1,len(bag))
-    def bm25(b):
-        length=sum(b.values());return sum(math.log(1+(len(bag)-df[w]+0.5)/(df[w]+0.5)) * (b[w]*2.2)/(b[w]+1.2*(0.25+0.75*length/max(1,avg))) for w in query if b[w])
-    top=sorted(range(len(entries)),key=lambda i:bm25(bag[i]),reverse=True)[:8]
-    chosen=set(top)
-    claim_numbers=set(re.findall(r'\b\d+(?:[.,]\d+)?\b',case['claim']['text']))
-    for index,(page,text) in enumerate(entries):
-        # Keep law text at the end of the chosen proposal and numeric matches.
-        if page>=meta.get('detail_end_page',len(pages))-2 and page<meta.get('detail_end_page',len(pages)):
-            chosen.add(index)
-        if claim_numbers & set(re.findall(r'\b\d+(?:[.,]\d+)?\b',text)):chosen.add(index)
-    for concept in ('concept_council','concept_parliament','concept_committee'):
-        eligible=[i for i,b in enumerate(bag) if concept in b]
-        if eligible:chosen.add(max(eligible,key=lambda i:bm25(bag[i])))
-    # A context budget protects against a pathological number/actor expansion.
-    ordered=sorted(chosen,key=lambda i:bm25(bag[i]),reverse=True)
-    kept=[];used=0
-    for index in ordered:
-        length=len(entries[index][1])
-        if used+length<=18000:kept.append(index);used+=length
-    kept.sort()
-    meta.update(chunks_kept=len(kept),chunks_total=len(entries),context_chars=used)
-    return '\n\n'.join(f'[PAGE {entries[i][0]+1}]\n{entries[i][1]}' for i in kept),meta
+    Content pages name exactly one vote (or one shared pair, 'Zweite und dritte
+    Vorlage'). Cover and contents pages mention every vote and yield nothing.
+    """
+    if len(ORDINAL_RE.findall(normalize(page))) != 1:
+        return []
+    m = ORDINAL_RE.search(normalize(page[:400]))
+    if not m:
+        return []
+    found = {ORDINALS[m.group(1)]}
+    if m.group(2):
+        found.add(ORDINALS[m.group(2)])
+    return sorted(found)
+
+
+def vote_pages(pages, vote):
+    """Indices of the pages that belong to the given vote, with selection metadata.
+
+    Federal booklets print 'Erste Vorlage: ...' style running headers on the
+    first page of each spread; a page without a header belongs to the preceding
+    headed page. The vote is identified by matching its title against the text
+    of each ordinal's own pages, which open with the full title. Booklets
+    without such headers (single-vote layouts) are returned whole.
+    """
+    labels = [page_ordinals(p) for p in pages]
+    if not any(labels):
+        return list(range(len(pages))), {'fallback': 'no running headers'}
+    first = min(i for i, l in enumerate(labels) if l)
+    owner, current = [], []
+    for i, l in enumerate(labels):
+        if l:
+            current = l
+        owner.append(list(current) if i >= first else [])
+    query = set(tokens(vote))
+
+    def match(text):
+        return len(query & set(tokens(text))) / max(1, len(query))
+    # Shared pages print both titles, so they identify a vote only when it has
+    # no page of its own.
+    exclusive, shared = {}, {}
+    for i, l in enumerate(labels):
+        for o in l:
+            target = exclusive if len(l) == 1 else shared
+            target[o] = max(target.get(o, 0), match(pages[i][:900]))
+    scores = {o: exclusive.get(o, shared.get(o, 0)) for o in set(exclusive) | set(shared)}
+    ordinal, confidence = max(scores.items(), key=lambda kv: (kv[1], -kv[0]))
+    if confidence < MIN_TITLE_MATCH:
+        return list(range(len(pages))), {'fallback': 'weak vote match', 'confidence': confidence}
+    selected = [i for i, o in enumerate(owner) if ordinal in o]
+    return selected, {'ordinal': ordinal, 'confidence': confidence, 'selected_pages': [i + 1 for i in selected]}
+
+
+def rank_pages(claim, pages, page_numbers):
+    """Order the given 1-based page numbers by lexical relevance to the claim (BM25).
+
+    Ties keep booklet order. Cross-lingual pairs still share names, numbers and
+    many stems, so this is a deterministic tie-breaker, not a semantic judgment.
+    """
+    import math
+    docs = {n: tokens(pages[n - 1]) for n in page_numbers}
+    query = set(tokens(claim))
+    count = len(docs) or 1
+    average = sum(len(d) for d in docs.values()) / count
+    frequency = {}
+    for d in docs.values():
+        for w in set(d):
+            frequency[w] = frequency.get(w, 0) + 1
+
+    def score(n):
+        d = docs[n]
+        length = len(d) / average if average else 1
+        counts = {}
+        for w in d:
+            counts[w] = counts.get(w, 0) + 1
+        return sum(math.log(1 + (count - frequency[w] + 0.5) / (frequency[w] + 0.5)) * (counts[w] * 2.2) / (counts[w] + 1.2 * (0.25 + 0.75 * length))
+                   for w in query if w in counts)
+    return sorted(page_numbers, key=lambda n: (-score(n), n))
+
+
+def selected_context(pages, case, variant):
+    if variant != 'vote_pages':
+        raise ValueError('invalid context variant')
+    selected, meta = vote_pages(pages, case['vote'])
+    return '\n\n'.join(f'[PAGE {i + 1}]\n{pages[i]}' for i in selected), meta

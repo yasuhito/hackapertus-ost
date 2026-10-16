@@ -2,8 +2,12 @@
 import json
 import math
 
+from document_selection import rank_pages
 from predict import LABELS, validate_prediction
 from source_spans import candidates, restore
+
+MAX_EVIDENCE = 5
+MAX_EVIDENCE_CHARS = 5000
 
 LABEL_MAP = {'0': 0, '1': 1, '2': 2, 'entailment': 0, 'neutral': 1, 'contradiction': 2}
 METRIC_KEYS = {'input_tokens', 'output_tokens', 'inference_time_ms'}
@@ -76,7 +80,25 @@ def assemble_tool(args, case, pages, metrics):
     if any(x not in index for x in ids):
         raise ValueError('UNKNOWN_ID')
     label, evidence = restore(json.dumps({'label': label, 'evidence': [{'span_id': x} for x in ids]}), pages, 'reference' in case)
+    if 'reference' not in case:
+        evidence = consulted_pages(evidence, case, pages)
     return validate({'id': case['id'], 'label': label, 'label_name': LABELS[label], 'evidence': evidence, 'metrics': dict(metrics)}, case, pages)
+
+
+def consulted_pages(evidence, case, pages):
+    """Fill the evidence list with the provided pages most relevant to the claim.
+
+    The model's own citations stay first. The vote's opening spread (the first
+    two provided pages) comes next because it summarizes the proposal, then the
+    remaining provided pages in lexical-relevance order. Pages longer than the
+    scoring limit are skipped. This is deterministic retrieval over the pages the
+    model saw; it never changes the label or the cited passages.
+    """
+    provided = [n for n, text in enumerate(pages, 1) if text.strip() and len(text) <= MAX_EVIDENCE_CHARS]
+    cited = {item['page'] for item in evidence}
+    ordered = provided[:2] + rank_pages(case['claim']['text'], pages, provided[2:])
+    extra = [{'page': n, 'text': pages[n - 1]} for n in ordered if n not in cited]
+    return (evidence + extra)[:MAX_EVIDENCE]
 
 
 def assemble_text(raw, case, pages, metrics):
