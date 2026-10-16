@@ -10,7 +10,8 @@ import sys
 import time
 import urllib.request
 from source_spans import candidates, restore
-from document_selection import claim_pages, claim_span_pages, selected_context
+import embedding
+from document_selection import claim_pages, claim_span_pages, selected_context, paragraph_context
 
 LABELS = {0: "entailment", 1: "neutral", 2: "contradiction"}
 SYSTEM = '\n'.join([
@@ -42,8 +43,8 @@ CLAIM_SPANS = int(os.getenv("CLAIM_SPANS", "8"))
 
 
 def context(case, base, selection_strategy="vote_pages", translator=None):
-    """translator(claim_text, target_language) -> translation or None; used only by claim_pages."""
-    if selection_strategy not in ("full", "vote_pages", "claim_spans", "claim_pages"):
+    """translator(claim_text, target_language) -> translation or None; used by claim-based page and paragraph selection."""
+    if selection_strategy not in ("full", "vote_pages", "claim_spans", "claim_pages", "claim_paragraphs"):
         raise ValueError("invalid context strategy")
     if not isinstance(case, dict) or not isinstance(case.get("claim"), dict):
         raise ValueError("case/claim must be objects")
@@ -68,19 +69,23 @@ def context(case, base, selection_strategy="vote_pages", translator=None):
         if not any(p.strip() for p in pages):
             raise ValueError("PDF has no extractable text (OCR needed)")
     reference_text = "\n\n".join(f"[PAGE {i}]\n{p}" for i, p in enumerate(pages, 1))
-    if selection_strategy in ("vote_pages", "claim_spans", "claim_pages") and "booklet" in case and isinstance(case.get("vote"), str) and case["vote"].strip():
+    if selection_strategy in ("vote_pages", "claim_spans", "claim_pages", "claim_paragraphs") and "booklet" in case and isinstance(case.get("vote"), str) and case["vote"].strip():
         reference_text, selection = selected_context(pages, case, "vote_pages")
         selected = selection.get("selected_pages", list(range(1, len(pages) + 1)))
         # Keep physical page indices; unprovided pages cannot supply evidence.
         pages = tuple(text if i in selected else "" for i, text in enumerate(pages, 1))
         if selection_strategy == "claim_spans":
             pages, _ = claim_span_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS)
-        elif selection_strategy == "claim_pages":
+        elif selection_strategy in ("claim_pages", "claim_paragraphs"):
             translation = None
             source_language = case["booklet"].get("language")
             if translator and source_language and case["claim"].get("language") != source_language:
                 translation = translator(case["claim"]["text"], source_language)
-            pages, _ = claim_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS, translation)
+            if selection_strategy == "claim_paragraphs":
+                pages, _ = paragraph_context(pages, [n - 1 for n in selected], claim, CLAIM_SPANS,
+                                             translation, embedding.load_embedder())
+            else:
+                pages, _ = claim_pages(pages, [n - 1 for n in selected], case["claim"]["text"], candidates(pages), CLAIM_SPANS, translation)
     return pages, messages_for_pages(case, pages)
 
 

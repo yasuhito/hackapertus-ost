@@ -33,3 +33,4 @@ node_modules/
 # Autoresearch runtime state stays local; scripts and prompt records are reviewable.
 /.auto/log.jsonl
 /.auto/check-context.json
+models/

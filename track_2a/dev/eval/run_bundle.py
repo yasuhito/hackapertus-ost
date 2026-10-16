@@ -46,7 +46,7 @@ def prepare(core, bundle, strategy='C', model=None, selection='vote_pages'):
     engine = core.legacy.engine()
     translations = {}
     cache = REPO / 'output/validation/claim-translations.json'
-    if selection == 'claim_pages' and cache.exists():
+    if selection in ('claim_pages', 'claim_paragraphs') and cache.exists():
         translations = json.loads(cache.read_text())
     translation_tokens = [0]
 
@@ -150,7 +150,7 @@ def main():
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--strategy', choices=['A', 'C', 'S', 'R'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON; S: one model, submit tool; R: input-routed model, submit tool')
     parser.add_argument('--model', choices=['8b', '70b'], default='70b')
-    parser.add_argument('--selection', choices=['vote_pages', 'claim_spans', 'claim_pages', 'full'], default='vote_pages')
+    parser.add_argument('--selection', choices=['vote_pages', 'claim_spans', 'claim_pages', 'claim_paragraphs', 'full'], default='vote_pages')
     args = parser.parse_args()
     core = module(RUNNER, 'format_runner')
     model = core.MODELS[0] if args.model == '8b' else core.MODELS[1]

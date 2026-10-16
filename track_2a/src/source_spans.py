@@ -5,6 +5,17 @@ import re
 import unicodedata
 
 MAX_SPAN = 1200
+REGION_BREAK = "\n\n\n"
+
+
+def regions(source):
+    """Nonempty regions with absolute offsets in the supplied page."""
+    start = 0
+    for text in source.split(REGION_BREAK):
+        end = start + len(text)
+        if text.strip():
+            yield start, end, text
+        start = end + len(REGION_BREAK)
 
 
 def speaker_heading(source):
@@ -43,25 +54,26 @@ def candidates(pages, reference=False):
     for page_number, source in enumerate(pages, 1):
         if not isinstance(source, str):
             raise ValueError("invalid source page")
-        start = 0
         digest = hashlib.sha256(source.encode()).hexdigest()[:12]
-        while start < len(source):
-            end = min(start + MAX_SPAN, len(source))
-            if end < len(source):
-                # Prefer paragraph/sentence boundaries, then a complete line/word.
-                window = source[start:end]
-                boundaries = [m.end() for m in re.finditer(r"\n\s*\n|[.!?][\s]+", window)]
-                if not boundaries:
-                    boundaries = [m.end() for m in re.finditer(r"\s+", window)]
-                late = [b for b in boundaries if b >= MAX_SPAN // 2]
-                if late:
-                    end = start + late[-1]
-            text = source[start:end]
-            if text.strip():
-                result.append({"span_id": f"p{page_number:04d}-o{start:07d}-e{end:07d}-{digest}",
-                               "page": None if reference else page_number,
-                               "start": start, "end": end, "text": text})
-            start = end
+        for region_start, region_end, _ in regions(source):
+            start = region_start
+            while start < region_end:
+                end = min(start + MAX_SPAN, region_end)
+                if end < region_end:
+                    # Prefer paragraph/sentence boundaries, then a complete line/word.
+                    window = source[start:end]
+                    boundaries = [m.end() for m in re.finditer(r"\n\s*\n|[.!?][\s]+", window)]
+                    if not boundaries:
+                        boundaries = [m.end() for m in re.finditer(r"\s+", window)]
+                    late = [b for b in boundaries if b >= MAX_SPAN // 2]
+                    if late:
+                        end = start + late[-1]
+                text = source[start:end]
+                if text.strip():
+                    result.append({"span_id": f"p{page_number:04d}-o{start:07d}-e{end:07d}-{digest}",
+                                   "page": None if reference else page_number,
+                                   "start": start, "end": end, "text": text})
+                start = end
     return result
 
 
@@ -98,11 +110,22 @@ def restore(raw, pages, reference=False):
             raise ValueError("source span mismatch")
         if not reference and len(c["text"]) > 5000:
             raise ValueError("document evidence exceeds 5000 characters")
-        selected_pages.update(citation_pages(page_number, pages) if not reference else [1])
+        if REGION_BREAK in source:
+            text = next(text for start, end, text in regions(source)
+                        if start <= c["start"] and c["end"] <= end)
+            if not reference and len(text) > 5000:
+                text = c["text"]
+            item = {"page": None if reference else page_number, "text": text}
+            if item not in restored:
+                restored.append(item)
+        else:
+            selected_pages.update(citation_pages(page_number, pages) if not reference else [1])
     # IDs remain source-offset anchors. Context closure supplies original source
     # attribution/conditions, without changing words or consulting claim/gold.
     for page_number in sorted(selected_pages):
         text = pages[page_number - 1]
+        if REGION_BREAK in text:
+            continue
         if not text.strip() or (not reference and len(text) > 5000):
             raise ValueError("citation context unavailable or exceeds 5000 characters")
         restored.append({"page": None if reference else page_number, "text": text})

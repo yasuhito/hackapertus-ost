@@ -216,3 +216,98 @@ def selected_context(pages, case, variant):
         raise ValueError('invalid context variant')
     selected, meta = vote_pages(pages, case['vote'])
     return '\n\n'.join(f'[PAGE {i + 1}]\n{pages[i]}' for i in selected), meta
+
+
+def paragraphs(pages, selected):
+    """Page-local, offset-anchored paragraphs, targeting 200..700 characters.
+
+    Unsplittable sentences may exceed the target; no word-level cuts are made.
+    Short headings attach forward, including across a blank line.
+    """
+    result = []
+    for page in sorted(set(selected)):
+        source = pages[page]
+        blocks = []
+        start = 0
+        for match in re.finditer(r'\n[ \t]*\n(?:[ \t]*\n)*', source):
+            blocks.append((start, match.start()))
+            start = match.end()
+        blocks.append((start, len(source)))
+        units = []
+        for start, end in blocks:
+            while start < end and source[start].isspace():
+                start += 1
+            while end > start and source[end - 1].isspace():
+                end -= 1
+            if start == end:
+                continue
+            cuts = [start + m.end() for m in re.finditer(r'[.!?](?=\s|$)|\n', source[start:end])]
+            while end - start > 700:
+                options = [c for c in cuts if start < c <= start + 700]
+                cut = max(options) if options else next((c for c in cuts if c > start), end)
+                units.append((start, cut))
+                start = cut
+            if start < end:
+                units.append((start, end))
+        merged = []
+        for start, end in units:
+            if merged and (merged[-1][1] - merged[-1][0] < 60 or
+                           (merged[-1][1] - merged[-1][0] < 200 and end - merged[-1][0] <= 700)):
+                merged[-1] = (merged[-1][0], end)
+            else:
+                merged.append((start, end))
+        for start, end in merged:
+            result.append({'page': page + 1, 'start': start, 'end': end, 'text': source[start:end]})
+    return result
+
+
+def rank_paragraphs(claim, paras, translation=None, embedder=None):
+    """Fuse lexical and optional local embedding rankings deterministically."""
+    import math
+
+    def order(scores):
+        return sorted(range(len(paras)), key=lambda i: (-scores[i], i))
+
+    if not paras:
+        return []
+    texts = [p['text'] for p in paras]
+    grams = [char_grams(text) for text in texts]
+    orders = [order(bm25_scores(char_grams(claim), grams))]
+    if translation:
+        orders.extend([order(bm25_scores(char_grams(translation), grams)),
+                       order(bm25_scores(tokens(translation), [tokens(text) for text in texts]))])
+    if embedder:
+        vectors = embedder(texts)
+        for query in ([translation, claim] if translation else [claim]):
+            q = embedder([query])[0]
+            qnorm = math.sqrt(sum(float(x) ** 2 for x in q))
+            scores = []
+            for vector in vectors:
+                denom = qnorm * math.sqrt(sum(float(x) ** 2 for x in vector))
+                scores.append(sum(float(a) * float(b) for a, b in zip(q, vector)) / denom if denom else 0.0)
+            orders.append(order(scores))
+    return reciprocal_rank_fusion(*orders)
+
+
+def paragraph_context(pages, selected, claim, top_k, translation=None, embedder=None, neighbours=1):
+    """Keep ranked paragraphs and page-local neighbours as original regions."""
+    from source_spans import REGION_BREAK
+    paras = paragraphs(pages, selected)
+    keep = set()
+    for i in rank_paragraphs(claim, paras, translation, embedder)[:top_k]:
+        keep.update(j for j in range(max(0, i - neighbours), min(len(paras), i + neighbours + 1))
+                    if paras[j]['page'] == paras[i]['page'])
+    groups = {}
+    previous = None
+    for i in sorted(keep):
+        para = paras[i]
+        page = para['page']
+        if previous is not None and i == previous + 1 and paras[previous]['page'] == page:
+            groups[page][-1][1] = para['end']
+        else:
+            groups.setdefault(page, []).append([para['start'], para['end']])
+        previous = i
+    reduced = tuple(REGION_BREAK.join(text[start:end] for start, end in groups.get(n, []))
+                    for n, text in enumerate(pages, 1))
+    return reduced, {'kept_paragraphs': len(keep), 'kept_pages': sorted(groups),
+                     'chars': sum(map(len, reduced))}

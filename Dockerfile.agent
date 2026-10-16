@@ -4,8 +4,16 @@ WORKDIR /build
 COPY track_2a/dev/format/package.json track_2a/dev/format/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
+FROM python:3.11-slim-bookworm AS embed
+# Static multilingual embedding for paragraph retrieval (numpy only at runtime).
+# Weights are fetched at build time and quantized to int8; nothing is downloaded at runtime.
+RUN pip install --no-cache-dir model2vec==0.10.0
+RUN python -c "from model2vec import StaticModel; StaticModel.from_pretrained('minishlab/potion-multilingual-128M', quantize_to='int8').save_pretrained('/models/potion-multilingual-128M-int8')"
+
 FROM python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 libatomic1 && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir model2vec==0.10.0
+COPY --from=embed /models /app/models
 COPY --from=pi /usr/local/bin/node /usr/local/bin/node
 COPY --from=pi /usr/local/LICENSE /usr/share/doc/node/LICENSE
 WORKDIR /app

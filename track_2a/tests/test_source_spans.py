@@ -130,3 +130,17 @@ def test_closure_limits_fail_instead_of_truncating():
     large=('A'*5001,)
     with pytest.raises(ValueError,match='5000'):
         restore(response([candidates(large)[0]['span_id']]),large)
+
+
+def test_regions_restore_and_absolute_offsets():
+    from source_spans import REGION_BREAK
+    first = 'Original first. ' * 100
+    second = 'Original second.'
+    pages = (first + REGION_BREAK + second,)
+    spans = candidates(pages)
+    assert all(REGION_BREAK not in s['text'] and pages[0][s['start']:s['end']] == s['text'] for s in spans)
+    assert restore(response([spans[0]['span_id']]), pages)[1] == [{'page': 1, 'text': first}]
+    assert restore(response([spans[-1]['span_id']]), pages)[1] == [{'page': 1, 'text': second}]
+    oversized = ('Long sentence. ' * 400) + REGION_BREAK + second
+    span = candidates((oversized,))[0]
+    assert restore(response([span['span_id']]), (oversized,))[1] == [{'page': 1, 'text': span['text']}]

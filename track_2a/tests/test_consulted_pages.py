@@ -72,3 +72,16 @@ def test_neighbouring_pages_follow_the_citation():
     span = next(s for s in candidates(pages) if s["page"] == 6)
     result = submission.assemble_tool({"label": 0, "candidate_ids": [span["span_id"]]}, case, pages, metrics())
     assert [i["page"] for i in result["evidence"]] == [6, 7, 5, 3, 4]
+
+
+def test_reduced_pages_pad_regions_cited_then_adjacent_then_lexical():
+    from source_spans import REGION_BREAK
+    texts = ['Opening.', 'Before.', 'Cited.', 'After.', 'Steuern Familien 2027.', 'Other.']
+    pages = (REGION_BREAK.join(texts), 'Unrelated page.')
+    case, _ = booklet_case(pages)
+    evidence = [{'page': 1, 'text': texts[2]}]
+    padded = submission.consulted_pages(evidence, case, pages)
+    assert [item['text'] for item in padded[:4]] == [texts[2], texts[1], texts[3], texts[4]]
+    assert len(padded) == 5
+    assert all(item['text'] in pages[item['page'] - 1] and REGION_BREAK not in item['text'] for item in padded)
+    assert len({(x['page'], x['text']) for x in padded}) == 5

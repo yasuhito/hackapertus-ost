@@ -75,7 +75,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
     if len(rows) > 100000 or len({row['id'] for row in rows}) != len(rows):
         raise r.Stop('INPUT_COUNT_OR_DUPLICATE_IDS')
     selection = os.environ.get('CONTEXT_SELECTION', 'vote_pages')
-    if selection not in ('vote_pages', 'claim_pages', 'full'):
+    if selection not in ('vote_pages', 'claim_pages', 'claim_paragraphs', 'full'):
         raise r.Stop('CONTEXT_SELECTION_REFUSED')
     claim_spans = int(os.environ.get('CLAIM_SPANS', '8'))
     engine = r.legacy.engine()
@@ -100,7 +100,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
         started = time.monotonic()
         translated = {'translation': None, 'usage': None}
         target = case.get('booklet', {}).get('language')
-        if selection == 'claim_pages' and target and case['claim'].get('language') != target:
+        if selection in ('claim_pages', 'claim_paragraphs') and target and case['claim'].get('language') != target:
             translated = translate_claim(job, case, target, client_factory)
         pages, messages = engine.context(case, input_path.parent, selection_strategy=selection,
                                          translator=lambda text, language: translated['translation'])

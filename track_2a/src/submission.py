@@ -2,9 +2,9 @@
 import json
 import math
 
-from document_selection import rank_pages
+from document_selection import rank_pages, char_grams, bm25_scores
 from predict import LABELS, validate_prediction
-from source_spans import candidates, restore
+from source_spans import candidates, restore, regions, REGION_BREAK
 
 MAX_EVIDENCE = 5
 MAX_EVIDENCE_CHARS = 5000
@@ -108,6 +108,26 @@ def consulted_pages(evidence, case, pages):
     scoring limit are skipped. This is deterministic retrieval over the pages the
     model saw; it never changes the label or the cited passages.
     """
+    if any(REGION_BREAK in text for text in pages):
+        provided_regions = [(n, text) for n, source in enumerate(pages, 1)
+                            for _, _, text in regions(source)]
+        cited = [i for item in evidence for i, (n, text) in enumerate(provided_regions)
+                 if item['page'] == n and item['text'] in text]
+        adjacent = sorted({j for i in cited for j in (i - 1, i + 1)
+                           if 0 <= j < len(provided_regions)
+                           and provided_regions[j][0] == provided_regions[i][0]})
+        scores = bm25_scores(char_grams(case['claim']['text']),
+                             [char_grams(text) for _, text in provided_regions])
+        ranked = sorted(range(len(scores)), key=lambda i: (-scores[i], i))
+        result = []
+        for i in cited + adjacent + ranked:
+            n, text = provided_regions[i]
+            items = ([{'page': n, 'text': text}] if len(text) <= MAX_EVIDENCE_CHARS else
+                     [item for item in evidence if item['page'] == n and item['text'] in text])
+            for item in items:
+                if item not in result:
+                    result.append(item)
+        return result[:MAX_EVIDENCE]
     provided = [n for n, text in enumerate(pages, 1) if text.strip() and len(text) <= MAX_EVIDENCE_CHARS]
     cited = [item['page'] for item in evidence]
     ordered = neighbours(cited, provided) + provided[:2] + rank_pages(case['claim']['text'], pages, provided[2:])
