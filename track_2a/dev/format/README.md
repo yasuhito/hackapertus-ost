@@ -147,7 +147,10 @@ make run PIPELINE=B LLM_MODEL=swiss-ai/Apertus-v1.5-8B \
   INPUT_DIR=/path/to/approved/input INPUT=/data/input.jsonl OUTPUT_DIR=/path/to/new/output
 make run PIPELINE=C LLM_MODEL=swiss-ai/Apertus-v1.5-70B \
   INPUT_DIR=/path/to/approved/input INPUT=/data/input.jsonl OUTPUT_DIR=/path/to/new/output
-# PIPELINE=A selects the same assembler's text path; Makefile default stays B.
+# Makefile and Dockerfile default: PIPELINE=R, one native submit call per case,
+# booklet cases on Apertus 70B and reference cases on Apertus 8B. PIPELINE=S is
+# the same single call with one model (LLM_MODEL). PIPELINE=A selects the same
+# assembler's text path.
 ```
 
 The Node executable is resolved before child environment sanitization, including

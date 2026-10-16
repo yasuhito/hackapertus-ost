@@ -14,6 +14,6 @@ COPY track_2a/src /app/track_2a/src
 COPY track_2a/dev/format/*.py track_2a/dev/format/*.ts track_2a/dev/format/*.mjs track_2a/dev/format/package.json track_2a/dev/format/package-lock.json /app/track_2a/dev/format/
 COPY track_2a/dev/cscs/cscs_check.py track_2a/dev/cscs/cscs_dev54.py /app/track_2a/dev/cscs/
 COPY track_2a/dev/cscs/vendor /app/track_2a/dev/cscs/vendor
-ENV PYTHONDONTWRITEBYTECODE=1 PI_OFFLINE=1 PIPELINE=C TOOL_STEP=baseline
+ENV PYTHONDONTWRITEBYTECODE=1 PI_OFFLINE=1 PIPELINE=R TOOL_STEP=baseline
 ENTRYPOINT ["python", "/app/track_2a/dev/format/runtime.py"]
 CMD ["--input", "/data/cases.jsonl", "--output", "/output/predictions.jsonl"]

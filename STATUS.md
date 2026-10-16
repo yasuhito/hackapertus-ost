@@ -1,5 +1,14 @@
 # Status — deadline 2026-10-16
 
+## 2026-10-16 12:40 JST baseline: strategy R, one native submit call per case (commit after 7ee44e6)
+- Task A (booklet) answered by Apertus 70B, Task B (reference) by Apertus 8B, no child session.
+  The 70B parent had copied the 8B child's label in 420/420 recorded cases, so the two parent
+  calls (63% of tokens) added no judgment. See `docs/single-call-results-2026-10-16.md`.
+- Versus the 70B+8B version on DEV60 / PUBLIC60 / 確認用60: Task A F1 0.733/0.869/0.797 -> 0.875/0.967/0.804,
+  Task B F1 0.815/0.931/0.929 -> 0.853/1.000/0.933, Hit@5 0.68/0.65/0.625 -> 0.74/0.75/0.75,
+  tokens per case about 24k-29k -> 11k, time 6-7 s -> 3 s. Single runs; sets are all exposed.
+- `make run` defaults to PIPELINE=R; C (70B+8B) and S (one model) remain selectable.
+
 ## 2026-10-16 baseline: running-header page selection + consulted-page evidence (commit 76a0e6e)
 - Replaces v5 after a one-time comparison on the reserved confirmation 60 (3 runs each):
   Task A F1 0.734 -> 0.797, Task B F1 0.929 -> 0.929, Hit@5 0.569 -> 0.625, fallbacks 3 -> 0,

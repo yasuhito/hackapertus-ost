@@ -6,10 +6,10 @@ INPUT ?= /data/cases.jsonl
 OUTPUT ?= /output/predictions.jsonl
 LLM_BACKEND ?= openai
 PYTHON ?= python3
-PIPELINE ?= C
+PIPELINE ?= R
 TOOL_STEP ?= baseline
-DOCKERFILE = $(if $(filter A B C,$(PIPELINE)),Dockerfile.agent,Dockerfile)
-RUNTIME_FLAGS = $(if $(filter A B C,$(PIPELINE)),--read-only --tmpfs /tmp)
+DOCKERFILE = $(if $(filter A B C S R,$(PIPELINE)),Dockerfile.agent,Dockerfile)
+RUNTIME_FLAGS = $(if $(filter A B C S R,$(PIPELINE)),--read-only --tmpfs /tmp)
 
 .PHONY: run build run-local test dev-eval download prepare
 build:
