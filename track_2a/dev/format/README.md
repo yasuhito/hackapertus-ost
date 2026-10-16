@@ -185,4 +185,4 @@ vendored pypdf, no credentials, no runtime downloads, read-only root and writabl
 /output and /tmp. Build-time registry access is required. Clean Docker build/run has been validated offline. This does not establish
 organizer proxy compatibility, which remains unverified. SDK fake-provider
 checks are not CSCS or organizer proxy validation. Current C results and
-owner-operated procedures are documented in `docs/dev54-eval-runbook.md`.
+owner-operated procedures were documented in the retired `docs/dev54-eval-runbook.md` (git history before 2026-10-16); current measurements are in `docs/single-call-results-2026-10-16.md`.

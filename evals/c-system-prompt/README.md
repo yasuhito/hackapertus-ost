@@ -110,7 +110,7 @@ semantics approved by the owner, superseding the older local-grader review.
 
 ## Portable saved-run CLI
 
-Current owner procedure/results: `docs/dev54-eval-runbook.md`. Candidate v2 was
+Current owner procedure/results: `docs/prompt-eval-log.md` (the dev54 runbook was retired on 2026-10-16). Candidate v2 was
 rejected; production remains v0. These helpers do not discover jobs or retry.
 Set `REPO` to the repository root, `RUN_PYTHON` to the runner interpreter,
 `EVAL_PYTHON` to the interpreter with official scoring dependencies (including
