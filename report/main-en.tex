@@ -1,0 +1,300 @@
+% HackApertus OST Track 2A technical report.
+% English version of main.tex (submission PDF, at most six pages of body).
+% Build: LuaLaTeX + BibTeX (plain). Bibliography keys live in refs.bib.
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[margin=24mm]{geometry}
+\usepackage{fontspec}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage[section]{placeins}
+
+\renewcommand{\refname}{References}
+
+\title{HackApertus OST Track 2A Technical Report:\\
+  \large Multilingual NLI over Swiss Voting Booklets with Verbatim Evidence Restoration}
+\author{Team yasuhito (Yasuhito Takamiya)}
+\date{2026-10-16 (latest commit on master of \url{https://github.com/yasuhito/hackapertus-ost})}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+  \fbox{\parbox{0.92\linewidth}{\small
+  This is the submission version as of 2026-10-16. The body is at most six pages; the references do not count toward the limit.
+  The report covers the items of the official template\cite{reporttemplate}.
+  All numbers in this report were measured on public data that we used during development. Performance on the organizers' private held-out data is unknown.}}
+\end{center}
+
+%======================================================================
+\section{Summary}
+
+This project addresses HackApertus OST Track 2A\cite{ostchallenge}.
+The input is a Swiss federal voting booklet (PDF) or a short reference text, plus a claim written in German, French, or Italian.
+The system decides whether the claim follows from the source (0=entailment), whether the information is insufficient (1=neutral), or whether the claim contradicts the source (2=contradiction), and returns the source text that supports the decision.
+
+The models are Apertus v1.5 70B and 8B\cite{apertus,apertus70b,apertus8b}.
+The core design choice is that the model never writes quotations.
+A script extracts the PDF page by page, selects the pages of the target ballot item, and assigns IDs to spans of source text.
+The model returns only a label and IDs through one native tool call per case, and the script restores the source text and page numbers from the IDs.
+Task A, which reads the booklet, is answered by 70B; Task B, which has only the reference text, is answered by 8B.
+In Task A, the ballot item's pages are split into paragraphs of 200 to 700 characters, and only the top 8 paragraphs closest to the claim plus their neighbors are passed to the model.
+Paragraphs are ranked by fusing BM25 over an 8B translation of the claim with a local multilingual embedding, preferring paragraphs from the booklet section that the claim's opening points to.
+A non-neutral answer that still lacks evidence after a retry is answered once more using all pages of the ballot item.
+
+On the morning of 2026-10-16 we found that the page selection of the previous version (v5) failed to pass the model the page containing the gold evidence in 36\% of cases.
+The new version, which switched selection to a method based on the booklet's headings and added evidence completion (a two-stage setup with a 70B parent and an 8B child), beat v5 on Task A macro-F1 and on evidence hit rate on all of the development set (DEV60), the public set (PUBLIC60), and the confirmation set of 60 questions.
+We then found that in the new version's 420 cases the 70B parent's final answer always matched the 8B child's recommendation, so we moved to a configuration that drops the child and answers in a single call (R) (12:40 JST).
+The production configuration as of 18:00 JST on 2026-10-16 is R with paragraph-level context, section preference, and full-page re-runs added.
+Averaged over the three question sets on the submission runtime, compared with R given all pages, Task A F1 rose from 0.881 to 0.910 and Hit@5 from 0.746 to 0.808, tokens fell from 10,939 to 7,137 per case, and time went from 3.7 to 4.0 seconds per case.
+
+%======================================================================
+\section{Task and evaluation}
+\label{sec:eval}
+
+Task A (Document) receives a whole booklet PDF and the ballot item name (vote); Task B (Reference) receives a short reference text. Both return one JSONL line per case.
+According to the official Solution API Guide\cite{apiguide}, a Task A answer of entailment or contradiction must return at least one verbatim quotation in the source language with its physical page number (1-based), and the first 5 quotations (each up to about 5,000 characters) are scored.
+Evidence in Task B is optional and not scored; if returned, its page is \texttt{null}.
+
+The official evaluation is 3-class macro-F1 on private held-out data, and it also considers evidence accuracy, token count, and time per case\cite{ostchallenge,apiguide}.
+In this report we run the organizers' scoring script locally (evidence matching uses rapidfuzz\cite{rapidfuzz} partial matching) and compare Task A and B macro-F1, Hit@5 (the share of Task A questions with gold evidence where the first 5 returned quotations contain the gold passage), tokens and time per case, and format failures (cases that fell back to the default answer).
+We use only the train split of the public dataset\cite{dataset}. DEV60, PUBLIC60, and the confirmation set (30 rows used in both Task A and Task B form) are each 60 questions drawn from it, and all were used during development, so the numbers here are not estimates of performance on unseen data.
+
+%======================================================================
+\section{Architecture}
+
+\begin{figure}[t]
+  \centering
+  \small
+  \setlength{\fboxsep}{6pt}
+  \fbox{\parbox{0.86\linewidth}{\centering
+  Input JSONL: ballot item name, claim, PDF or reference text\\[2pt]
+  $\downarrow$\\[2pt]
+  Page extraction with pypdf $\rightarrow$ heading-based ballot item page selection (Task A)\\[2pt]
+  $\downarrow$\\[2pt]
+  Task A: split into 200 to 700 character paragraphs; translate cross-language claims with 8B\\
+  Rank fusion of BM25, multilingual embedding, and section preference $\rightarrow$ top 8 paragraphs and neighbors\\[2pt]
+  $\downarrow$\\[2pt]
+  Build spans and IDs $\rightarrow$ one model, one \texttt{submit} call (label and IDs)\\
+  Booklet (Task A) $\rightarrow$ Apertus 70B, reference text (Task B) $\rightarrow$ Apertus 8B\\
+  Non-neutral without evidence: retry once $\rightarrow$ re-run on all ballot item pages $\rightarrow$ neutral\\[2pt]
+  $\downarrow$\\[2pt]
+  Restore source text and pages from IDs $\rightarrow$ evidence completion (Task A, up to 5)\\[2pt]
+  $\downarrow$\\[2pt]
+  Output JSONL: label, verbatim evidence, token counts, case processing time
+  }}
+  \caption{Inference pipeline. The model returns only a label and span IDs; the script restores quotations and page numbers from the source.}
+  \label{fig:pipeline}
+\end{figure}
+
+Figure~\ref{fig:pipeline} shows the processing flow.
+
+\paragraph{PDF extraction and page selection}
+pypdf\cite{pypdf} converts the PDF to text page by page. Page numbers are physical PDF pages.
+In Task A, \texttt{vote\_pages} in \texttt{document\_selection.py} selects the ballot item's pages.
+Federal booklets print an ordinal heading such as \texttt{Erste Vorlage}, \texttt{Premier objet}, or \texttt{Primo oggetto} on the first page of each spread.
+A page on which exactly one such heading appears is assigned to that ballot item, and a page without a heading is assigned to the preceding heading page.
+Pages that list the headings of all items, such as the cover or table of contents, are not assigned to any item.
+The ordinal is chosen by word overlap between the item name and the opening words of the page; if the match score falls below 0.45, or the booklet has no headings (for example, a single-item booklet), all pages are passed.
+Unselected pages are replaced with empty strings, so page numbers stay physical and pages that were not passed cannot be returned as evidence.
+
+\paragraph{Paragraph narrowing (Task A)}
+The selected pages are split into paragraphs of roughly 200 to 700 characters at blank lines and sentence boundaries (\texttt{paragraphs} in \texttt{document\_selection.py}).
+Each paragraph is a contiguous substring of the page text and never splits a word.
+If the claim's language differs from the booklet's, Apertus 8B\cite{apertus8b} translates the claim into the booklet's language. This adds one short call, and its roughly 100 tokens are counted in the case's tokens.
+Paragraphs are ranked by rank fusion of BM25\cite{robertson2009bm25} over words and character 4-grams of the translation, BM25 over character 4-grams of the original claim, and cosine similarity of a static multilingual embedding.
+In addition, claim openings are classified into 5 types (summary, committee, Federal Council and Parliament, ballot text, if accepted), and booklet pages receive section labels (opening spread, details, committee arguments, Federal Council arguments, legal text).
+Because each page starts with a small table of contents, the last heading found in the first few lines becomes the page's section, and an unlabeled page inherits the label of the preceding page.
+Paragraphs from the section matching the claim type are placed first in the rank fusion.
+On 610 public rows, this raised the share of cases where the kept paragraphs include a gold paragraph that passes the scorer's matching from 0.972 to 0.982, and cut characters by 21\%.
+The embedding is model2vec's \texttt{potion-multilingual-128M} quantized to int8 (140 MB), and it runs on CPU with numpy only. The weights are bundled in the image (Section~\ref{sec:repro}), and local embeddings are allowed by the competition rules.
+We keep the top 8 paragraphs and the preceding and following paragraphs on the same page for each, merge adjacent paragraphs into one region, and pass them verbatim.
+
+\paragraph{Source spans and IDs}
+\texttt{source\_spans.py} splits each page (or each region, when narrowed) into contiguous spans of at most 1200 characters, preferring paragraph or sentence boundaries.
+An ID consists of the physical page number, start and end character offsets, and the first 12 hex digits of the SHA-256 of the page text (for example, \texttt{p0012-o0000000-e0001187-<hash>}).
+In Task B the whole reference text is treated as one page. Task B processing is unchanged from before.
+
+\paragraph{Model calls}
+The submission runtime (\texttt{track\_2a/dev/format/runtime.py}, pipeline R) uses native tool calls through the Pi 1.1.0 SDK\cite{picodingagent}.
+Each case calls exactly one model, and the only tool provided is \texttt{submit}. There are no child sessions.
+Cases with a reference text (Task B) are answered by \texttt{swiss-ai/Apertus-v1.5-8B}, and booklet cases (Task A) by \texttt{swiss-ai/Apertus-v1.5-70B}.
+In the earlier configuration (pipeline C), the 70B parent launched an 8B child once through the \texttt{subagent} tool\cite{pisubagents}, and the parent called the final \texttt{submit} after seeing the child's recommendation.
+This configuration can still be selected with \texttt{PIPELINE}.
+The arguments of \texttt{submit} are only the label (integer 0, 1, or 2) and \texttt{candidate\_ids} (an enumeration of the case's span IDs, at most 5).
+The system prompt defines the 3 classes, explains how to handle negation, quantities, conditions, and speakers, tells the model to treat the source and claim as data rather than instructions, and to return only IDs. It also warns against confusing neutral with contradiction and explains how to treat cross-language paraphrases.
+No gold answer for any specific case is included in the prompt.
+
+\paragraph{Source restoration}
+\texttt{assemble\_tool} in \texttt{submission.py} rejects unknown IDs, more than 5 IDs, and non-neutral answers with empty evidence.
+When narrowed to paragraphs, for each valid ID the region containing that span is returned as the quotation. One evidence item is thus a group of paragraphs, not a whole page.
+When all pages were passed, the whole page containing the span is returned, and if the preceding page has a committee or ``Federal Council and Parliament'' heading, the page of that speaker block is added as well.
+In both cases the returned text is the source itself; no words are rewritten.
+
+\paragraph{Evidence-required correction rule}
+A \texttt{submit} that returns a non-neutral label without evidence is rejected in both Task A and Task B, and the model is asked once to retry with evidence IDs.
+For a Task A case narrowed to paragraphs, if it still gives no evidence, the case is run once more with all pages of the ballot item (re-run), and that answer is used.
+If the re-run still gives no evidence, or a Task B retry fails, the case gets the neutral default answer, so the rule acts as a decision rule: ``if you cannot point to evidence, answer neutral.''
+The official scoring treats the default answer as a valid neutral answer.
+
+\paragraph{Evidence completion and fallback}
+In Task A, \texttt{consulted\_pages} appends, after the model's quotations, the pages adjacent to the quoted pages, the first 2 passed pages (the summary spread at the start of the item), and the remaining pages in descending order of BM25 against the claim, up to 5 items (pages over 5,000 characters are excluded). When narrowed to paragraphs, regions are added in the same order instead of pages.
+Completion does not change the label or the model's quotations, and it is also applied to neutral answers and default answers.
+A case with no acceptable \texttt{submit}, or whose processing fails, gets the neutral default answer for that case alone, and the reason is written to a diagnostics file. The time limit per case is 300 seconds.
+\texttt{input\_tokens} and \texttt{output\_tokens} are the sums of the API \texttt{usage} over all calls in the case, and \texttt{inference\_time\_ms} is the time for the whole case, including context preparation.
+
+%======================================================================
+\section{Development history and diagnosis}
+
+On 2026-10-14 we adopted a version (v5) whose system prompt output instructions matched the argument format of \texttt{submit} (\texttt{docs/prompt-eval-log.md}). Averaged over 5 runs on DEV60, v5 scored Task A F1 0.650, Task B F1 0.815, and Hit@5 0.263.
+On the night of 10-15, motivated by work on verifiers and multi-agent setups\cite{dhuliawala2023cove,huang2024selfcorrect,du2023debate,smit2024mad}, we tried 3 configurations that add an 8B role to the parent, but format failures increased and evidence did not improve, so none were adopted.
+
+On the morning of 10-16 we examined, without calling the model, the 39 Task A questions with gold evidence in DEV60 and PUBLIC60, and found that in 14 of them (36\%) the page with the gold evidence was not passed to the model.
+The old method searched for words such as \texttt{im Detail} to find the start of the item's detail section, but these words falsely matched the table of contents page, and the item's summary spread (In Kürze, En bref, In breve), which is a frequent source for reference texts, was dropped. In another 3 questions the gold evidence matched none of the pages that pypdf extracted.
+We replaced it with the heading-based method and checked the 501 public rows, excluding the 30 confirmation rows, whose gold evidence matches a page (Table~\ref{tab:audit}; no tuning was done for individual gold rows).
+
+\begin{table}[t]
+  \centering
+  \caption{Page selection audit (no model calls, 501 rows).}
+  \label{tab:audit}
+  \small
+  \begin{tabular}{lrrr}
+    \toprule
+    Selection method & Contains gold evidence page & Context chars, mean & Max \\
+    \midrule
+    Old (table-of-contents regex) & 352 / 501 & 38,764 & 236,824 \\
+    New (headings) & 501 / 501 & 33,463 & 162,973 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Fixing page selection alone left DEV60 Hit@5 at 0.263: even when given the correct page, the model quoted other pages. This matches reports that relevant passages in the input are not necessarily used\cite{liu2023lost,hsieh2024ruler}, so we added evidence completion.
+Commit 650de65 added merging of duplicate IDs, optional Task B evidence, and completion with adjacent pages; rescoring saved answers raised the number containing the gold evidence from 89 to 98 out of 149. The new-version values in the table in the next section come from a version before this change.
+
+In 7 runs of the new version (DEV60 3 times, PUBLIC60 once, the confirmation set 3 times, 420 cases in total), the 70B parent's final answer matched the 8B child's recommendation in all 420 cases, and the parent's 2 calls accounted for 63\% of all tokens and 65\% of wait time.
+We therefore added configurations in which one model answers with a single \texttt{submit}: S, which uses only 70B, and R, which routes Task A to 70B and Task B to 8B.
+A single 8B call scored Task A F1 0.714 on DEV60 (0.361 when asked to answer in text JSON), short of 70B on booklet questions, so Task A stayed on 70B.
+While Task B accepted non-neutral answers without evidence, 70B answered off-topic claims as contradictions without evidence and Task B F1 dropped to 0.693, so commit 8d5c7e6 restored the evidence-required rule for Task B.
+
+Next we tried passing only the paragraphs of the item's pages that relate to the claim.
+On 610 public rows, the share where some kept paragraph passes the scorer's matching was 0.970 with translation BM25 alone, 0.915 with the embedding alone, and 0.975 with fusion (0.968 for cross-language pairs), with about 8,700 characters passed.
+With paragraphs alone, however, Hit@5 rose but Task A F1 fell (0.833 on DEV60, 0.857 on PUBLIC60, 0.734 on the confirmation set). More questions fell back to the default answer because the model could not quote a passage supporting a contradiction, and raising the paragraph count to 12 or 16 did not recover it (0.826, 0.806).
+We then added a re-run that answers only the questions falling back to the default answer again with all of the item's pages. On the development runtime, the average Task A F1 over the three question sets became 0.900, against 0.882 when passing all pages. Re-runs occurred in 11, 8, and 6 of 60 questions, and yielded answers with evidence in 6, 4, and 3 of them.
+
+96\% of claims name their source in their opening words, and for claims whose source is the summary, the gold evidence was on the summary spread in 96\% of the public data. Section preference uses this.
+On the other hand, adding one sentence to the system prompt asking the model to check the direction of the recommendation (accept or reject) fixed 4 of 5 direction errors but added 8 errors labeling neutral as contradiction, raising errors on the three question sets from 15 to 17 out of 180, so we reverted it.
+
+%======================================================================
+\section{Results}
+
+Table~\ref{tab:results} compares v5, the new version (70B parent and 8B child, commit 76a0e6e), R with all pages, and the adopted R with paragraphs, section preference, and re-runs.
+On the confirmation set, v5 and the new version were run alternately 3 times each and scored only after all runs finished. The two R rows were obtained by running each question set once on the submission runtime (\texttt{runtime.py}) and scoring with the official scorer.
+Even at temperature 0, the same input differs by a few cases between runs, so we treat a difference of about 0.03 between single runs as within chance.
+
+\begin{table}[t]
+  \centering
+  \caption{Comparison of v5, the new version (70B+8B), R (all pages), and R (paragraphs, section preference, re-run; adopted). Values are means; the number of runs for DEV60, PUBLIC60, and the confirmation set is 5, 5, 3 for v5, 3, 1, 3 for the new version, and 1 each for both R rows. The time for v5 on PUBLIC60 is not recorded in the materials we consulted.}
+  \label{tab:results}
+  \small
+  \begin{tabular}{llrrrrr}
+    \toprule
+    Question set & Configuration & Task A F1 & Task B F1 & Hit@5 & Tokens/case & s/case \\
+    \midrule
+    DEV60 & v5 & 0.650 & 0.815 & 0.263 & 28,232 & 6.3 \\
+     & 70B+8B & 0.705 & 0.815 & 0.544 & 24,361 & 5.8 \\
+     & R all pages & 0.875 & 0.853 & 0.737 & 10,864 & 3.9 \\
+     & R para.+sect.+re-run & 0.867 & 0.897 & 0.842 & 8,223 & 4.2 \\
+    \midrule
+    PUBLIC60 & v5 & 0.701 & 0.917 & 0.30 & 30,382 & not recorded \\
+     & 70B+8B & 0.869 & 0.931 & 0.65 & 28,964 & 6.5 \\
+     & R all pages & 0.967 & 1.000 & 0.750 & 11,000 & 3.8 \\
+     & R para.+sect.+re-run & 1.000 & 0.967 & 0.750 & 7,314 & 4.1 \\
+    \midrule
+    Confirmation 60 & v5 & 0.734 & 0.929 & 0.569 & 25,980 & 6.7 \\
+     & 70B+8B & 0.797 & 0.929 & 0.625 & 28,843 & 6.8 \\
+     & R all pages & 0.802 & 0.904 & 0.750 & 10,954 & 3.5 \\
+     & R para.+sect.+re-run & 0.863 & 0.903 & 0.833 & 5,874 & 3.7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{v5 and the new version}
+On DEV60 the new version's Task A F1 beat v5 in all 3 runs (0.690 to 0.728). On the confirmation set, v5 recorded one question that exceeded the 240,000-byte request limit as a default answer with 0 tokens, so on the 59 questions both versions processed, v5 used 26,420 and the new version 26,692 tokens per case.
+The new version failed two of the preregistered criteria, Hit@5 (at least 0.10 above v5; actual +0.056) and tokens (no more than v5; actual +11\%), but the owner judged these two criteria to be absent from the competition rules, recompared on the competition's evaluation items, and adopted the new version (\texttt{docs/confirmation-protocol-2026-10-16.md}).
+
+\paragraph{The new version and R}
+R with all pages had higher Task A F1 and Hit@5 than the new version on all three question sets, at less than half the tokens, but on the confirmation set the Task A F1 difference (0.797 vs.\ 0.802) is within chance, and Task B F1 was 0.904 against the new version's 0.929.
+S, which uses only 70B, also beat the new version on Task A F1 and Hit@5, but it produced many default answers (15, 10, and 8 on DEV60, PUBLIC60, and the confirmation set) and tended to answer off-topic Task B claims as contradictions, so we chose R (\texttt{docs/single-call-results-2026-10-16.md}).
+
+\paragraph{All pages vs.\ paragraphs+sections+re-run}
+Averaged over the three question sets, the adopted configuration raised Task A F1 from 0.881 to 0.910 and Hit@5 from 0.746 to 0.808, cut tokens from 10,939 to 7,137 per case, and increased time from 3.7 to 4.0 seconds per case due to translation and re-runs.
+The Task A F1 gain comes from PUBLIC60 (0.967 to 1.000) and the confirmation set (0.802 to 0.863); on DEV60 it went from 0.875 to 0.867. Task B does not use the booklet, so the Task B F1 difference (means 0.919 and 0.922) is run-to-run variation.
+
+%======================================================================
+\section{Limitations and next steps}
+
+\paragraph{Evaluation limits}
+All numbers are on public data used during development, with 60 questions and 1 to 5 runs. The adopted configuration was measured only once per question set.
+Performance on the official held-out data is unknown.
+
+\paragraph{Extraction limits}
+Of the new version's 420 cases described above, we examined the 149 Task A cases whose evidence is scored, and in 26 the gold evidence text does not match pypdf's extracted text.
+We believe most of these mismatches are resolved by making evidence region-level, because quotations become shorter than whole pages and pass the scorer's partial matching more easily.
+However, we have not rescored these 26 cases individually.
+PDFs whose text cannot be extracted are reported as errors without OCR.
+Booklets without headings are passed in full, so the input becomes long.
+
+\paragraph{Re-run cost and runtime environment}
+A re-run adds one call for booklet questions where the paragraphs gave no evidence.
+The Docker image that bundles the embedding weights has not yet been built on the development host (Section~\ref{sec:repro}).
+
+\paragraph{Remaining classification errors}
+On the final configuration's three question sets (one run each, 180 questions), 15 label errors remain.
+Of these, 5 confuse whether the Federal Council or Parliament recommends acceptance or rejection, and this also happens in Task B.
+Adding a rule to the system prompt reduced direction errors but increased other errors, and we have not yet found a fix without side effects.
+
+\paragraph{Nature of the evidence}
+A source ID guarantees where in the source a quotation comes from, but not that the quotation supports the decision\cite{gao2023alce}.
+Paragraph narrowing and the pages or regions added by completion are chosen by retrieval, not by the model's judgment.
+
+\paragraph{Next steps}
+Run the adopted configuration several times per question set to estimate run-to-run variance.
+Check whether region-level evidence hits the 26 extraction mismatches, and for the rest compare PDF extraction libraries other than pypdf.
+
+%======================================================================
+\section{Reproducibility}
+\label{sec:repro}
+
+The submission runs in Docker.
+The official contract\cite{apiguide} requires a CPU-only linux/amd64 image that uses the injected \texttt{BASE\_URL} and \texttt{API\_KEY} for every model call (host keys are not read) and downloads nothing at run time.
+\texttt{Dockerfile.agent} installs Pi 1.1.0 and \texttt{@tintinweb/pi-subagents} from \texttt{package-lock.json} in a Node 26.10.0 stage, copies \texttt{track\_2a/src} and the runtime into \texttt{python:3.11-slim-bookworm}, and bundles \texttt{model2vec==0.10.0} and the embedding weights at \texttt{docker build} time.
+The entry point is \texttt{runtime.py}, with defaults \texttt{PIPELINE=R} (in both \texttt{Dockerfile.agent} and \texttt{Makefile}), \texttt{CONTEXT\_SELECTION=claim\_paragraphs}, and \texttt{CLAIM\_SPANS=8}.
+\texttt{ESCALATE\_ON\_FALLBACK=0} disables re-runs, and \texttt{CONTEXT\_SELECTION=vote\_pages} passes all of the item's pages. \texttt{PIPELINE=C} selects the 70B parent with 8B child, and \texttt{PIPELINE=S} the 70B-only configuration. In R, \texttt{LLM\_MODEL} is ignored even if set.
+\begin{verbatim}
+make run INPUT_DIR=/path/to/input INPUT=/data/input.jsonl \
+  OUTPUT_DIR=/path/to/new/output
+\end{verbatim}
+Besides the canonical JSONL, the output directory receives \texttt{.diagnostics.jsonl} and \texttt{.evaluation.jsonl}.
+On 2026-10-16 we built the Docker image for linux/amd64 and confirmed with \texttt{make run} on 6 questions that the official scorer can read the output (image 249 MB, including the 140 MB embedding weights).
+
+In the development harness, Pi 1.1.0 is placed in \texttt{\textasciitilde/.cache/ost-pi-1.1.0}, and \texttt{PI\_PACKAGE\_ROOT} and \texttt{PI\_SUBAGENTS\_ROOT} point to that location.
+The repository is \url{https://github.com/yasuhito/hackapertus-ost}, and the submitted revision is the latest commit on master. No demo is provided; the CLI above reproduces the results.
+
+%======================================================================
+\section*{License}
+\addcontentsline{toc}{section}{License}
+
+The repository code is licensed under the Apache License 2.0 (\texttt{LICENSE} at the repository root). This report is licensed under CC-BY-4.0.
+The competition terms require code and weights under Apache-2.0, documents under CC-BY-4.0, and submitted datasets under CDLA-Permissive-2.0.
+The bundled pypdf is subject to the terms of its bundled license file.
+The card of the public dataset\cite{dataset} states MIT, and its creator is OST's AI Applications and Deployment Lab. Redistribution rights for the voting booklet PDFs need separate confirmation, and they are not bundled with this report.
+
+%======================================================================
+\begingroup
+\small
+\bibliographystyle{plain}
+\bibliography{refs}
+\endgroup
+
+\end{document}
