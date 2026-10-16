@@ -162,7 +162,7 @@ def validate_prediction(result, pages, reference=False, allow_empty_reference=Fa
     evidence = result.get("evidence")
     if not isinstance(evidence, list) or len(evidence) > 5:
         raise ValueError("invalid canonical evidence")
-    if label != 1 and not evidence and not (reference and allow_empty_reference):
+    if label != 1 and not evidence and not reference:
         raise ValueError("supporting evidence required")
     for item in evidence:
         if not isinstance(item, dict) or set(item) != {"page", "text"}:

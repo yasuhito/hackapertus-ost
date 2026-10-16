@@ -57,14 +57,17 @@ def test_selection_preserves_page_and_rejects_unprovided_id(monkeypatch):
     assert result["evidence"] == []
 
 
-def test_missing_support_fails_the_pipeline():
-    case = {"id": "synthetic", "claim": {"text": "Claim"}, "reference": {"text": "Source."}}
+def test_missing_support_is_allowed_for_reference_but_not_booklet(monkeypatch):
     class Backend:
         def complete(self, *args):
             return '{"label":0,"evidence":[]}', {"prompt_tokens": 1, "completion_tokens": 1}
-    result = engine.predict(case, Backend())
+    reference = {"id": "synthetic", "claim": {"text": "Claim"}, "reference": {"text": "Source."}}
+    result = engine.predict(reference, Backend())
+    assert "error" not in result and result["label"] == 0 and result["evidence"] == []
+    monkeypatch.setattr(engine, "pdf_pages", lambda _: ("Source page.",))
+    booklet = {"id": "synthetic", "claim": {"text": "Claim", "language": "de"}, "booklet": {"path": "synthetic.pdf", "language": "de"}}
+    result = engine.predict(booklet, Backend())
     assert result.get("error") == "supporting span required"
-    assert result["evidence"] == []
 
 
 def test_real_mock_cli_non_neutral_end_to_end(tmp_path):

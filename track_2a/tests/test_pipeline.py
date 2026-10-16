@@ -159,8 +159,9 @@ def test_no_split_leakage():
 
 
 @pytest.mark.parametrize('label', [0, 2])
-def test_reference_evidence_required_by_id_pipeline(label):
-    with pytest.raises(ValueError):decode(json.dumps({'label':label,'evidence':[]}),['Ja'],reference=True)
+def test_reference_evidence_optional_by_id_pipeline(label):
+    assert decode(json.dumps({'label':label,'evidence':[]}),['Ja'],reference=True)==(label,[])
+    with pytest.raises(ValueError):decode(json.dumps({'label':label,'evidence':[]}),['Ja'],reference=False)
     raw=json.dumps({'label':label,'evidence':[{'span_id':candidates(['Ja'],True)[0]['span_id']}]})
     assert decode(raw,['Ja'],reference=True)[1][0]['page'] is None
 

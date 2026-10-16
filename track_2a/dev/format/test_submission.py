@@ -61,7 +61,7 @@ def test_reject_malformed(raw):
         submission.assemble_text(raw, CASE, PAGES, METRICS)
 
 
-@pytest.mark.parametrize('evidence', [[ID, {'span_id': ID}], [ID, ID], ['unknown'], [{'span_id': ID, 'text': 'Original.'}], [False]])
+@pytest.mark.parametrize('evidence', [[ID, {'span_id': ID}], ['unknown'], [{'span_id': ID, 'text': 'Original.'}], [False]])
 def test_reject_evidence(evidence):
     with pytest.raises(ValueError):
         submission.assemble_text(json.dumps({'label': 0, 'evidence': evidence}), CASE, PAGES, METRICS)

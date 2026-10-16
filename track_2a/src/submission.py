@@ -72,10 +72,12 @@ def assemble_tool(args, case, pages, metrics):
     label, ids = args['label'], args['candidate_ids']
     if type(label) is not int or label not in LABELS:
         raise ValueError('LABEL_SCHEMA')
-    if not isinstance(ids, list) or len(ids) > 5 or any(type(x) is not str for x in ids):
+    if not isinstance(ids, list) or any(type(x) is not str for x in ids):
         raise ValueError('IDS_SCHEMA')
-    if len(set(ids)) != len(ids):
-        raise ValueError('DUPLICATE_ID')
+    # A repeated ID is the same citation; drop repeats instead of a repair round trip.
+    ids = list(dict.fromkeys(ids))
+    if len(ids) > 5:
+        raise ValueError('IDS_SCHEMA')
     index = {x['span_id'] for x in candidates(pages, 'reference' in case)}
     if any(x not in index for x in ids):
         raise ValueError('UNKNOWN_ID')
@@ -85,19 +87,36 @@ def assemble_tool(args, case, pages, metrics):
     return validate({'id': case['id'], 'label': label, 'label_name': LABELS[label], 'evidence': evidence, 'metrics': dict(metrics)}, case, pages)
 
 
+def neighbours(numbers, provided):
+    """Pages adjacent to the cited ones, in citation order. Gold passages often
+    continue on the facing page of the one the model picked."""
+    out = []
+    for n in numbers:
+        for m in (n + 1, n - 1):
+            if m in provided and m not in out:
+                out.append(m)
+    return out
+
+
 def consulted_pages(evidence, case, pages):
     """Fill the evidence list with the provided pages most relevant to the claim.
 
-    The model's own citations stay first. The vote's opening spread (the first
-    two provided pages) comes next because it summarizes the proposal, then the
-    remaining provided pages in lexical-relevance order. Pages longer than the
+    The model's own citations stay first, then the pages adjacent to them, then
+    the vote's opening spread (the first two provided pages) because it
+    summarizes the proposal, then the remaining provided pages in
+    lexical-relevance order. Pages longer than the
     scoring limit are skipped. This is deterministic retrieval over the pages the
     model saw; it never changes the label or the cited passages.
     """
     provided = [n for n, text in enumerate(pages, 1) if text.strip() and len(text) <= MAX_EVIDENCE_CHARS]
-    cited = {item['page'] for item in evidence}
-    ordered = provided[:2] + rank_pages(case['claim']['text'], pages, provided[2:])
-    extra = [{'page': n, 'text': pages[n - 1]} for n in ordered if n not in cited]
+    cited = [item['page'] for item in evidence]
+    ordered = neighbours(cited, provided) + provided[:2] + rank_pages(case['claim']['text'], pages, provided[2:])
+    seen = set(cited)
+    extra = []
+    for n in ordered:
+        if n not in seen:
+            seen.add(n)
+            extra.append({'page': n, 'text': pages[n - 1]})
     return (evidence + extra)[:MAX_EVIDENCE]
 
 

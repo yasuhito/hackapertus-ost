@@ -114,7 +114,7 @@ def test_wire_guard_rejects_looser_or_unknown_schema(mutate):
         r.enforce_tools({'tools': declarations, 'tool_choice': {'type': 'function', 'function': {'name': 'submit'}}}, x['candidate_ids'], 'child')
 
 
-@pytest.mark.parametrize('bad', ['duplicate', 'unknown_id', 'unknown_label', 'bool_label', 'float_label'])
+@pytest.mark.parametrize('bad', ['unknown_id', 'unknown_label', 'bool_label', 'float_label'])
 def test_simple_native_schema_does_not_weaken_local_submit_validation(bad):
     x = item()
     calls = []
@@ -134,6 +134,6 @@ def test_simple_native_schema_does_not_weaken_local_submit_validation(bad):
     accepted, diagnostics, sdk = r.run_b(x, r.MODELS[0], post, seconds=30)
     assert accepted == {'label': 0, 'candidate_ids': x['candidate_ids']}
     assert sdk['counts'] == {'parent': 3, 'child': 1} and len(calls) == 4
-    expected = {'duplicate': 'DUPLICATE_ID', 'unknown_id': 'UNKNOWN_ID'}.get(bad, 'LABEL_SCHEMA')
+    expected = {'unknown_id': 'UNKNOWN_ID'}.get(bad, 'LABEL_SCHEMA')
     assert expected in diagnostics
     assert any(m['role'] == 'tool' and ('error' in m['content'].lower() or 'validation' in m['content'].lower()) for m in calls[-1][2]['messages'])

@@ -24,7 +24,7 @@ def test_cited_page_first_then_opening_spread_then_relevance_order():
     span = next(s for s in cited if s["page"] == 7)
     result = submission.assemble_tool({"label": 0, "candidate_ids": [span["span_id"]]}, case, pages, metrics())
     assert result["label"] == 0
-    assert [item["page"] for item in result["evidence"]] == [7, 3, 4, 6, 5]
+    assert [item["page"] for item in result["evidence"]] == [7, 8, 6, 3, 4]
     assert all(item["text"] == pages[item["page"] - 1] for item in result["evidence"])
 
 
@@ -56,3 +56,19 @@ def test_reference_task_evidence_is_untouched():
     pages = (case["reference"]["text"],)
     result = submission.assemble_tool({"label": 1, "candidate_ids": []}, case, pages, metrics())
     assert result["evidence"] == []
+
+
+def test_duplicate_ids_are_merged_instead_of_rejected():
+    pages = ("", "4 Steuerreform In Kürze.", "5 Frage.", "10 Detail Steuern Familien 2027.")
+    case, pages = booklet_case(pages)
+    span = candidates(pages)[-1]["span_id"]
+    result = submission.assemble_tool({"label": 2, "candidate_ids": [span, span]}, case, pages, metrics())
+    assert result["label"] == 2 and [i["page"] for i in result["evidence"]][0] == 4
+
+
+def test_neighbouring_pages_follow_the_citation():
+    pages = ("", "", "4 Steuerreform In Kürze.", "5 Frage.", "10 Verkehr.", "11 Steuern Familien 2027.", "12 Fortsetzung.", "13 Ende.")
+    case, pages = booklet_case(pages)
+    span = next(s for s in candidates(pages) if s["page"] == 6)
+    result = submission.assemble_tool({"label": 0, "candidate_ids": [span["span_id"]]}, case, pages, metrics())
+    assert [i["page"] for i in result["evidence"]] == [6, 7, 5, 3, 4]

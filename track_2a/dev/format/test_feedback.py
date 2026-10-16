@@ -6,6 +6,15 @@ import pytest
 
 from test_comparison import offline, item, response, tool, r
 
+
+def booklet_item():
+    """Support is mandatory only for booklet answers, so feedback tests use one."""
+    case = {'id': 'fake', 'claim': {'text': 'Original.', 'language': 'de'}, 'booklet': {'path': 'fake.pdf', 'language': 'de'}}
+    pages = ('Original page.',)
+    messages = r.legacy.engine().messages_for_pages(case, pages)
+    ids = [c['span_id'] for c in r.candidates(pages, False)]
+    return {'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids)))}
+
 MESSAGE = ('Labels 0 and 2 require supplied supporting candidate IDs. '
            'Recheck the source judgment and cite supporting supplied IDs; '
            'do not invent IDs or change the label only to satisfy formatting.')
@@ -13,7 +22,7 @@ MESSAGE = ('Labels 0 and 2 require supplied supporting candidate IDs. '
 
 @pytest.mark.parametrize('label', [0, 2])
 def test_support_feedback_causes_fake_provider_repair_in_both_roles(label):
-    x = item()
+    x = booklet_item()
     before = copy.deepcopy(x)
     requests = []
     visible = []
@@ -51,7 +60,7 @@ def test_support_feedback_causes_fake_provider_repair_in_both_roles(label):
 
 @pytest.mark.parametrize('bad,code', [
     ('syntax', 'INVALID_TOOL_JSON'), ('keys', 'DUPLICATE_JSON_KEY'),
-    ('unknown', 'UNKNOWN_ID'), ('duplicate', 'DUPLICATE_ID'),
+    ('unknown', 'UNKNOWN_ID'),
     ('string', 'LABEL_SCHEMA'), ('bool', 'LABEL_SCHEMA'),
     ('extra', 'TOOL_SCHEMA'), ('missing', 'TOOL_SCHEMA'), ('nonarray', 'IDS_SCHEMA'),
 ])
@@ -65,7 +74,6 @@ def test_other_invalid_submits_never_forward_to_assembler(bad, code, monkeypatch
     monkeypatch.setattr(r.submission, 'assemble_tool', assemble)
     args = {'label': 0, 'candidate_ids': []}
     if bad == 'unknown': args['candidate_ids'] = ['fictional-unknown']
-    if bad == 'duplicate': args['candidate_ids'] = x['candidate_ids'] * 2
     if bad == 'string': args['label'] = '0'
     if bad == 'bool': args['label'] = False
     if bad == 'extra': args['extra'] = 'fictional'
