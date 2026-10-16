@@ -1,5 +1,14 @@
 # Status — deadline 2026-10-16
 
+## 2026-10-16 16:00 JST baseline: paragraph context + escalation on strategy R
+- Image default CONTEXT_SELECTION=claim_paragraphs: the vote's pages are split into paragraphs,
+  ranked by BM25 over an Apertus 8B translation of the claim fused with a local static multilingual
+  embedding (model2vec potion-multilingual-128M int8, baked into the image at build), top 8 plus
+  neighbours sent; unsupported non-neutral answers are re-run once on the full vote pages.
+- Production runtime on DEV60 / PUBLIC60 / 確認用60 vs the full-vote-pages default:
+  Task A F1 0.881 -> 0.903 (avg), Hit@5 0.746 -> 0.812, tokens per case 10.9k -> 7.6k, 3.7 -> 4.0 s.
+  Details: `docs/single-call-results-2026-10-16.md`. All sets are exposed; single runs.
+
 ## 2026-10-16 12:40 JST baseline: strategy R, one native submit call per case (commit after 7ee44e6)
 - Task A (booklet) answered by Apertus 70B, Task B (reference) by Apertus 8B, no child session.
   The 70B parent had copied the 8B child's label in 420/420 recorded cases, so the two parent

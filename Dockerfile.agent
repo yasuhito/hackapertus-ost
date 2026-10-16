@@ -1,4 +1,4 @@
-# CPU linux/amd64 Pi image, default R: one native submit call per case, booklets on 70B and references on 8B. No runtime downloads.
+# CPU linux/amd64 Pi image. Default: one native submit call per case (booklets on 70B, references on 8B), paragraph context ranked by translated-claim BM25 and a local static embedding, escalation to the full vote pages when unsupported. No runtime downloads.
 FROM node:26.10.0-bookworm-slim AS pi
 WORKDIR /build
 COPY track_2a/dev/format/package.json track_2a/dev/format/package-lock.json ./
@@ -22,6 +22,6 @@ COPY track_2a/src /app/track_2a/src
 COPY track_2a/dev/format/*.py track_2a/dev/format/*.ts track_2a/dev/format/*.mjs track_2a/dev/format/package.json track_2a/dev/format/package-lock.json /app/track_2a/dev/format/
 COPY track_2a/dev/cscs/cscs_check.py track_2a/dev/cscs/cscs_dev54.py /app/track_2a/dev/cscs/
 COPY track_2a/dev/cscs/vendor /app/track_2a/dev/cscs/vendor
-ENV PYTHONDONTWRITEBYTECODE=1 PI_OFFLINE=1 PIPELINE=R TOOL_STEP=baseline
+ENV PYTHONDONTWRITEBYTECODE=1 PI_OFFLINE=1 PIPELINE=R CONTEXT_SELECTION=claim_paragraphs CLAIM_SPANS=8 TOOL_STEP=baseline
 ENTRYPOINT ["python", "/app/track_2a/dev/format/runtime.py"]
 CMD ["--input", "/data/cases.jsonl", "--output", "/output/predictions.jsonl"]

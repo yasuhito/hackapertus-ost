@@ -148,6 +148,9 @@ make run PIPELINE=B LLM_MODEL=swiss-ai/Apertus-v1.5-8B \
 make run PIPELINE=C LLM_MODEL=swiss-ai/Apertus-v1.5-70B \
   INPUT_DIR=/path/to/approved/input INPUT=/data/input.jsonl OUTPUT_DIR=/path/to/new/output
 # Makefile and Dockerfile default: PIPELINE=R, one native submit call per case,
+# with CONTEXT_SELECTION=claim_paragraphs in the image (paragraph context, translation
+# of cross-language claims by 8B, local static embedding, escalation to vote_pages
+# when the answer cannot cite a span; ESCALATE_ON_FALLBACK=0 disables it),
 # booklet cases on Apertus 70B and reference cases on Apertus 8B. PIPELINE=S is
 # the same single call with one model (LLM_MODEL). PIPELINE=A selects the same
 # assembler's text path. CONTEXT_SELECTION=claim_pages (default vote_pages) narrows
