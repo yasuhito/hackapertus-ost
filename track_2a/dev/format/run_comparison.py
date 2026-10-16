@@ -551,15 +551,34 @@ def summarize(ledger):
     return summary
 
 
+def positive_integer(value):
+    number = int(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError('must be a positive integer')
+    return number
+
+
+def normalized_job(value):
+    """New write targets must not have ambiguous components; no repair/rename."""
+    path = Path(value)
+    if any(part not in ('.', '..') and part.endswith(('.', ' ')) for part in path.parts):
+        raise argparse.ArgumentTypeError('job components must not end in dot or space')
+    resolved = path.resolve()
+    if any(part.endswith(('.', ' ')) for part in resolved.parts):
+        raise argparse.ArgumentTypeError('resolved job components must not end in dot or space')
+    return resolved
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--user-run', action='store_true')
     parser.add_argument('--strategy', choices=['A', 'B', 'C', 'R'], required=True)
-    parser.add_argument('--repeat', type=int, choices=[1, 2], default=1)
-    parser.add_argument('--job', type=Path)
+    parser.add_argument('--repeat', type=positive_integer, default=1)
+    parser.add_argument('--job', type=normalized_job)
     parser.add_argument('--case-ids-file', type=Path, help='Nonempty gold-free JSON list of frozen research input IDs')
     args = parser.parse_args()
+    job = args.job or normalized_job(REPO / f'output/cscs/format-{args.strategy}-r{args.repeat}')
     legacy.c.protect()
     if not args.prepare_only and not args.user_run:
         raise Stop('EXPLICIT_USER_RUN_REQUIRED')
@@ -568,9 +587,8 @@ def main():
         raise Stop('INVALID_CASE_SELECTION')
     manifest = prepare(args.strategy, case_ids)
     if args.prepare_only:
-        print(json.dumps({'prepared_cases': len(manifest['frozen']), 'strategy': args.strategy, 'manifest_sha256': legacy.digest(legacy.encode(manifest)), 'request_limit': manifest['request_limit'], 'token_budget': manifest['token_budget'], 'credential_reads': 0, 'remote_calls': 0}))
+        print(json.dumps({'prepared_cases': len(manifest['frozen']), 'strategy': args.strategy, 'manifest_sha256': legacy.digest(legacy.encode(manifest)), 'request_limit': manifest['request_limit'], 'token_budget': manifest['token_budget'], 'credential_reads': 0, 'remote_calls': 0, 'job': str(job), 'repeat': args.repeat}))
         return
-    job = args.job or REPO / f'output/cscs/format-{args.strategy}-r{args.repeat}'
     job.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd = os.open(job / 'lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, 'w') as lock:
