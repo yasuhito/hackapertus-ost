@@ -1,4 +1,4 @@
-# CPU linux/amd64 Pi image, default C: parent 70B, child 8B. No runtime downloads.
+# CPU linux/amd64 Pi image, default R: one native submit call per case, booklets on 70B and references on 8B. No runtime downloads.
 FROM node:26.10.0-bookworm-slim AS pi
 WORKDIR /build
 COPY track_2a/dev/format/package.json track_2a/dev/format/package-lock.json ./
