@@ -42,7 +42,7 @@ def load_jsonl(path):
     return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
 
 
-def prepare(core, bundle):
+def prepare(core, bundle, strategy='C', model=None):
     engine = core.legacy.engine()
     cases = load_jsonl(bundle / 'cases.jsonl')
     frozen, oversize = [], []
@@ -64,8 +64,10 @@ def prepare(core, bundle):
             'request_limit': REQUEST_LIMIT, 'token_budget': TOKEN_BUDGET, 'request_token_reserve': core.RESERVE,
             'output_limit': 256, 'temperature': 0, 'selection_strategy': 'vote_pages', 'sources': sources, 'frozen': frozen}
     core.legacy.prepare = lambda: base
-    manifest = core.prepare('C', [i['case']['id'] for i in frozen])
+    manifest = core.prepare(strategy, [i['case']['id'] for i in frozen])
     manifest.update(request_limit=REQUEST_LIMIT, token_budget=TOKEN_BUDGET)
+    if strategy != 'C':
+        manifest['models'] = [model]
     return manifest, oversize
 
 
@@ -88,9 +90,9 @@ def run(core, transport, job, manifest):
     return summary
 
 
-def grade(job, bundle, core, oversize):
+def grade(job, bundle, core, oversize, prefix='70b'):
     report = job / 'official.json'
-    predictions = job / '70b-canonical.jsonl'
+    predictions = job / f'{prefix}-canonical.jsonl'
     if oversize:
         rows = predictions.read_text(encoding='utf-8')
         zero = {'input_tokens': 0, 'output_tokens': 0, 'inference_time_ms': 0}
@@ -104,8 +106,8 @@ def grade(job, bundle, core, oversize):
     return json.loads(report.read_text())
 
 
-def metrics(job, summary, official, oversize):
-    cases = [json.loads(p.read_text()) for p in sorted(job.glob('70b-*-case.json'))]
+def metrics(job, summary, official, oversize, prefix='70b'):
+    cases = [json.loads(p.read_text()) for p in sorted(job.glob(f'{prefix}-*-case.json'))]
     oversize_count = len(oversize)
     physical = [json.loads(p.read_text()) for p in sorted((job / 'physical').glob('*-result.json'))]
     tokens = sum(r['usage']['total_tokens'] for r in physical if r.get('usage_known'))
@@ -131,9 +133,13 @@ def main():
     parser.add_argument('--job', type=Path, required=True)
     parser.add_argument('--grade', action='store_true')
     parser.add_argument('--prepare-only', action='store_true')
+    parser.add_argument('--strategy', choices=['A', 'C'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON')
+    parser.add_argument('--model', choices=['8b', '70b'], default='70b')
     args = parser.parse_args()
     core = module(RUNNER, 'format_runner')
-    manifest, oversize = prepare(core, args.bundle)
+    model = core.MODELS[0] if args.model == '8b' else core.MODELS[1]
+    prefix = args.model
+    manifest, oversize = prepare(core, args.bundle, args.strategy, model)
     sizes = [len(core.legacy.encode(i['messages'])) for i in manifest['frozen']] + [o['bytes'] for o in oversize]
     print(json.dumps({'prepared_cases': len(manifest['frozen']), 'oversize_context_fallbacks': [o['case']['id'] for o in oversize],
                       'context_bytes_max': max(sizes), 'context_bytes_mean': round(sum(sizes) / len(sizes)),
@@ -144,9 +150,9 @@ def main():
     # The overnight module pins its own absolute stop; this runner stops when its arm ends.
     transport.ABSOLUTE_STOP = int(time.time()) + ARM_SECONDS + 600
     summary = run(core, transport, args.job, manifest)
-    result = {'job': str(args.job), 'status': summary['status'], 'requests': summary['generation_requests']}
+    result = {'job': str(args.job), 'strategy': args.strategy, 'model': model, 'status': summary['status'], 'requests': summary['generation_requests']}
     if args.grade:
-        result['metrics'] = metrics(args.job, summary, grade(args.job, args.bundle, core, oversize), oversize)
+        result['metrics'] = metrics(args.job, summary, grade(args.job, args.bundle, core, oversize, prefix), oversize, prefix)
     (args.job / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
     print(json.dumps(result, ensure_ascii=False))
 
