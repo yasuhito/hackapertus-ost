@@ -140,3 +140,91 @@ def test_cpu_build_installs_node_shared_library_and_targets_amd64():
     assert 'COPY --from=pi /usr/local/LICENSE /usr/share/doc/node/LICENSE' in final
     assert '--platform=linux/amd64' not in dockerfile
     assert 'docker build --platform linux/amd64 -f $(DOCKERFILE)' in (r.REPO / 'Makefile').read_text()
+
+
+def test_runtime_scales_limits_to_120_cases(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLM_MODEL', r.MODELS[0])
+    source = tmp_path / 'input.jsonl'
+    source.write_text(''.join(json.dumps({'id': str(i), 'reference': {'text': 'Original.'}, 'claim': {'text': 'Original.'}}) + '\n' for i in range(120)))
+    class Fake:
+        def request(self, method, path, payload):
+            return response(r.MODELS[0], content='{"label":1,"evidence":[]}')
+    output = tmp_path / 'out/predictions.jsonl'
+    runtime.execute(source, output, 'A', lambda _: Fake())
+    manifest = json.loads((output.parent / 'tmp/format-runtime/manifest.json').read_text())
+    assert len(manifest['frozen']) == 120
+    assert manifest['request_limit'] == 600
+    assert manifest['token_budget'] == 600 * 262400
+    assert len(output.read_text().splitlines()) == 120
+
+
+@pytest.mark.parametrize('failure', [r.Stop('TRANSPORT_UNCERTAIN_NO_RETRY'), RuntimeError('secret body')])
+def test_runtime_case_failure_continues_and_resumes(tmp_path, monkeypatch, failure):
+    monkeypatch.setenv('LLM_MODEL', r.MODELS[0])
+    source = tmp_path / 'input.jsonl'
+    source.write_text(''.join(json.dumps({'id': str(i), 'reference': {'text': 'Original.'}, 'claim': {'text': 'Original.'}}) + '\n' for i in range(4)))
+    calls = []
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(payload)
+            if len(calls) == 2:
+                raise failure
+            user = next(m for m in payload['messages'] if m['role'] == 'user')
+            span = json.loads(user['content'])['source_spans'][0]['span_id']
+            return response(r.MODELS[0], content=json.dumps({'label': 0, 'evidence': [span]}))
+    output = tmp_path / 'out/predictions.jsonl'
+    runtime.execute(source, output, 'A', lambda _: Fake())
+    rows = [json.loads(line) for line in output.read_text().splitlines()]
+    assert [row['id'] for row in rows] == ['0', '1', '2', '3']
+    assert [row['label'] for row in rows] == [0, 1, 0, 0]
+    assert rows[1]['evidence'] == []
+    assert rows[1]['metrics']['input_tokens'] == 0
+    assert rows[1]['metrics']['inference_time_ms'] > 0
+    assert rows[2]['metrics']['input_tokens'] == 80
+    diagnostics = [json.loads(line) for line in output.with_suffix('.jsonl.diagnostics.jsonl').read_text().splitlines()]
+    code = 'TRANSPORT_UNCERTAIN_NO_RETRY' if isinstance(failure, r.Stop) else 'CASE_FAILED'
+    assert diagnostics[1] == {'id': '1', 'error': code, 'diagnostics': [code]}
+    assert all(row['error'] is None for i, row in enumerate(diagnostics) if i != 1)
+    job = output.parent / 'tmp/format-runtime'
+    assert not (job / 'STOP.json').exists()
+    assert not (job / 'inflight.json').exists()
+    state = json.loads((job / 'state.json').read_text())
+    assert state['reserved_tokens'] == 0 and state['blocked'] is False
+    original = output.read_bytes()
+    runtime.execute(source, output, 'A', lambda _: pytest.fail('saved cases must be skipped'))
+    assert output.read_bytes() == original and len(calls) == 4
+    output.write_bytes(b'changed\n')
+    with pytest.raises(r.Stop, match='EXISTING_OUTPUT_CHANGED'):
+        runtime.execute(source, output, 'A', lambda _: pytest.fail('saved cases must be skipped'))
+
+
+def test_runtime_rejects_duplicate_ids(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLM_MODEL', r.MODELS[0])
+    source = tmp_path / 'input.jsonl'
+    case = {'id': 'duplicate', 'reference': {'text': 'Original.'}, 'claim': {'text': 'Original.'}}
+    source.write_text((json.dumps(case) + '\n') * 2)
+    with pytest.raises(r.Stop, match='INPUT_COUNT_OR_DUPLICATE_IDS'):
+        runtime.execute(source, tmp_path / 'out/predictions.jsonl', 'A', lambda _: pytest.fail('remote call'))
+
+
+def test_runtime_unknown_response_preserves_block_and_known_usage(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLM_MODEL', r.MODELS[0])
+    source = tmp_path / 'input.jsonl'
+    source.write_text(''.join(json.dumps({'id': str(i), 'reference': {'text': 'Original.'}, 'claim': {'text': 'Original.'}}) + '\n' for i in range(2)))
+    calls = []
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(payload)
+            return response(r.MODELS[1] if len(calls) == 1 else r.MODELS[0], content='{"label":1,"evidence":[]}')
+    output = tmp_path / 'out/predictions.jsonl'
+    runtime.execute(source, output, 'A', lambda _: Fake())
+    rows = [json.loads(line) for line in output.read_text().splitlines()]
+    assert len(rows) == 2 and len(calls) == 2
+    assert rows[0]['metrics']['input_tokens'] == 80
+    sidecar = [json.loads(line) for line in output.with_suffix('.jsonl.diagnostics.jsonl').read_text().splitlines()]
+    assert sidecar[0]['error'] == 'UNKNOWN_MODEL_USAGE_OR_RESPONSE_ALL_STOP'
+    assert sidecar[1]['error'] is None
+    job = output.parent / 'tmp/format-runtime'
+    state = json.loads((job / 'state.json').read_text())
+    assert state['blocked'] is True and state['reserved_tokens'] == 0
+    assert not (job / 'inflight.json').exists() and not (job / 'STOP.json').exists()

@@ -21,7 +21,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
         output_path.parent.mkdir(parents=True, exist_ok=True)
     blob = input_path.read_bytes()
     rows = [r.submission.strict_json(line.decode('utf-8')) for line in blob.splitlines() if line.strip()]
-    if len(rows) > 108 or len({row['id'] for row in rows}) != len(rows):
+    if len(rows) > 100000 or len({row['id'] for row in rows}) != len(rows):
         raise r.Stop('INPUT_COUNT_OR_DUPLICATE_IDS')
     frozen = []
     preparation = []
@@ -32,7 +32,8 @@ def execute(input_path, output_path, strategy, client_factory=None):
         ids = [c['span_id'] for c in r.candidates(pages, 'reference' in case)]
         frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': r.legacy.digest(r.legacy.encode(messages)), 'candidate_ids': ids, 'schema_sha256': r.legacy.digest(r.legacy.encode(r.schemas(ids)))})
         preparation.append((time.monotonic() - started) * 1000)
-    manifest = {'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': r.LIMITS[strategy], 'token_budget': r.TOKEN_BUDGET, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
+    request_limit = 5 * len(rows)
+    manifest = {'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': request_limit, 'token_budget': request_limit * r.RESERVE, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
     if strategy == 'C':
         manifest.update(models=[model], role_models={'parent': r.MODELS[1], 'child': r.MODELS[0]})
     job = output_path.parent / 'tmp' / 'format-runtime'
@@ -48,21 +49,49 @@ def execute(input_path, output_path, strategy, client_factory=None):
                 clients[selected] = r.Transport(selected, submitted=True)
             return clients[selected]
         ledger = r.Ledger(job, manifest, client_factory or client)
-        try:
-            for index, item in enumerate(frozen):
-                name = r.legacy.result_name(model, index).replace('.json', '-case.json')
-                if name in ledger.state['cases']:
-                    continue
-                started = time.monotonic()
-                post = lambda role, number, payload: ledger.post(model, index, role, number, payload, deadline=started + r.CASE_SECONDS)
-                sdk = None
+        for index, item in enumerate(frozen):
+            name = r.legacy.result_name(model, index).replace('.json', '-case.json')
+            if name in ledger.state['cases']:
+                continue
+            started = time.monotonic()
+            def post(role, number, payload):
+                if ledger.state['requests'] + ledger.state.get('uncertain_requests', 0) >= request_limit:
+                    raise r.Stop('HARD_BUDGET_STOP_BEFORE_SEND')
+                return ledger.post(model, index, role, number, payload, deadline=started + r.CASE_SECONDS)
+            sdk = None
+            diagnostics = []
+            error = None
+            try:
                 if strategy == 'A':
                     args, diagnostics = r.run_a(item, model, post)
                 else:
                     args, diagnostics, sdk = r.run_b(item, model, post, strategy=strategy)
                 metrics, wait = r.metrics_for(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000)
                 result = r.submission.assemble_tool(args, item['case'], item['pages'], metrics) if args is not None else r.submission.fallback(item['case'], item['pages'], metrics)
-                ledger.save_case(name, {'prediction': result, 'error': None if args is not None else 'NO_ACCEPTED_SUBMIT', 'diagnostics': diagnostics, 'api_wait_ms': wait, 'sdk': sdk})
+                error = None if args is not None else 'NO_ACCEPTED_SUBMIT'
+            except Exception as exc:
+                error = str(exc) if isinstance(exc, r.Stop) else 'CASE_FAILED'
+                diagnostics.append(error)
+                if ledger.fence.exists():
+                    ledger.fence.unlink()
+                ledger.state['reserved_tokens'] = 0
+                if error != 'UNKNOWN_MODEL_USAGE_OR_RESPONSE_ALL_STOP':
+                    ledger.state['blocked'] = False
+                # Preserve spent request slots without inventing usage records for
+                # transport failures. The shared ledger validates recorded counts.
+                missing = ledger.state['requests'] - len(ledger.state['attempts'])
+                ledger.state['uncertain_requests'] = ledger.state.get('uncertain_requests', 0) + missing
+                ledger.state['requests'] -= missing
+                r.legacy.state_write(job / 'state.json', ledger.state)
+                for attempt in ledger.state['attempts']:
+                    if attempt not in ledger.records:
+                        record = r.legacy.load(job / attempt)
+                        if r.legacy.usage_known(record['usage']):
+                            ledger.records[attempt] = record
+                metrics, wait = r.metrics_for(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000)
+                result = r.submission.fallback(item['case'], item['pages'], metrics)
+            ledger.save_case(name, {'prediction': result, 'error': error, 'diagnostics': diagnostics, 'api_wait_ms': wait, 'sdk': sdk})
+        try:
             records = [ledger.records[r.legacy.result_name(model, i).replace('.json', '-case.json')] for i in range(len(rows))]
             expected = b''.join(r.legacy.encode(record['prediction']) + b'\n' for record in records)
             if output_path.exists() and output_path.read_bytes() != expected:
