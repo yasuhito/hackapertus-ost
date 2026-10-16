@@ -45,7 +45,7 @@ def load_jsonl(path):
 def prepare(core, bundle):
     engine = core.legacy.engine()
     cases = load_jsonl(bundle / 'cases.jsonl')
-    frozen = []
+    frozen, oversize = [], []
     for case in cases:
         if 'booklet' in case:
             case = {**case, 'booklet': {**case['booklet'], 'path': str((bundle / 'booklets' / Path(case['booklet']['path']).name).resolve())}}
@@ -53,7 +53,10 @@ def prepare(core, bundle):
         messages[0]['content'] += '\n\n' + core.legacy.PROTOCOL_REMINDER
         size = len(core.legacy.encode(messages))
         if size > INPUT_BYTES:
-            raise core.Stop(f'CONTEXT_BYTE_LIMIT {case["id"]} {size}')
+            # The physical ledger refuses such a request, so production would
+            # deliver the neutral fallback for this case. Record it as such.
+            oversize.append({'case': case, 'pages': pages, 'bytes': size})
+            continue
         frozen.append({'case': case, 'pages': pages, 'messages': messages, 'messages_sha256': core.legacy.digest(core.legacy.encode(messages))})
     sources = {str(p.relative_to(REPO)): core.legacy.digest(p.read_bytes()) for p in (REPO / 'track_2a/src').glob('*.py')}
     base = {'version': 2, 'protocol_reminder': core.legacy.PROTOCOL_REMINDER, 'native_schema': 'offline proposal only, not sent',
@@ -61,9 +64,9 @@ def prepare(core, bundle):
             'request_limit': REQUEST_LIMIT, 'token_budget': TOKEN_BUDGET, 'request_token_reserve': core.RESERVE,
             'output_limit': 256, 'temperature': 0, 'selection_strategy': 'vote_pages', 'sources': sources, 'frozen': frozen}
     core.legacy.prepare = lambda: base
-    manifest = core.prepare('C', [c['id'] for c in cases])
+    manifest = core.prepare('C', [i['case']['id'] for i in frozen])
     manifest.update(request_limit=REQUEST_LIMIT, token_budget=TOKEN_BUDGET)
-    return manifest
+    return manifest, oversize
 
 
 def run(core, transport, job, manifest):
@@ -85,28 +88,37 @@ def run(core, transport, job, manifest):
     return summary
 
 
-def grade(job, bundle):
+def grade(job, bundle, core, oversize):
     report = job / 'official.json'
+    predictions = job / '70b-canonical.jsonl'
+    if oversize:
+        rows = predictions.read_text(encoding='utf-8')
+        zero = {'input_tokens': 0, 'output_tokens': 0, 'inference_time_ms': 0}
+        extra = [core.submission.fallback(o['case'], o['pages'], zero) for o in oversize]
+        predictions = job / 'canonical-with-oversize-fallbacks.jsonl'
+        predictions.write_text(rows + ''.join(json.dumps(e, ensure_ascii=False) + '\n' for e in extra), encoding='utf-8')
     command = [SCORER_PYTHON, '-B', str(GRADER), '--official-repo', str(OFFICIAL), '--python', SCORER_PYTHON,
-               '--predictions', str(job / '70b-canonical.jsonl'), '--expected', str(bundle / 'expected.jsonl'),
+               '--predictions', str(predictions), '--expected', str(bundle / 'expected.jsonl'),
                '--cases', str(bundle / 'cases.jsonl'), '--output', str(report)]
     subprocess.run(command, check=True, capture_output=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
     return json.loads(report.read_text())
 
 
-def metrics(job, summary, official):
+def metrics(job, summary, official, oversize):
     cases = [json.loads(p.read_text()) for p in sorted(job.glob('70b-*-case.json'))]
+    oversize_count = len(oversize)
     physical = [json.loads(p.read_text()) for p in sorted((job / 'physical').glob('*-result.json'))]
     tokens = sum(r['usage']['total_tokens'] for r in physical if r.get('usage_known'))
     a = official['official_report']['tasks']['A']
     b = official['official_report']['tasks']['B']
     return {
-        'cases': len(cases), 'fallbacks': sum(not c['output_valid'] for c in cases),
+        'cases': len(cases) + oversize_count, 'fallbacks': sum(not c['output_valid'] for c in cases) + oversize_count,
+        'oversize_context_fallbacks': oversize_count,
         'f1a': a['macro_f1'], 'f1b': b['macro_f1'], 'hita': a.get('evidence_score'),
         'evidence': a.get('evidence'), 'q': official['classification_objective']['value'],
         'physical_requests': len(physical), 'physical_non_200': sum(r.get('http_status') != 200 for r in physical),
         'known_tokens': tokens, 'all_usage_known': all(r.get('usage_known') for r in physical),
-        'tokens_per_case': round(tokens / len(cases)) if cases else None,
+        'tokens_per_case': round(tokens / (len(cases) + oversize_count)) if cases else None,
         'mean_case_seconds': round(sum(c['case_wall_ms'] for c in cases) / len(cases) / 1000, 2) if cases else None,
         'wall_seconds': round(summary.get('wall_seconds', 0)),
         'diagnostics': summary['models'][next(iter(summary['models']))]['diagnostic_counts'],
@@ -121,9 +133,10 @@ def main():
     parser.add_argument('--prepare-only', action='store_true')
     args = parser.parse_args()
     core = module(RUNNER, 'format_runner')
-    manifest = prepare(core, args.bundle)
-    sizes = [len(core.legacy.encode(i['messages'])) for i in manifest['frozen']]
-    print(json.dumps({'prepared_cases': len(manifest['frozen']), 'context_bytes_max': max(sizes), 'context_bytes_mean': round(sum(sizes) / len(sizes)),
+    manifest, oversize = prepare(core, args.bundle)
+    sizes = [len(core.legacy.encode(i['messages'])) for i in manifest['frozen']] + [o['bytes'] for o in oversize]
+    print(json.dumps({'prepared_cases': len(manifest['frozen']), 'oversize_context_fallbacks': [o['case']['id'] for o in oversize],
+                      'context_bytes_max': max(sizes), 'context_bytes_mean': round(sum(sizes) / len(sizes)),
                       'manifest_sha256': core.legacy.digest(core.legacy.encode(manifest))}), flush=True)
     if args.prepare_only:
         return
@@ -133,7 +146,7 @@ def main():
     summary = run(core, transport, args.job, manifest)
     result = {'job': str(args.job), 'status': summary['status'], 'requests': summary['generation_requests']}
     if args.grade:
-        result['metrics'] = metrics(args.job, summary, grade(args.job, args.bundle))
+        result['metrics'] = metrics(args.job, summary, grade(args.job, args.bundle, core, oversize), oversize)
     (args.job / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
     print(json.dumps(result, ensure_ascii=False))
 
