@@ -42,14 +42,15 @@ function wireMessages(context: any) {
 export async function runSdk(input: any, bridge: (kind: string, data: any) => Promise<any>) {
   if (!MODELS.includes(input.model)) throw new Error('MODEL_REFUSED');
   const strategy = input.strategy ?? 'B';
+  const single = strategy === 'S' || strategy === 'R';
   const childModel = input.child_model ?? input.model;
-  if (!(strategy === 'S' || strategy === 'B' && childModel === input.model || strategy === 'C' && input.model === MODELS[1] && childModel === MODELS[0])) throw new Error('ROLE_MODEL_REFUSED');
+  if (!(single || strategy === 'B' && childModel === input.model || strategy === 'C' && input.model === MODELS[1] && childModel === MODELS[0])) throw new Error('ROLE_MODEL_REFUSED');
   const counts = { parent: 0, child: 0 };
   const events: any[] = [];
   const ids = input.ids;
   const runtime = await sdk.ModelRuntime.create({ credentials: AuthStorage.inMemory(), modelsPath: null, modelsStore: new ai.InMemoryModelsStore(), refreshOnCreate: false, allowModelNetwork: false });
   async function sessionRun(role: 'parent' | 'child') {
-    if (strategy === 'S' && role !== 'parent') throw new Error('ROLE_MODEL_REFUSED');
+    if (single && role !== 'parent') throw new Error('ROLE_MODEL_REFUSED');
     let recommendation: any;
     const usage = zeroUsage();
     const provider = 'ost-stdio-' + role;
@@ -73,7 +74,7 @@ export async function runSdk(input: any, bridge: (kind: string, data: any) => Pr
                 .replace('\n\n<cwd>\n' + cwd + '\n</cwd>', '\n\n<cwd>\n/tmp/ost-private-child\n</cwd>');
             }
             let payload: any = { model: m.id, messages, temperature: 0, max_tokens: 256, stream: false, tools,
-              tool_choice: { type: 'function', function: { name: strategy !== 'S' && role === 'parent' && counts.parent === 0 ? 'subagent' : 'submit' } } };
+              tool_choice: { type: 'function', function: { name: !single && role === 'parent' && counts.parent === 0 ? 'subagent' : 'submit' } } };
             payload = await options.onPayload?.(payload, m) ?? payload;
             counts[role]++;
             const response = await bridge('request', { role, payload });
@@ -120,7 +121,7 @@ export async function runSdk(input: any, bridge: (kind: string, data: any) => Pr
       const result = await bridge(kind, { role, args });
       if (result.ok) recommendation = args;
       return result;
-    }, role === 'parent' && strategy !== 'S' ? () => sessionRun('child') : undefined);
+    }, role === 'parent' && !single ? () => sessionRun('child') : undefined);
     const factory = (pi: any) => {
       submitFactory(pi);
       for (const type of ['before_provider_request', 'after_provider_response', 'provider_stream_event']) pi.on(type, () => { events.push({ role, type, model: model.id }); });
@@ -134,11 +135,11 @@ export async function runSdk(input: any, bridge: (kind: string, data: any) => Pr
       getExtensions: () => ({ extensions: [extension], errors: [], runtime: extensionRuntime }),
       getSkills: () => ({ skills: [], diagnostics: [] }), getPrompts: () => ({ prompts: [], diagnostics: [] }),
       getThemes: () => ({ themes: [], diagnostics: [] }), getAgentsFiles: () => ({ agentsFiles: [] }),
-      getSystemPrompt: () => input.system + '\nUse only the declared tools. Do not return a text submission. ' + SUBMIT_PROTOCOL + ' ' + (role === 'child' || strategy === 'S' ? 'Submit a recommendation. Use compact JSON arguments, no blank lines.' : 'First call subagent with compact arguments {"mode":"source_only"}; no blank lines. Then submit your final decision.'),
+      getSystemPrompt: () => input.system + '\nUse only the declared tools. Do not return a text submission. ' + SUBMIT_PROTOCOL + ' ' + (role === 'child' || single ? 'Submit a recommendation. Use compact JSON arguments, no blank lines.' : 'First call subagent with compact arguments {"mode":"source_only"}; no blank lines. Then submit your final decision.'),
       getSystemPromptSource: () => undefined, getAppendSystemPrompt: () => [], getAppendSystemPromptSources: () => [], extendResources: () => {}, reload: async () => {},
     };
     const settingsManager = sdk.SettingsManager.inMemory({ defaultTools: [], compaction: { enabled: false }, retry: { enabled: false, maxRetries: 0, provider: { maxRetries: 0 } }, cacheWarming: 'off', enableInstallTelemetry: false, enableAnalytics: false });
-    const { session } = await sdk.createAgentSession({ cwd: '/tmp', agentDir: '/tmp/ost-no-discovery', modelRuntime: runtime, model, thinkingLevel: 'off', resourceLoader, tools: role === 'parent' && strategy !== 'S' ? ['submit', 'subagent'] : ['submit'], sessionManager: sdk.SessionManager.inMemory('/tmp'), settingsManager });
+    const { session } = await sdk.createAgentSession({ cwd: '/tmp', agentDir: '/tmp/ost-no-discovery', modelRuntime: runtime, model, thinkingLevel: 'off', resourceLoader, tools: role === 'parent' && !single ? ['submit', 'subagent'] : ['submit'], sessionManager: sdk.SessionManager.inMemory('/tmp'), settingsManager });
     const unsubscribe = session.subscribe((event: any) => {
       if (['agent_settled', 'tool_execution_start', 'tool_execution_end', 'auto_retry_start', 'auto_compaction_start'].includes(event.type)) events.push({ role, type: event.type, toolName: event.toolName, isError: event.isError });
     });

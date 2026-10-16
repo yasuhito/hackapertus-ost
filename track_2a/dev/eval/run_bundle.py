@@ -66,7 +66,9 @@ def prepare(core, bundle, strategy='C', model=None):
     core.legacy.prepare = lambda: base
     manifest = core.prepare(strategy, [i['case']['id'] for i in frozen])
     manifest.update(request_limit=REQUEST_LIMIT, token_budget=TOKEN_BUDGET)
-    if strategy != 'C':
+    if strategy == 'R':
+        manifest['models'] = [core.MODELS[1]]
+    elif strategy != 'C':
         manifest['models'] = [model]
     return manifest, oversize
 
@@ -133,12 +135,14 @@ def main():
     parser.add_argument('--job', type=Path, required=True)
     parser.add_argument('--grade', action='store_true')
     parser.add_argument('--prepare-only', action='store_true')
-    parser.add_argument('--strategy', choices=['A', 'C', 'S'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON; S: one model, submit tool')
+    parser.add_argument('--strategy', choices=['A', 'C', 'S', 'R'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON; S: one model, submit tool; R: input-routed model, submit tool')
     parser.add_argument('--model', choices=['8b', '70b'], default='70b')
     args = parser.parse_args()
     core = module(RUNNER, 'format_runner')
     model = core.MODELS[0] if args.model == '8b' else core.MODELS[1]
-    prefix = args.model
+    if args.strategy == 'R':
+        model = core.MODELS[1]
+    prefix = '70b' if args.strategy == 'R' else args.model
     manifest, oversize = prepare(core, args.bundle, args.strategy, model)
     sizes = [len(core.legacy.encode(i['messages'])) for i in manifest['frozen']] + [o['bytes'] for o in oversize]
     print(json.dumps({'prepared_cases': len(manifest['frozen']), 'oversize_context_fallbacks': [o['case']['id'] for o in oversize],

@@ -13,6 +13,8 @@ def execute(input_path, output_path, strategy, client_factory=None):
     if strategy not in r.LIMITS:
         raise r.Stop('ROLE_MODEL_REFUSED')
     selected = os.environ.get('LLM_MODEL') or os.environ.get('LLM_NAME') or r.MODELS[1 if strategy in ('C', 'S') else 0]
+    if strategy == 'R':
+        selected = r.MODELS[1]
     model = next((allowed for allowed in r.MODELS if selected.casefold() == allowed.casefold()), None)
     if model is None:
         raise r.Stop('MODEL_REFUSED')
@@ -36,7 +38,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
     manifest = {'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': request_limit, 'token_budget': request_limit * r.RESERVE, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
     if strategy == 'C':
         manifest.update(models=[model], role_models={'parent': r.MODELS[1], 'child': r.MODELS[0]})
-    if strategy == 'S':
+    if strategy in ('S', 'R'):
         manifest['models'] = [model]
     job = output_path.parent / 'tmp' / 'format-runtime'
     job.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -55,11 +57,12 @@ def execute(input_path, output_path, strategy, client_factory=None):
             name = r.legacy.result_name(model, index).replace('.json', '-case.json')
             if name in ledger.state['cases']:
                 continue
+            request_model = r.case_model(strategy, model, item['case'])
             started = time.monotonic()
             def post(role, number, payload):
                 if ledger.state['requests'] + ledger.state.get('uncertain_requests', 0) >= request_limit:
                     raise r.Stop('HARD_BUDGET_STOP_BEFORE_SEND')
-                return ledger.post(model, index, role, number, payload, deadline=started + r.CASE_SECONDS)
+                return ledger.post(request_model, index, role, number, payload, deadline=started + r.CASE_SECONDS)
             sdk = None
             diagnostics = []
             error = None
@@ -67,7 +70,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
                 if strategy == 'A':
                     args, diagnostics = r.run_a(item, model, post)
                 else:
-                    args, diagnostics, sdk = r.run_b(item, model, post, strategy=strategy)
+                    args, diagnostics, sdk = r.run_b(item, request_model, post, strategy=strategy)
                 metrics, wait = r.metrics_for(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000)
                 result = r.submission.assemble_tool(args, item['case'], item['pages'], metrics) if args is not None else r.submission.fallback(item['case'], item['pages'], metrics)
                 error = None if args is not None else 'NO_ACCEPTED_SUBMIT'
@@ -92,7 +95,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
                             ledger.records[attempt] = record
                 metrics, wait = r.metrics_for(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000)
                 result = r.submission.fallback(item['case'], item['pages'], metrics)
-            ledger.save_case(name, {'prediction': result, 'error': error, 'diagnostics': diagnostics, 'api_wait_ms': wait, 'sdk': sdk})
+            ledger.save_case(name, {'model': model, 'request_model': request_model, 'prediction': result, 'error': error, 'diagnostics': diagnostics, 'api_wait_ms': wait, 'sdk': sdk})
         try:
             records = [ledger.records[r.legacy.result_name(model, i).replace('.json', '-case.json')] for i in range(len(rows))]
             expected = b''.join(r.legacy.encode(record['prediction']) + b'\n' for record in records)
@@ -116,7 +119,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--pipeline', choices=['A', 'B', 'C', 'S'], default=os.environ.get('PIPELINE', 'A'))
+    parser.add_argument('--pipeline', choices=['A', 'B', 'C', 'S', 'R'], default=os.environ.get('PIPELINE', 'A'))
     args = parser.parse_args()
     r.legacy.c.protect()
     execute(args.input, args.output, args.pipeline)

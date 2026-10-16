@@ -29,23 +29,28 @@ legacy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(legacy)
 Stop = legacy.c.Stop
 MODELS = legacy.MODELS
-LIMITS = {'A': 216, 'B': 540, 'C': 270, 'S': 180}
+LIMITS = {'A': 216, 'B': 540, 'C': 270, 'S': 180, 'R': 180}
 TOKEN_BUDGET = 6_000_000
 RESERVE = 262400
 CASE_SECONDS = 300
 
 
-def fixed_role_model(strategy, case_owner_model, role):
-    """Only the approved same-model B or fixed 70B/8B C policy."""
+def case_model(strategy, nominal, case):
+    """Route from input structure only, never from labels or model output."""
+    return MODELS[0] if strategy == 'R' and 'reference' in case else nominal
+
+
+def fixed_role_model(strategy, case_owner_model, role, case=None):
+    """Enforce the approved role policy, with input-only routing for R."""
     if strategy not in LIMITS or role not in ('parent', 'child') or case_owner_model not in MODELS:
         raise Stop('ROLE_MODEL_REFUSED')
     if strategy == 'C':
         if case_owner_model != MODELS[1]:
             raise Stop('ROLE_MODEL_REFUSED')
         return MODELS[1] if role == 'parent' else MODELS[0]
-    if strategy in ('A', 'S') and role != 'parent':
+    if strategy in ('A', 'S', 'R') and role != 'parent':
         raise Stop('ROLE_MODEL_REFUSED')
-    return case_owner_model
+    return case_model(strategy, case_owner_model, case or {})
 
 
 def validate_role_models(manifest):
@@ -54,16 +59,18 @@ def validate_role_models(manifest):
         if manifest.get('models', [manifest.get('model')]) != [MODELS[1]] or manifest.get('role_models') != expected:
             raise Stop('ROLE_MODEL_REFUSED')
 
-    if manifest['strategy'] == 'S':
+    if manifest['strategy'] in ('S', 'R'):
         models = manifest.get('models')
         if not isinstance(models, list) or len(models) != 1 or models[0] not in MODELS or 'role_models' in manifest or manifest.get('model', models[0]) != models[0]:
+            raise Stop('ROLE_MODEL_REFUSED')
+        if manifest['strategy'] == 'R' and models != [MODELS[1]]:
             raise Stop('ROLE_MODEL_REFUSED')
 
 
 def schemas(ids, child=False, strategy=None):
     submit = {'type': 'function', 'function': {'name': 'submit', 'description': 'Select NLI label and exact supporting candidate IDs.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['label', 'candidate_ids'], 'properties': {'label': {'enum': [0, 1, 2], 'type': 'integer'}, 'candidate_ids': {'type': 'array', 'maxItems': 5, 'items': {'type': 'string', 'enum': ids}}}}}}
     delegate = {'type': 'function', 'function': {'name': 'subagent', 'description': 'One fixed source-only child recommendation.', 'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['mode'], 'properties': {'mode': {'type': 'string', 'enum': ['source_only']}}}}}
-    return [submit] if child or strategy == 'S' else [submit, delegate]
+    return [submit] if child or strategy in ('S', 'R') else [submit, delegate]
 
 
 class Transport:
@@ -150,10 +157,12 @@ def prepare(strategy, case_ids=None):
     manifest = legacy.prepare()
     manifest.update(version='format-1', strategy=strategy, request_limit=LIMITS[strategy], token_budget=TOKEN_BUDGET,
                     request_token_reserve=RESERVE, request_wall_seconds=60, socket_seconds=45, case_wall_seconds=CASE_SECONDS,
-                    parent_completion_limit=2 if strategy == 'A' else 3, child_completion_limit=0 if strategy in ('A', 'S') else 2,
+                    parent_completion_limit=2 if strategy == 'A' else 3, child_completion_limit=0 if strategy in ('A', 'S', 'R') else 2,
                     schema_repair_limit=1, native_schema='OpenAI tools only for B/C; no structured_output or json_schema' if strategy == 'C' else 'OpenAI tools only for B; no structured_output or json_schema', pi_version='1.1.0')
     if strategy == 'C':
         manifest.update(models=[MODELS[1]], role_models={'parent': MODELS[1], 'child': MODELS[0]})
+    if strategy == 'R':
+        manifest['models'] = [MODELS[1]]
     files = [REPO / 'track_2a/src/submission.py'] + [p for p in HERE.iterdir() if p.suffix in ('.py', '.ts', '.mjs', '.json') and p.is_file()]
     manifest['sources'].update({str(p.relative_to(REPO)): legacy.digest(p.read_bytes()) for p in files})
     for item in manifest['frozen']:
@@ -202,7 +211,11 @@ class Ledger:
         self.records[name] = result
 
     def post(self, model, index, role, number, payload, deadline=None):
-        actual_target = fixed_role_model(self.manifest['strategy'], model, role)
+        # R receives the routed target, but persists all records under its
+        # single nominal owner so filenames and metric grouping stay stable.
+        if self.manifest['strategy'] == 'R':
+            model = self.manifest['models'][0]
+        actual_target = fixed_role_model(self.manifest['strategy'], model, role, self.manifest['frozen'][index]['case'])
         if payload.get('model') != actual_target:
             raise Stop('ROLE_MODEL_REFUSED')
         name = legacy.result_name(model, index).replace('.json', f'-{role}-{number}.json')
@@ -331,7 +344,7 @@ def missing_support_args(args):
 def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strategy='B'):
     """Python owns the assembler and all requests. Node receives no credentials."""
     fixed_role_model(strategy, model, 'parent')
-    child_model = None if strategy == 'S' else fixed_role_model(strategy, model, 'child')
+    child_model = None if strategy in ('S', 'R') else fixed_role_model(strategy, model, 'child')
     with tempfile.TemporaryDirectory(prefix='ost-pi-', dir='/tmp') as home:
         node = shutil.which('node')
         if not node:
@@ -363,14 +376,14 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strate
                 message = submission.strict_json(line)
                 kind = message['kind']
                 if kind == 'done':
-                    if strategy != 'S' and not message['result']['counts']['child']:
+                    if strategy not in ('S', 'R') and not message['result']['counts']['child']:
                         diagnostics.append('NO_SUBAGENT_CALL')
                     return accepted, diagnostics, message['result']
                 if kind == 'fatal':
                     raise Stop('SDK_FATAL_ALL_STOP')
                 data = message['data']
                 role = data.get('role')
-                if role not in (('parent',) if strategy == 'S' else ('parent', 'child')):
+                if role not in (('parent',) if strategy in ('S', 'R') else ('parent', 'child')):
                     raise Stop('ROLE_REFUSED')
                 if kind == 'request':
                     payload = data['payload']
@@ -457,7 +470,7 @@ def run_b(item, model, post, seconds=CASE_SECONDS, isolation_guard=False, strate
 
 def enforce_tools(payload, ids, role, strategy=None):
     tools = payload.get('tools')
-    names = ['submit', 'subagent'] if role == 'parent' and strategy != 'S' else ['submit']
+    names = ['submit', 'subagent'] if role == 'parent' and strategy not in ('S', 'R') else ['submit']
     if not isinstance(tools, list) or any(not isinstance(t, dict) or not isinstance(t.get('function'), dict) or not isinstance(t['function'].get('name'), str) for t in tools) or sorted(t['function']['name'] for t in tools) != sorted(names):
         raise Stop('TOOLS_REFUSED')
     # Native HTTP declarations are a compatibility projection, not the stronger
@@ -499,17 +512,18 @@ def run_locked(job, manifest, client_factory):
         if name in ledger.state['cases']:
             continue
         item = manifest['frozen'][index]
+        request_model = case_model(manifest['strategy'], model, item['case'])
         started = time.monotonic()
-        post = lambda role, number, payload: ledger.post(model, index, role, number, payload, deadline=started + CASE_SECONDS)
+        post = lambda role, number, payload: ledger.post(request_model, index, role, number, payload, deadline=started + CASE_SECONDS)
         sdk_result = None
         if manifest['strategy'] == 'A':
             args, diagnostics = run_a(item, model, post)
         else:
-            args, diagnostics, sdk_result = run_b(item, model, post, strategy=manifest['strategy'])
+            args, diagnostics, sdk_result = run_b(item, request_model, post, strategy=manifest['strategy'])
         wall = (time.monotonic() - started) * 1000
         metrics, wait = metrics_for(ledger, model, index, wall)
         prediction = submission.assemble_tool(args, item['case'], item['pages'], metrics) if args is not None else submission.fallback(item['case'], item['pages'], metrics)
-        record = {'model': model, 'case_id': item['case']['id'], 'case_index': index, 'prediction': prediction, 'output_valid': args is not None, 'error': None if args is not None else 'NO_ACCEPTED_SUBMIT', 'diagnostics': diagnostics, 'api_wait_ms': wait, 'case_wall_ms': wall, 'sdk': sdk_result}
+        record = {'model': model, 'request_model': request_model, 'case_id': item['case']['id'], 'case_index': index, 'prediction': prediction, 'output_valid': args is not None, 'error': None if args is not None else 'NO_ACCEPTED_SUBMIT', 'diagnostics': diagnostics, 'api_wait_ms': wait, 'case_wall_ms': wall, 'sdk': sdk_result}
         ledger.save_case(name, record)
     return summarize(ledger)
 
@@ -541,7 +555,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--user-run', action='store_true')
-    parser.add_argument('--strategy', choices=['A', 'B', 'C'], required=True)
+    parser.add_argument('--strategy', choices=['A', 'B', 'C', 'R'], required=True)
     parser.add_argument('--repeat', type=int, choices=[1, 2], default=1)
     parser.add_argument('--job', type=Path)
     parser.add_argument('--case-ids-file', type=Path, help='Nonempty gold-free JSON list of frozen research input IDs')
