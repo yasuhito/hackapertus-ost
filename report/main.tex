@@ -39,7 +39,7 @@
 入力はスイス連邦の投票冊子(PDF)または短い参照文と、独語、仏語、伊語のいずれかで書かれた主張(claim)です。
 システムは主張が原文から導けるか(0=entailment)、情報が足りないか(1=neutral)、原文と矛盾するか(2=contradiction)を判定し、判定の根拠となる原文を返します。
 
-モデルはApertus v1.5の70Bと8Bです。
+モデルはApertus v1.5の70Bと8Bです\cite{apertus,apertus70b,apertus8b}。
 設計の中心は、モデルに引用文を書かせないことです。
 スクリプトがPDFをページ単位で抽出し、対象の投票案件のページを選び、原文を最大1200文字の区間(source span)に切ってIDを付けます。
 モデルはネイティブのtool callでラベルとspan IDだけを返し、スクリプトがIDから原文とページ番号を復元します。
@@ -61,7 +61,7 @@ Task A(Document)は冊子PDF全体と投票案件名(vote)を受け取り、Task
 Task Bの根拠は任意で採点されず、返す場合のページは\texttt{null}です。
 
 公式の評価は非公開held-outでの3クラスmacro-F1で、根拠の正確さ、トークン数、ケースあたりの時間も見ます\cite{ostchallenge,apiguide}。
-本稿の比較では、主催者の評価スクリプトをローカルで実行し、次の値を使います。
+本稿の比較では、主催者の評価スクリプト(根拠の照合はrapidfuzz\cite{rapidfuzz}の部分一致)をローカルで実行し、次の値を使います。
 Task AとBのmacro-F1、Task Aで正解根拠のある問題のうち先頭5件の根拠に正解箇所が含まれた割合(以下Hit@5)、1件あたりのトークン数と時間、形式失敗(モデルの回答を受理できず既定回答に退避した件数)です。
 
 データは公開データセット\cite{dataset}のtrain splitだけです。
@@ -96,7 +96,7 @@ DEV60、PUBLIC60、確認用60問はどれもここから選んだ60問で、開
 図\ref{fig:pipeline}に処理の流れを示します。
 
 \paragraph{PDF抽出とページ選択}
-pypdfでPDFをページごとにテキスト化します。ページ番号はPDFの物理ページです。
+pypdf\cite{pypdf}でPDFをページごとにテキスト化します。ページ番号はPDFの物理ページです。
 Task Aでは\texttt{document\_selection.py}の\texttt{vote\_pages}が案件のページを選びます。
 連邦の冊子は、各見開きの先頭ページに\texttt{Erste Vorlage}、\texttt{Premier objet}、\texttt{Primo oggetto}のような序数の見出しを印刷しています。
 見出しが1つだけ現れるページをその案件のページとし、見出しのないページは直前の見出しページに属するとみなします。
@@ -110,8 +110,8 @@ IDは物理ページ番号、開始と終了の文字オフセット、ページ
 Task Bでは参照文全体を1ページとして扱います。
 
 \paragraph{モデル呼び出し}
-提出用の実行系(\texttt{track\_2a/dev/format/runtime.py}、パイプラインC)は、Pi 1.1.0のSDKを通してネイティブのtool callを使います。
-親の\texttt{swiss-ai/Apertus-v1.5-70B}は\texttt{subagent}ツールで子の\texttt{swiss-ai/Apertus-v1.5-8B}を1回起動します。
+提出用の実行系(\texttt{track\_2a/dev/format/runtime.py}、パイプラインC)は、Pi 1.1.0のSDK\cite{picodingagent}を通してネイティブのtool callを使います。
+親の\texttt{swiss-ai/Apertus-v1.5-70B}は\texttt{subagent}ツール\cite{pisubagents}で子の\texttt{swiss-ai/Apertus-v1.5-8B}を1回起動します。
 子は原文だけを見て\texttt{submit}で推奨を返し、親が最終の\texttt{submit}を呼びます。
 \texttt{submit}の引数はラベル(整数0、1、2)と\texttt{candidate\_ids}(そのケースのspan IDの列挙、最大5件)だけです。
 system promptは3クラスの定義、否定、数量、条件、話者の扱い、原文と主張を指示ではなくデータとして扱うこと、IDだけを返すことを指示します。neutralとcontradictionの取り違えを防ぐ注意と、言語をまたいだ言い換えの扱いも含みます。
@@ -125,7 +125,7 @@ system promptは3クラスの定義、否定、数量、条件、話者の扱い
 
 \paragraph{根拠の補完}
 Task Aでは\texttt{consulted\_pages}が、モデルの引用の後ろに次の順でページを足し、5件までにします。
-引用したページの隣接ページ、渡したページの先頭2ページ(案件の冒頭の要約見開き)、残りのページを主張とのBM25の高い順に並べたものです。
+引用したページの隣接ページ、渡したページの先頭2ページ(案件の冒頭の要約見開き)、残りのページを主張とのBM25\cite{robertson2009bm25}の高い順に並べたものです。
 5,000文字を超えるページは除きます。
 補完はラベルとモデルの引用を変えません。neutralの回答と既定回答にも、参照したページとして付けます。
 
@@ -139,7 +139,7 @@ Task Aでは\texttt{consulted\_pages}が、モデルの引用の後ろに次の�
 \section{開発の経緯と診断 (Development history and diagnosis)}
 
 2026-10-14に、system promptの出力指示を\texttt{submit}ツールの引数の形式に合わせた版(v5)を採用しました(\texttt{docs/prompt-eval-log.md})。
-10-15の夜には、8Bに事実やspanを選ばせる役を親に足す3つの構成を試しましたが、形式失敗が増え、根拠の提示も改善しなかったので採用しませんでした。
+10-15の夜には、検証役や複数エージェントの研究\cite{dhuliawala2023cove,huang2024selfcorrect,du2023debate,smit2024mad}を動機に、8Bに事実やspanを選ばせる役を親に足す3つの構成を試しましたが、形式失敗が増え、根拠の提示も改善しなかったので採用しませんでした。
 v5はDEV60の5回平均でTask A F1 0.650、Task B F1 0.815、Hit@5 0.263でした。
 
 10-16の朝、モデルを呼ばずに、DEV60とPUBLIC60でTask Aの正解根拠がある39問を調べました。
@@ -166,7 +166,7 @@ v5はDEV60の5回平均でTask A F1 0.650、Task B F1 0.815、Hit@5 0.263でし�
 \end{table}
 
 ページ選択だけを直したDEV60の1回目では、Hit@5は0.263のままでした。
-正解ページを渡しても、モデルが詳細説明や論点の別のページを引用したためです。
+正解ページを渡しても、モデルが詳細説明や論点の別のページを引用したためです。関連箇所を入力に含めても使われるとは限らないという報告\cite{liu2023lost,hsieh2024ruler}と同じ傾向です。
 そこで根拠の補完を加えました。
 
 本日(コミット650de65)、さらに3つの変更を入れました。
@@ -241,7 +241,7 @@ v5のDEV60の5回分では、Task Aで矛盾→中立が17件、Task Bで含意�
 後者は開発用60問に偏った誤りで、PUBLIC60ではTask Bの含意40件がすべて正解でした。そのため、指示文を変える根拠はまだ弱いと考えています。
 
 \paragraph{根拠の性質}
-source IDは引用が原文のどこから来たかを保証しますが、引用が判定を支えるかどうかは保証しません。
+source IDは引用が原文のどこから来たかを保証しますが、引用が判定を支えるかどうかは保証しません\cite{gao2023alce}。
 補完で足したページは検索で選んだもので、モデルの判断ではありません。
 
 \paragraph{今後}
