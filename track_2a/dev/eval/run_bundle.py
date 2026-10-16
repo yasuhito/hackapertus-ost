@@ -148,13 +148,52 @@ def escalate(core, transport, job, bundle, manifest, prefix):
             'escalated_cases': len(ids), 'escalation_recovered': len(recovered), 'predictions': predictions}
 
 
-def metrics(job, summary, official, oversize, prefix='70b', escalation=None):
+def recheck(core, transport, job, manifest, prefix, escalation=None):
+    helper = module(REPO / 'track_2a/dev/format/neutral_recheck.py', 'neutral_recheck')
+    cases = [json.loads(p.read_text()) for p in sorted(job.glob(f'{prefix}-*-case.json'))]
+    items = {item['case']['id']: item for item in manifest['frozen']}
+    accepted = {case['case_id']: case for case in cases if case['output_valid']}
+    if escalation and escalation['job'] is not None:
+        second = json.loads((escalation['job'] / 'manifest.json').read_text())
+        second_items = {item['case']['id']: item for item in second['frozen']}
+        for case in escalation['cases']:
+            if case['output_valid']:
+                accepted[case['case_id']] = case
+                items[case['case_id']] = second_items[case['case_id']]
+    frozen = [helper.recheck_item(item, core.legacy) for cid, item in items.items()
+              if 'booklet' in item['case'] and cid in accepted and accepted[cid]['prediction']['label'] == 1]
+    checked_cases = []
+    summary = {'wall_seconds': 0, 'generation_requests': 0}
+    second_job = None
+    if frozen:
+        strategy = 'S' if manifest['strategy'] == 'A' else manifest['strategy']
+        for item in frozen:
+            item['schema_sha256'] = core.legacy.digest(core.legacy.encode(core.schemas(item['candidate_ids'], strategy=strategy)))
+        second_manifest = {**manifest, 'strategy': strategy, 'neutral_recheck': True, 'frozen': frozen,
+                           'selected_case_ids': [item['case']['id'] for item in frozen]}
+        second_job = job.with_name(job.name + '-recheck')
+        transport.ABSOLUTE_STOP = int(time.time()) + ARM_SECONDS + 600
+        summary = run(core, transport, second_job, second_manifest)
+        checked_cases = [json.loads(p.read_text()) for p in sorted(second_job.glob(f'{prefix}-*-case.json'))]
+    source = escalation['predictions'] if escalation else job / f'{prefix}-canonical.jsonl'
+    rows = load_jsonl(source)
+    flipped = {case['case_id']: case['prediction'] for case in checked_cases
+               if case['output_valid'] and case['prediction']['label'] == 2 and case['prediction'].get('evidence')}
+    predictions = job / 'canonical-rechecked.jsonl'
+    predictions.write_text(''.join(json.dumps(flipped.get(row['id'], row), ensure_ascii=False) + '\n' for row in rows), encoding='utf-8')
+    return {'job': second_job, 'cases': checked_cases, 'summary': summary,
+            'rechecked_cases': len(frozen), 'recheck_flipped': len(flipped), 'predictions': predictions}
+
+
+def metrics(job, summary, official, oversize, prefix='70b', escalation=None, recheck=None):
     cases = [json.loads(p.read_text()) for p in sorted(job.glob(f'{prefix}-*-case.json'))]
     oversize_count = len(oversize)
     physical = [json.loads(p.read_text()) for p in sorted((job / 'physical').glob('*-result.json'))]
     extra_cases = escalation['cases'] if escalation else []
     if escalation and escalation['job'] is not None:
         physical += [json.loads(p.read_text()) for p in sorted((escalation['job'] / 'physical').glob('*-result.json'))]
+    if recheck and recheck['job'] is not None:
+        physical += [json.loads(p.read_text()) for p in sorted((recheck['job'] / 'physical').glob('*-result.json'))]
     tokens = sum(r['usage']['total_tokens'] for r in physical if r.get('usage_known'))
     a = official['official_report']['tasks']['A']
     b = official['official_report']['tasks']['B']
@@ -168,8 +207,9 @@ def metrics(job, summary, official, oversize, prefix='70b', escalation=None):
         'tokens_per_case': round(tokens / (len(cases) + oversize_count)) if cases else None,
         'translation_tokens_cached': json.loads((job / 'manifest.json').read_text()).get('translation_tokens', 0),
         'mean_case_seconds': round(sum(c['case_wall_ms'] for c in cases) / len(cases) / 1000, 2) if cases else None,
-        'wall_seconds': round(summary.get('wall_seconds', 0) + (escalation['summary'].get('wall_seconds', 0) if escalation else 0)),
+        'wall_seconds': round(summary.get('wall_seconds', 0) + (escalation['summary'].get('wall_seconds', 0) if escalation else 0) + (recheck['summary'].get('wall_seconds', 0) if recheck else 0)),
         **({key: escalation[key] for key in ('escalated_cases', 'escalation_recovered')} if escalation else {}),
+        **({key: recheck[key] for key in ('rechecked_cases', 'recheck_flipped')} if recheck else {}),
         'diagnostics': summary['models'][next(iter(summary['models']))]['diagnostic_counts'],
     }
 
@@ -180,6 +220,7 @@ def main():
     parser.add_argument('--job', type=Path, required=True)
     parser.add_argument('--grade', action='store_true')
     parser.add_argument('--escalate', action='store_true', help='Retry booklet NO_ACCEPTED_SUBMIT cases with vote_pages in a separate job')
+    parser.add_argument('--recheck', action='store_true', help='Recheck accepted booklet neutrals in a separate job')
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--strategy', choices=['A', 'C', 'S', 'R'], default='C', help='C: 70B parent + 8B child tools; A: one model, text JSON; S: one model, submit tool; R: input-routed model, submit tool')
     parser.add_argument('--model', choices=['8b', '70b'], default='70b')
@@ -206,10 +247,14 @@ def main():
     if escalation:
         result.update({key: escalation[key] for key in ('escalated_cases', 'escalation_recovered')})
         result['requests'] += escalation['summary']['generation_requests']
+    checked = recheck(core, transport, args.job, manifest, prefix, escalation) if args.recheck else None
+    if checked:
+        result.update({key: checked[key] for key in ('rechecked_cases', 'recheck_flipped')})
+        result['requests'] += checked['summary']['generation_requests']
     if args.grade:
         official = grade(args.job, args.bundle, core, oversize, prefix,
-                         predictions=escalation['predictions'] if escalation else None)
-        result['metrics'] = metrics(args.job, summary, official, oversize, prefix, escalation)
+                         predictions=checked['predictions'] if checked else escalation['predictions'] if escalation else None)
+        result['metrics'] = metrics(args.job, summary, official, oversize, prefix, escalation, checked)
     (args.job / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
     print(json.dumps(result, ensure_ascii=False))
 

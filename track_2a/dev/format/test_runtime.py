@@ -409,3 +409,59 @@ def test_runtime_escalates_only_reduced_booklet_fallback(booklet_runtime, monkey
         monkeypatch.setenv('ESCALATE_ON_FALLBACK', '0')
         with pytest.raises(r.Stop, match='MANIFEST_CHANGED'):
             runtime.execute(source, output, 'S', lambda _: pytest.fail('changed escalation called client'))
+
+
+@pytest.mark.parametrize('mode', ['flip', 'neutral', 'empty', 'reference', 'disabled', 'error', 'escalated'])
+def test_runtime_neutral_recheck(booklet_runtime, monkeypatch, mode):
+    case, source, output, _ = booklet_runtime
+    monkeypatch.setenv('NEUTRAL_RECHECK', '1')
+    monkeypatch.setenv('CONTEXT_SELECTION', 'claim_paragraphs')
+    case['claim']['language'] = 'de'
+    if mode == 'escalated':
+        monkeypatch.setenv('CLAIM_SPANS', '0')
+    if mode == 'disabled':
+        monkeypatch.delenv('NEUTRAL_RECHECK')
+    if mode == 'reference':
+        case.pop('booklet')
+        case['reference'] = {'text': 'Steuern sinken.'}
+    source.write_text(json.dumps(case) + '\n')
+    calls = []
+
+    class Fake:
+        def request(self, method, path, payload):
+            calls.append(payload)
+            checking = runtime.RECHECK_INSTRUCTION in payload['messages'][0]['content']
+            spans = json.loads(next(m for m in payload['messages'] if m['role'] == 'user')['content'])['source_spans']
+            if mode == 'escalated' and not checking and not any('2027' in span['text'] for span in spans):
+                return response(r.MODELS[0], content='no submission')
+            if checking and mode == 'error':
+                raise RuntimeError('private failure')
+            args = {'label': 1, 'candidate_ids': []}
+            if checking and mode in ('flip', 'empty', 'escalated'):
+                args = {'label': 2, 'candidate_ids': [spans[0]['span_id']] if mode != 'empty' else []}
+            return response(r.MODELS[0], calls=[tool('submit', args)])
+
+    runtime.execute(source, output, 'S', lambda _: Fake())
+    row = json.loads(output.read_text())
+    diagnostics = json.loads(output.with_suffix('.jsonl.diagnostics.jsonl').read_text())
+    assert row['label'] == (2 if mode in ('flip', 'escalated') else 1)
+    enabled = mode not in ('reference', 'disabled')
+    expected = 'RECHECKED_TO_CONTRADICTION' if mode in ('flip', 'escalated') else 'RECHECK_FAILED' if mode == 'error' else 'RECHECKED_NEUTRAL'
+    assert (expected in diagnostics['diagnostics']) == enabled
+    assert diagnostics['error'] is None
+    assert any(runtime.RECHECK_INSTRUCTION in c['messages'][0]['content'] for c in calls) == enabled
+    job = output.parent / 'tmp/format-runtime'
+    state = json.loads((job / 'state.json').read_text())
+    records = [json.loads((job / name).read_text()) for name in state['attempts']]
+    assert any(record['number'] >= 20 for record in records) == (enabled and mode != 'error')
+    assert row['metrics']['input_tokens'] == 80 * len(records)
+    assert row['metrics']['output_tokens'] == 20 * len(records)
+    manifest = json.loads((job / 'manifest.json').read_text())
+    assert manifest['neutral_recheck'] == (mode != 'disabled')
+    if enabled:
+        assert manifest['request_limit'] == 13
+        assert calls[-2]['messages'][1]['content'] == calls[-1]['messages'][1]['content']
+    if mode == 'escalated':
+        assert 'ESCALATED' in diagnostics['diagnostics']
+        assert any(10 <= record['number'] < 20 for record in records)
+        assert calls[0]['messages'][1]['content'] != calls[-1]['messages'][1]['content']

@@ -7,6 +7,7 @@ from pathlib import Path
 import time
 
 import run_comparison as r
+from neutral_recheck import RECHECK_INSTRUCTION, recheck_item
 
 
 def translate_claim(job, case, target, client_factory):
@@ -58,6 +59,25 @@ def case_metrics(ledger, model, index, wall_ms, translation_usage):
     return metrics, wait
 
 
+def recover_ledger(ledger, job, error):
+    if ledger.fence.exists():
+        ledger.fence.unlink()
+    ledger.state['reserved_tokens'] = 0
+    if error != 'UNKNOWN_MODEL_USAGE_OR_RESPONSE_ALL_STOP':
+        ledger.state['blocked'] = False
+    # Preserve spent request slots without inventing usage records for
+    # transport failures. The shared ledger validates recorded counts.
+    missing = ledger.state['requests'] - len(ledger.state['attempts'])
+    ledger.state['uncertain_requests'] = ledger.state.get('uncertain_requests', 0) + missing
+    ledger.state['requests'] -= missing
+    r.legacy.state_write(job / 'state.json', ledger.state)
+    for attempt in ledger.state['attempts']:
+        if attempt not in ledger.records:
+            record = r.legacy.load(job / attempt)
+            if r.legacy.usage_known(record['usage']):
+                ledger.records[attempt] = record
+
+
 def execute(input_path, output_path, strategy, client_factory=None):
     if strategy not in r.LIMITS:
         raise r.Stop('ROLE_MODEL_REFUSED')
@@ -84,7 +104,8 @@ def execute(input_path, output_path, strategy, client_factory=None):
     job.mkdir(mode=0o700, parents=True, exist_ok=True)
     reduced = selection in ('claim_pages', 'claim_paragraphs')
     escalation = os.environ.get('ESCALATE_ON_FALLBACK', '1' if reduced else '0') == '1' and reduced
-    identity = {'context_selection': selection, 'claim_spans': claim_spans, 'escalation': escalation}
+    neutral_recheck = os.environ.get('NEUTRAL_RECHECK', '0') == '1'
+    identity = {'context_selection': selection, 'claim_spans': claim_spans, 'escalation': escalation, 'neutral_recheck': neutral_recheck}
     if (job / 'manifest.json').exists():
         previous = r.legacy.load(job / 'manifest.json')
         if any(previous.get(key) != value for key, value in identity.items()):
@@ -114,6 +135,7 @@ def execute(input_path, output_path, strategy, client_factory=None):
         translation_usages.append(translated['usage'])
         preparation.append((time.monotonic() - started) * 1000)
     request_limit = 5 * (len(rows) + sum(escalation and 'booklet' in case for case in rows))
+    request_limit += 3 * sum(neutral_recheck and 'booklet' in case for case in rows)
     manifest = {**identity, 'version': 'format-runtime-1', 'strategy': strategy, 'model': model, 'input_sha256': r.legacy.digest(blob), 'frozen': frozen, 'request_limit': request_limit, 'token_budget': request_limit * r.RESERVE, 'sources': {p.name: r.legacy.digest(p.read_bytes()) for p in [p for p in r.HERE.iterdir() if p.is_file() and p.suffix in ('.py', '.ts', '.mjs', '.json')] + [r.REPO / 'track_2a/src/submission.py']}}
     if strategy == 'C':
         manifest.update(models=[model], role_models={'parent': r.MODELS[1], 'child': r.MODELS[0]})
@@ -160,28 +182,31 @@ def execute(input_path, output_path, strategy, client_factory=None):
                     diagnostics += extra
                     if args is not None:
                         result_item = full
+                if neutral_recheck and 'booklet' in item['case'] and args is not None and args['label'] == 1:
+                    checked = recheck_item(result_item, r.legacy)
+                    number_offset = 20
+                    deadline = time.monotonic() + r.CASE_SECONDS
+                    try:
+                        # Always use the submit-tool protocol, including for text strategy A.
+                        check_strategy = 'S' if strategy == 'A' else strategy
+                        checked_args, extra, checked_sdk = r.run_b(checked, request_model, post, strategy=check_strategy)
+                        diagnostics += extra
+                        if checked_args is not None and checked_args['label'] == 2 and checked_args['candidate_ids']:
+                            args, result_item, sdk = checked_args, checked, checked_sdk
+                            diagnostics.append('RECHECKED_TO_CONTRADICTION')
+                        else:
+                            diagnostics.append('RECHECKED_NEUTRAL')
+                    except Exception as exc:
+                        diagnostics.append('RECHECK_FAILED')
+                        failure = str(exc) if isinstance(exc, r.Stop) else 'CASE_FAILED'
+                        recover_ledger(ledger, job, failure)
                 metrics, wait = case_metrics(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000, translation_usages[index])
                 result = r.submission.assemble_tool(args, result_item['case'], result_item['pages'], metrics) if args is not None else r.submission.fallback(item['case'], item['pages'], metrics)
                 error = None if args is not None else 'NO_ACCEPTED_SUBMIT'
             except Exception as exc:
                 error = str(exc) if isinstance(exc, r.Stop) else 'CASE_FAILED'
                 diagnostics.append(error)
-                if ledger.fence.exists():
-                    ledger.fence.unlink()
-                ledger.state['reserved_tokens'] = 0
-                if error != 'UNKNOWN_MODEL_USAGE_OR_RESPONSE_ALL_STOP':
-                    ledger.state['blocked'] = False
-                # Preserve spent request slots without inventing usage records for
-                # transport failures. The shared ledger validates recorded counts.
-                missing = ledger.state['requests'] - len(ledger.state['attempts'])
-                ledger.state['uncertain_requests'] = ledger.state.get('uncertain_requests', 0) + missing
-                ledger.state['requests'] -= missing
-                r.legacy.state_write(job / 'state.json', ledger.state)
-                for attempt in ledger.state['attempts']:
-                    if attempt not in ledger.records:
-                        record = r.legacy.load(job / attempt)
-                        if r.legacy.usage_known(record['usage']):
-                            ledger.records[attempt] = record
+                recover_ledger(ledger, job, error)
                 metrics, wait = case_metrics(ledger, model, index, preparation[index] + (time.monotonic() - started) * 1000, translation_usages[index])
                 result = r.submission.fallback(item['case'], item['pages'], metrics)
             ledger.save_case(name, {'model': model, 'request_model': request_model, 'prediction': result, 'error': error, 'diagnostics': diagnostics, 'api_wait_ms': wait, 'sdk': sdk})
